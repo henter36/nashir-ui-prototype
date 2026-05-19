@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import {
-  Eye,
-  ImageIcon,
-  Megaphone,
-  MonitorSmartphone,
-  Smartphone,
-  Sparkles,
-} from "lucide-react";
+import { Eye, ImageIcon, Megaphone, MonitorSmartphone, Smartphone, Sparkles } from "lucide-react";
+
 const platforms = ["Instagram", "TikTok", "Snapchat", "WhatsApp", "Email", "Ad Preview"];
 
 export default function LivePreviewPage() {
