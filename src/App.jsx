@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Settings,
+  Shield,
   Store,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ import StoreSetupPage from "./pages/StoreSetupPage.jsx";
 import CampaignWizardPage from "./pages/CampaignWizardPage.jsx";
 import ContentStudioPage from "./pages/ContentStudioPage.jsx";
 import ReviewPage from "./pages/ReviewPage.jsx";
+import SystemAdminPage from "./pages/SystemAdminPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import "./styles.css";
 
@@ -72,6 +74,12 @@ export default function App() {
         enabled: true,
       },
       {
+        id: "systemAdmin",
+        label: "إدارة النظام",
+        icon: Shield,
+        enabled: true,
+      },
+      {
         id: "campaigns",
         label: "الحملات",
         icon: Megaphone,
@@ -119,6 +127,9 @@ export default function App() {
   }
   if (activeScreen === "settings") {
     pageContent = <SettingsPage />;
+  }
+  if (activeScreen === "systemAdmin") {
+    pageContent = <SystemAdminPage />;
   }
   if (!pageContent) {
     pageContent = (
