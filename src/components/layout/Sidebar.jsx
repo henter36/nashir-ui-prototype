@@ -27,7 +27,7 @@ const groups = [
   },
   {
     title: "الإدارة",
-    ids: ["systemAdmin", "secrets", "modelRouting", "settings"],
+    ids: ["systemAdmin", "secrets", "modelRouting", "workflowRuns", "settings"],
   },
 ];
 

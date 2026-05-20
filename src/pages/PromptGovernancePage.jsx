@@ -1,0 +1,25 @@
+import React, { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, EyeOff, FileText, RefreshCw, ShieldCheck, Wand2 } from "lucide-react";
+
+const prompts = [
+  { id:"pg1", name:"Ad Copy Internal Prompt", task:"ad_copy_generation", version:"v1.4", status:"active", owner:"System Admin", visibleToCustomer:false, review:"required" },
+  { id:"pg2", name:"Image Direction Prompt", task:"image_generation", version:"v0.9", status:"testing", owner:"Creative Admin", visibleToCustomer:false, review:"required" },
+  { id:"pg3", name:"Risk Review Prompt", task:"risk_review", version:"v2.1", status:"active", owner:"Governance", visibleToCustomer:false, review:"always" },
+];
+
+const rules = [
+  "لا تعرض المطالبة الداخلية للمستخدم أو العميل.",
+  "اعرض للعميل شرحًا عامًا فقط للسيناريو أو الاتجاه الإبداعي.",
+  "كل نسخة prompt يجب أن تحمل version وowner وtask.",
+  "أي prompt يستخدم ادعاءات تسويقية يجب أن يمر عبر risk_review.",
+];
+
+export default function PromptGovernancePage(){
+  const [selectedId,setSelectedId]=useState(prompts[0].id);
+  const selected=prompts.find(p=>p.id===selectedId)||prompts[0];
+  const stats=useMemo(()=>({total:prompts.length,active:prompts.filter(p=>p.status==="active").length,hidden:prompts.filter(p=>!p.visibleToCustomer).length}),[]);
+  return <main className="page" dir="rtl"><style>{styles}</style><section className="title"><div><div className="eyebrow"><EyeOff size={15}/> Prompt / Output Governance</div><h1>حوكمة المطالبات والمخرجات</h1><p>صفحة لمدير النظام فقط. لا تعرض المطالبات للعميل، بل تدير نسخة النظام الداخلية وما يظهر للعميل كشرح عام.</p></div></section><section className="stats"><Stat title="Prompts" value={stats.total}/><Stat title="نشطة" value={stats.active}/><Stat title="مخفية عن العميل" value={stats.hidden}/></section><section className="layout"><article className="card"><h2>سجل المطالبات الداخلية</h2><div className="list">{prompts.map(p=><button key={p.id} className={selectedId===p.id?"selected":""} onClick={()=>setSelectedId(p.id)}><div><strong>{p.name}</strong><span>{p.task} · {p.version}</span></div><Status value={p.status}/></button>)}</div></article><aside className="card"><div className="big"><Wand2 size={24}/></div><h2>{selected.name}</h2><p>{selected.task}</p><Info label="الإصدار" value={selected.version}/><Info label="المالك" value={selected.owner}/><Info label="ظاهر للعميل؟" value={selected.visibleToCustomer?"نعم":"لا"}/><Info label="المراجعة" value={selected.review}/><h3>قواعد الحوكمة</h3>{rules.map(r=><div className="rule" key={r}><ShieldCheck size={15}/>{r}</div>)}<div className="warn"><AlertTriangle size={16}/> أي تعديل حقيقي على المطالبات يجب أن يسجل في Audit Log ولا يُتاح للتاجر.</div></aside></section></main>}
+function Status({value}){const tone=value==="active"?"green":"amber";return <span className={`status ${tone}`}>{value==="active"?"نشط":"تجريبي"}</span>}
+function Stat({title,value}){return <article className="stat"><span>{title}</span><strong>{value}</strong></article>}
+function Info({label,value}){return <div className="info"><span>{label}</span><strong>{value}</strong></div>}
+const styles=`.page{min-height:calc(100vh - 80px);padding:24px;background:#f7f8f4;color:#1f241d;font-family:Inter,"Segoe UI",Tahoma,Arial,sans-serif}.title,.stat,.card{background:#fff;border:1px solid #e4e7df;border-radius:24px;box-shadow:0 8px 26px rgba(24,38,18,.035)}.title{padding:20px;margin-bottom:16px}.eyebrow{width:fit-content;min-height:30px;padding:0 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:#176b2c;background:#eef7e9;font-size:12px;font-weight:900;margin-bottom:10px}.title h1{margin:0;font-size:34px}.title p{color:#6f746b;line-height:1.8}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}.stat{padding:16px}.stat span{color:#6f746b;font-size:13px;font-weight:900}.stat strong{display:block;margin-top:8px;font-size:30px}.layout{display:grid;grid-template-columns:minmax(0,1fr)360px;gap:16px}.card{padding:18px}.list{display:grid;gap:10px}.list button{border:1px solid #e4e7df;background:#fff;border-radius:18px;padding:13px;display:flex;justify-content:space-between;gap:12px;text-align:right}.list button.selected{border-color:#176b2c;background:#eef7e9}.list strong,.list span{display:block}.list span,.card p{color:#6f746b}.status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900}.green{background:#f0fdf4;color:#166534}.amber{background:#fffbeb;color:#92400e}.big{width:54px;height:54px;border-radius:18px;background:#176b2c;color:#fff;display:grid;place-items:center}.info{min-height:42px;border-bottom:1px solid #e4e7df;display:flex;justify-content:space-between;align-items:center}.info span{color:#6f746b;font-size:12px;font-weight:900}.rule{margin-top:8px;border:1px solid #e4e7df;background:#f7f8f4;border-radius:14px;padding:10px;display:flex;gap:7px;font-size:12px;font-weight:800;color:#176b2c}.warn{margin-top:14px;border:1px solid #fde68a;background:#fff7e6;color:#92400e;border-radius:18px;padding:13px;display:flex;gap:8px;line-height:1.8;font-size:12px;font-weight:800}@media(max-width:900px){.stats,.layout{grid-template-columns:1fr}}`;

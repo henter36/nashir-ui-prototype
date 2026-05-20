@@ -3,6 +3,8 @@ import {
   BarChart3,
   CalendarDays,
   CheckCircle2,
+  Database,
+  DollarSign,
   FileCheck2,
   FolderOpen,
   KeyRound,
@@ -15,6 +17,7 @@ import {
   Sparkles,
   Store,
   Users,
+  Workflow,
   Wand2,
 } from "lucide-react";
 
@@ -40,6 +43,11 @@ import ReviewPage from "./pages/ReviewPage.jsx";
 import SystemAdminPage from "./pages/SystemAdminPage.jsx";
 import SecretsAndKeysPage from "./pages/SecretsAndKeysPage.jsx";
 import ModelRoutingPage from "./pages/ModelRoutingPage.jsx";
+import ProductCatalogPage from "./pages/ProductCatalogPage.jsx";
+import DataSourcesHubPage from "./pages/DataSourcesHubPage.jsx";
+import PromptGovernancePage from "./pages/PromptGovernancePage.jsx";
+import WorkflowRunsPage from "./pages/WorkflowRunsPage.jsx";
+import CostMonitorPage from "./pages/CostMonitorPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import "./styles.css";
 
@@ -82,29 +90,34 @@ function PlaceholderPage({ title, description }) {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState("storeSetup");
+
   const screens = useMemo(
     () => [
-      { id: "onboarding", label: "التهيئة الأولى", icon: Sparkles, enabled: true },
       { id: "dashboard", label: "لوحة التحكم", icon: LayoutDashboard, enabled: true },
       { id: "storeSetup", label: "إعداد المتجر", icon: Store, enabled: true },
+      { id: "productCatalog", label: "كتالوج المنتجات", icon: Store, enabled: true },
+      { id: "dataSourcesHub", label: "مركز المصادر البياناتية", icon: Database, enabled: true },
+      { id: "assetLibrary", label: "مكتبة الأصول", icon: FolderOpen, enabled: true },
       { id: "campaignIntake", label: "إنشاء حملة", icon: Megaphone, enabled: true },
       { id: "dualGuidedIntake", label: "الإدخال الذكي", icon: Wand2, enabled: true },
       { id: "campaignsList", label: "قائمة الحملات", icon: Megaphone, enabled: true },
       { id: "campaignDetail", label: "تفاصيل الحملة", icon: CheckCircle2, enabled: true },
-      { id: "templateEngine", label: "محرك القوالب", icon: Wand2, enabled: true },
-      { id: "assetLibrary", label: "مكتبة الأصول", icon: FolderOpen, enabled: true },
-      { id: "livePreview", label: "المعاينة الحية", icon: MonitorSmartphone, enabled: true },
-      { id: "multiPlatform", label: "متعدد القنوات", icon: Layers, enabled: true },
-      { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
-      { id: "analytics", label: "التحليلات", icon: BarChart3, enabled: true },
-      { id: "smartAnalytics", label: "التحليلات الذكية", icon: Sparkles, enabled: true },
-      { id: "teamCollaboration", label: "تعاون الفريق", icon: Users, enabled: true },
       { id: "content", label: "المحتوى", icon: FileCheck2, enabled: true },
       { id: "review", label: "المراجعة", icon: CheckCircle2, enabled: true },
+      { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
+      { id: "workflowRuns", label: "تشغيلات النظام", icon: Workflow, enabled: true },
+      { id: "analytics", label: "التحليلات", icon: BarChart3, enabled: true },
+      { id: "smartAnalytics", label: "التحليلات الذكية", icon: Sparkles, enabled: true },
+      { id: "templateEngine", label: "محرك القوالب", icon: Wand2, enabled: true },
+      { id: "livePreview", label: "المعاينة الحية", icon: MonitorSmartphone, enabled: true },
+      { id: "multiPlatform", label: "متعدد القنوات", icon: Layers, enabled: true },
+      { id: "teamCollaboration", label: "تعاون الفريق", icon: Users, enabled: true },
       { id: "campaigns", label: "معالج الحملات القديم", icon: Megaphone, enabled: true },
       { id: "systemAdmin", label: "إدارة النظام", icon: Shield, enabled: true },
       { id: "secrets", label: "الأسرار والمفاتيح", icon: KeyRound, enabled: true },
       { id: "modelRouting", label: "توجيه النماذج", icon: Wand2, enabled: true },
+      { id: "promptGovernance", label: "حوكمة المطالبات", icon: Wand2, enabled: true },
+      { id: "costMonitor", label: "مراقبة التكلفة", icon: DollarSign, enabled: true },
       { id: "settings", label: "الإعدادات", icon: Settings, enabled: true },
     ],
     []
@@ -130,6 +143,9 @@ export default function App() {
   }
 
   if (activeScreen === "storeSetup") pageContent = <StoreSetupPage />;
+  if (activeScreen === "productCatalog") pageContent = <ProductCatalogPage />;
+  if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
+  if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
   if (activeScreen === "campaignIntake") pageContent = <CampaignIntakePage />;
   if (activeScreen === "dualGuidedIntake") pageContent = <DualGuidedIntakePage />;
 
@@ -142,20 +158,22 @@ export default function App() {
   }
 
   if (activeScreen === "campaignDetail") pageContent = <CampaignDetailPage />;
-  if (activeScreen === "templateEngine") pageContent = <TemplateEnginePage />;
-  if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
-  if (activeScreen === "livePreview") pageContent = <LivePreviewPage />;
-  if (activeScreen === "multiPlatform") pageContent = <MultiPlatformPage />;
-  if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
-  if (activeScreen === "analytics") pageContent = <AnalyticsPage />;
-  if (activeScreen === "smartAnalytics") pageContent = <SmartAnalyticsPage />;
-  if (activeScreen === "teamCollaboration") pageContent = <TeamCollaborationPage />;
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
   if (activeScreen === "review") pageContent = <ReviewPage />;
+  if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
+  if (activeScreen === "workflowRuns") pageContent = <WorkflowRunsPage />;
+  if (activeScreen === "analytics") pageContent = <AnalyticsPage />;
+  if (activeScreen === "smartAnalytics") pageContent = <SmartAnalyticsPage />;
+  if (activeScreen === "templateEngine") pageContent = <TemplateEnginePage />;
+  if (activeScreen === "livePreview") pageContent = <LivePreviewPage />;
+  if (activeScreen === "multiPlatform") pageContent = <MultiPlatformPage />;
+  if (activeScreen === "teamCollaboration") pageContent = <TeamCollaborationPage />;
   if (activeScreen === "campaigns") pageContent = <CampaignWizardPage />;
   if (activeScreen === "systemAdmin") pageContent = <SystemAdminPage />;
   if (activeScreen === "secrets") pageContent = <SecretsAndKeysPage />;
   if (activeScreen === "modelRouting") pageContent = <ModelRoutingPage />;
+  if (activeScreen === "promptGovernance") pageContent = <PromptGovernancePage />;
+  if (activeScreen === "costMonitor") pageContent = <CostMonitorPage />;
   if (activeScreen === "settings") pageContent = <SettingsPage />;
 
   if (!pageContent) {
