@@ -27,16 +27,14 @@ import OnboardingFlowPage from "./pages/OnboardingFlowPage.jsx";
 import StoreSetupPage from "./pages/StoreSetupPage.jsx";
 import CampaignWizardPage from "./pages/CampaignWizardPage.jsx";
 import CampaignIntakePage from "./pages/CampaignIntakePage.jsx";
-import CampaignsListPage from "./pages/CampaignsListPage.jsx";
-import CampaignDetailPage from "./pages/CampaignDetailPage.jsx";
-import AnalyticsPage from "./pages/AnalyticsPage.jsx";
+import CampaignsUnifiedPage from "./pages/CampaignsUnifiedPage.jsx";
+import AnalyticsUnifiedPage from "./pages/AnalyticsUnifiedPage.jsx";
 import AssetLibraryPage from "./pages/AssetLibraryPage.jsx";
 import PublishingQueuePage from "./pages/PublishingQueuePage.jsx";
 import DualGuidedIntakePage from "./pages/DualGuidedIntakePage.jsx";
 import TemplateEnginePage from "./pages/TemplateEnginePage.jsx";
 import LivePreviewPage from "./pages/LivePreviewPage.jsx";
 import MultiPlatformPage from "./pages/MultiPlatformPage.jsx";
-import SmartAnalyticsPage from "./pages/SmartAnalyticsPage.jsx";
 import TeamCollaborationPage from "./pages/TeamCollaborationPage.jsx";
 import ContentStudioPage from "./pages/ContentStudioPage.jsx";
 import ReviewPage from "./pages/ReviewPage.jsx";
@@ -89,10 +87,11 @@ function PlaceholderPage({ title, description }) {
 }
 
 export default function App() {
-  const [activeScreen, setActiveScreen] = useState("storeSetup");
+  const [activeScreen, setActiveScreen] = useState("dashboard");
 
   const screens = useMemo(
     () => [
+      { id: "onboarding", label: "التهيئة الأولى", icon: Sparkles, enabled: true },
       { id: "dashboard", label: "لوحة التحكم", icon: LayoutDashboard, enabled: true },
       { id: "storeSetup", label: "إعداد المتجر", icon: Store, enabled: true },
       { id: "productCatalog", label: "كتالوج المنتجات", icon: Store, enabled: true },
@@ -100,8 +99,7 @@ export default function App() {
       { id: "assetLibrary", label: "مكتبة الأصول", icon: FolderOpen, enabled: true },
       { id: "campaignIntake", label: "إنشاء حملة", icon: Megaphone, enabled: true },
       { id: "dualGuidedIntake", label: "الإدخال الذكي", icon: Wand2, enabled: true },
-      { id: "campaignsList", label: "قائمة الحملات", icon: Megaphone, enabled: true },
-      { id: "campaignDetail", label: "تفاصيل الحملة", icon: CheckCircle2, enabled: true },
+      { id: "campaignsList", label: "الحملات", icon: Megaphone, enabled: true },
       { id: "content", label: "المحتوى", icon: FileCheck2, enabled: true },
       { id: "review", label: "المراجعة", icon: CheckCircle2, enabled: true },
       { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
@@ -151,19 +149,18 @@ export default function App() {
 
   if (activeScreen === "campaignsList") {
     pageContent = (
-      <CampaignsListPage
+      <CampaignsUnifiedPage
         onCreateCampaign={() => setActiveScreen("campaignIntake")}
       />
     );
   }
 
-  if (activeScreen === "campaignDetail") pageContent = <CampaignDetailPage />;
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
   if (activeScreen === "review") pageContent = <ReviewPage />;
   if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
   if (activeScreen === "workflowRuns") pageContent = <WorkflowRunsPage />;
-  if (activeScreen === "analytics") pageContent = <AnalyticsPage />;
-  if (activeScreen === "smartAnalytics") pageContent = <SmartAnalyticsPage />;
+  if (activeScreen === "analytics") pageContent = <AnalyticsUnifiedPage />;
+  if (activeScreen === "smartAnalytics") pageContent = <AnalyticsUnifiedPage />;
   if (activeScreen === "templateEngine") pageContent = <TemplateEnginePage />;
   if (activeScreen === "livePreview") pageContent = <LivePreviewPage />;
   if (activeScreen === "multiPlatform") pageContent = <MultiPlatformPage />;
