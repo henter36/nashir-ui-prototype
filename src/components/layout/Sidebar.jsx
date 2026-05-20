@@ -1,55 +1,109 @@
 import { Sparkles, HelpCircle } from "lucide-react";
 
-export default function Sidebar({ screens, activeScreen, setActiveScreen }) {
+const groups = [
+  {
+    title: "الرئيسية",
+    ids: ["onboarding", "dashboard", "storeSetup"],
+  },
+  {
+    title: "الحملات والمحتوى",
+    ids: [
+      "campaignIntake",
+      "dualGuidedIntake",
+      "campaignsList",
+      "campaignDetail",
+      "campaigns",
+      "content",
+      "review",
+    ],
+  },
+  {
+    title: "الأصول والنشر",
+    ids: ["assetLibrary", "livePreview", "multiPlatform", "publishingQueue"],
+  },
+  {
+    title: "التحليلات والتعاون",
+    ids: ["analytics", "smartAnalytics", "teamCollaboration"],
+  },
+  {
+    title: "الإدارة",
+    ids: ["systemAdmin", "secrets", "modelRouting", "settings"],
+  },
+];
+
+export default function Sidebar({ screens = [], activeScreen, setActiveScreen }) {
+  const screenMap = new Map(screens.map((screen) => [screen.id, screen]));
+
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">
-          <Sparkles size={22} />
+      <div className="sidebar-inner">
+        <div className="brand">
+          <div className="brand-mark">
+            <Sparkles size={22} />
+          </div>
+
+          <div>
+            <div className="brand-title">Marketing OS</div>
+            <div className="brand-subtitle">ناشر · Marketing Workspace</div>
+          </div>
         </div>
-        <div>
-          <div className="brand-title">Marketing OS</div>
-          <div className="brand-subtitle">ناشر · Marketing Workspace</div>
-        </div>
-      </div>
 
-      <nav className="sidebar-nav">
-        {screens.map((screen) => {
-          const Icon = screen.icon;
-          const isActive = activeScreen === screen.id;
+        <nav className="sidebar-nav">
+          {groups.map((group) => {
+            const groupScreens = group.ids
+              .map((id) => screenMap.get(id))
+              .filter(Boolean);
 
-          return (
-            <button
-              key={screen.id}
-              type="button"
-              disabled={!screen.enabled}
-              onClick={() => screen.enabled && setActiveScreen(screen.id)}
-              className={[
-                "sidebar-item",
-                isActive ? "active" : "",
-                !screen.enabled ? "disabled" : "",
-              ].join(" ")}
-            >
-              <Icon size={19} />
-              <span>{screen.label}</span>
-              {!screen.enabled && <em>لاحقًا</em>}
-            </button>
-          );
-        })}
-      </nav>
+            if (!groupScreens.length) return null;
 
-      <div className="sidebar-help">
-        <div className="help-row">
-          <HelpCircle size={18} />
-          <span>مركز المساعدة</span>
-        </div>
-      </div>
+            return (
+              <div key={group.title} className="sidebar-group">
+                <div className="sidebar-group-title">{group.title}</div>
 
-      <div className="plan-card">
-        <div className="plan-title">باقة النمو</div>
-        <div className="plan-note">تنتهي في 24 يوم</div>
-        <div className="plan-progress">
-          <span />
+                <div className="sidebar-group-list">
+                  {groupScreens.map((screen) => {
+                    const Icon = screen.icon;
+                    const isActive = activeScreen === screen.id;
+
+                    return (
+                      <button
+                        key={screen.id}
+                        type="button"
+                        disabled={!screen.enabled}
+                        onClick={() => screen.enabled && setActiveScreen(screen.id)}
+                        className={[
+                          "sidebar-item",
+                          isActive ? "active" : "",
+                          !screen.enabled ? "disabled" : "",
+                        ].join(" ")}
+                      >
+                        <Icon size={18} />
+                        <span>{screen.label}</span>
+                        {!screen.enabled && <em>لاحقًا</em>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-help">
+            <div className="help-row">
+              <HelpCircle size={18} />
+              <span>مركز المساعدة</span>
+            </div>
+          </div>
+
+          <div className="plan-card">
+            <div className="plan-title">باقة النمو</div>
+            <div className="plan-note">تنتهي في 24 يوم</div>
+            <div className="plan-progress">
+              <span />
+            </div>
+          </div>
         </div>
       </div>
     </aside>

@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   FileCheck2,
   FolderOpen,
+  KeyRound,
   LayoutDashboard,
   Layers,
   Megaphone,
@@ -37,6 +38,8 @@ import TeamCollaborationPage from "./pages/TeamCollaborationPage.jsx";
 import ContentStudioPage from "./pages/ContentStudioPage.jsx";
 import ReviewPage from "./pages/ReviewPage.jsx";
 import SystemAdminPage from "./pages/SystemAdminPage.jsx";
+import SecretsAndKeysPage from "./pages/SecretsAndKeysPage.jsx";
+import ModelRoutingPage from "./pages/ModelRoutingPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import "./styles.css";
 
@@ -78,8 +81,7 @@ function PlaceholderPage({ title, description }) {
 }
 
 export default function App() {
-  const [activeScreen, setActiveScreen] = useState("dashboard");
-
+  const [activeScreen, setActiveScreen] = useState("storeSetup");
   const screens = useMemo(
     () => [
       { id: "onboarding", label: "التهيئة الأولى", icon: Sparkles, enabled: true },
@@ -101,6 +103,8 @@ export default function App() {
       { id: "review", label: "المراجعة", icon: CheckCircle2, enabled: true },
       { id: "campaigns", label: "معالج الحملات القديم", icon: Megaphone, enabled: true },
       { id: "systemAdmin", label: "إدارة النظام", icon: Shield, enabled: true },
+      { id: "secrets", label: "الأسرار والمفاتيح", icon: KeyRound, enabled: true },
+      { id: "modelRouting", label: "توجيه النماذج", icon: Wand2, enabled: true },
       { id: "settings", label: "الإعدادات", icon: Settings, enabled: true },
     ],
     []
@@ -108,12 +112,35 @@ export default function App() {
 
   let pageContent = null;
 
-  if (activeScreen === "onboarding") pageContent = <OnboardingFlowPage onFinish={() => setActiveScreen("dashboard")} />;
-  if (activeScreen === "dashboard") pageContent = <DashboardPage onCreateCampaign={() => setActiveScreen("campaignIntake")} />;
+  if (activeScreen === "onboarding") {
+    pageContent = <OnboardingFlowPage onFinish={() => setActiveScreen("dashboard")} />;
+  }
+
+  if (activeScreen === "dashboard") {
+    pageContent = (
+      <DashboardPage
+        onCreateCampaign={() => setActiveScreen("campaignIntake")}
+        onOpenStoreSetup={() => setActiveScreen("storeSetup")}
+        onOpenCampaigns={() => setActiveScreen("campaignsList")}
+        onOpenAssets={() => setActiveScreen("assetLibrary")}
+        onOpenAnalytics={() => setActiveScreen("analytics")}
+        onOpenReview={() => setActiveScreen("review")}
+      />
+    );
+  }
+
   if (activeScreen === "storeSetup") pageContent = <StoreSetupPage />;
   if (activeScreen === "campaignIntake") pageContent = <CampaignIntakePage />;
   if (activeScreen === "dualGuidedIntake") pageContent = <DualGuidedIntakePage />;
-  if (activeScreen === "campaignsList") pageContent = <CampaignsListPage onCreateCampaign={() => setActiveScreen("campaignIntake")} />;
+
+  if (activeScreen === "campaignsList") {
+    pageContent = (
+      <CampaignsListPage
+        onCreateCampaign={() => setActiveScreen("campaignIntake")}
+      />
+    );
+  }
+
   if (activeScreen === "campaignDetail") pageContent = <CampaignDetailPage />;
   if (activeScreen === "templateEngine") pageContent = <TemplateEnginePage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
@@ -127,6 +154,8 @@ export default function App() {
   if (activeScreen === "review") pageContent = <ReviewPage />;
   if (activeScreen === "campaigns") pageContent = <CampaignWizardPage />;
   if (activeScreen === "systemAdmin") pageContent = <SystemAdminPage />;
+  if (activeScreen === "secrets") pageContent = <SecretsAndKeysPage />;
+  if (activeScreen === "modelRouting") pageContent = <ModelRoutingPage />;
   if (activeScreen === "settings") pageContent = <SettingsPage />;
 
   if (!pageContent) {

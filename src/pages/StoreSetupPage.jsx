@@ -11,6 +11,8 @@ import {
   ImageIcon,
   Link2,
   Lock,
+  RefreshCw,
+  SearchCheck,
   Mail,
   MessageCircle,
   Package,
@@ -115,6 +117,29 @@ const defaultForm = {
   policyAnswers: {},
 };
 
+const productFlagOptions = [
+  "موسمي",
+  "مخزون كبير",
+  "جديد",
+  "الأكثر مبيعًا",
+  "مناسب للهدايا",
+  "يحتاج شرحًا",
+  "يصلح للفيديو",
+];
+
+const defaultProducts = [
+  {
+    id: 1,
+    name: defaultForm.productName,
+    url: defaultForm.productUrl,
+    price: defaultForm.price,
+    margin: defaultForm.margin,
+    description: defaultForm.productDescription,
+    flags: defaultForm.productFlags,
+  },
+];
+
+
 const policyItems = [
   "هل توجد عبارات ممنوعة؟",
   "هل توجد ادعاءات لا يجوز استخدامها؟",
@@ -146,13 +171,49 @@ const channelOptions = [
 export default function StoreSetupPage({ onCreateCampaign }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(defaultForm);
+  const [products, setProducts] = useState(defaultProducts);
+  const [productDraft, setProductDraft] = useState({
+    name: "",
+    url: "",
+    price: "",
+    margin: "",
+    description: "",
+    flags: [],
+    source: "manual",
+  });
+  const [editingProductId, setEditingProductId] = useState(null);
   const [connections, setConnections] = useState({});
   const [saved, setSaved] = useState(false);
+  const [dataSources, setDataSources] = useState({
+    website: {
+      status: "manual",
+      confidence: 35,
+      message: "رابط المتجر مُدخل يدويًا ولم يتم فحصه بعد.",
+    },
+    social: {},
+  });
+  const [collectedData, setCollectedData] = useState({
+    detectedPlatform: "",
+    detectedCategories: [],
+    detectedProducts: [],
+    brandKeywords: [],
+    detectedTone: [],
+    suggestedAudience: "",
+    suggestedChannels: [],
+    assetsNeedingReview: [],
+    warnings: [],
+  });
+  const [dynamicRecommendations, setDynamicRecommendations] = useState([
+    "اضغط فحص المتجر لتحويل رابط المتجر إلى منتجات وتصنيفات وتوصيات قابلة للاستخدام.",
+    "استخدم تحليل الحسابات العامة قبل الربط الرسمي لتقليل الإدخال اليدوي.",
+    "أي أصول يتم جمعها من المتجر أو الحسابات تحتاج مراجعة حقوق قبل استخدامها في الحملات.",
+  ]);
 
   const completion = useMemo(() => {
     const checks = [
       form.storeName,
       form.storeUrl,
+      dataSources.website.status === "scan_completed" || dataSources.website.status === "approved",
       form.activity,
       form.category,
       form.subCategories.length,
@@ -160,15 +221,15 @@ export default function StoreSetupPage({ onCreateCampaign }) {
       form.age,
       form.gender,
       form.location,
-      form.productName,
-      form.productFlags.length,
+      products.some((product) => product.name.trim()),
+      products.some((product) => product.flags.length),
       form.channels.length,
       Object.keys(form.policyAnswers).length >= 4,
     ];
 
     const filled = checks.filter(Boolean).length;
     return Math.round((filled / checks.length) * 100);
-  }, [form]);
+  }, [form, products, dataSources.website.status]);
 
   const connectedCount = Object.values(connections).filter(
     (status) => status === "connected" || status === "pending"
@@ -192,6 +253,145 @@ export default function StoreSetupPage({ onCreateCampaign }) {
     setSaved(false);
   };
 
+
+  const resetProductDraft = () => {
+    setProductDraft({
+      name: "",
+      url: "",
+      price: "",
+      margin: "",
+      description: "",
+      flags: [],
+      source: "manual",
+    });
+    setEditingProductId(null);
+  };
+
+  const updateProductDraft = (key, value) => {
+    setProductDraft((prev) => ({ ...prev, [key]: value }));
+    setSaved(false);
+  };
+
+  const toggleDraftProductFlag = (flag) => {
+    setProductDraft((prev) => {
+      const exists = prev.flags.includes(flag);
+      return {
+        ...prev,
+        flags: exists ? prev.flags.filter((item) => item !== flag) : [...prev.flags, flag],
+      };
+    });
+    setSaved(false);
+  };
+
+  const saveProductDraft = () => {
+    const cleanName = productDraft.name.trim();
+
+    if (!cleanName) {
+      setDynamicRecommendations((prev) => [
+        "أدخل اسم المنتج قبل إضافته إلى جدول المنتجات.",
+        ...prev.filter((item) => item !== "أدخل اسم المنتج قبل إضافته إلى جدول المنتجات."),
+      ]);
+      return;
+    }
+
+    if (editingProductId) {
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.id === editingProductId ? { ...productDraft, id: editingProductId } : product
+        )
+      );
+    } else {
+      setProducts((prev) => [
+        ...prev,
+        {
+          ...productDraft,
+          id: Date.now(),
+        },
+      ]);
+    }
+
+    resetProductDraft();
+    setSaved(false);
+  };
+
+  const startEditProduct = (product) => {
+    setEditingProductId(product.id);
+    setProductDraft({
+      name: product.name || "",
+      url: product.url || "",
+      price: product.price || "",
+      margin: product.margin || "",
+      description: product.description || "",
+      flags: product.flags || [],
+      source: product.source || "manual",
+    });
+  };
+
+  const removeProduct = (id) => {
+    setProducts((prev) =>
+      prev.length > 1 ? prev.filter((product) => product.id !== id) : prev
+    );
+
+    if (editingProductId === id) resetProductDraft();
+    setSaved(false);
+  };
+
+  const addDetectedProductToTable = (productName, index = 0) => {
+    const exists = products.some((item) => item.name === productName);
+
+    if (exists) return;
+
+    setProducts((prev) => [
+      ...prev,
+      {
+        id: Date.now() + index,
+        name: productName,
+        url: `${form.storeUrl.replace(/\/$/, "")}/products/${encodeURIComponent(productName)}`,
+        price: "",
+        margin: "",
+        description: "منتج مسحوب آليًا من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في الحملات.",
+        flags: ["مناسب للهدايا", "يصلح للفيديو"],
+        source: "store_crawl",
+      },
+    ]);
+  };
+
+  const pullProductsFromStore = () => {
+    if (!form.storeUrl.trim()) {
+      setDynamicRecommendations((prev) => [
+        "أدخل رابط المتجر أولًا حتى يمكن سحب المنتجات آليًا.",
+        ...prev.filter((item) => item !== "أدخل رابط المتجر أولًا حتى يمكن سحب المنتجات آليًا."),
+      ]);
+      return;
+    }
+
+    const sourceProducts = collectedData.detectedProducts.length
+      ? collectedData.detectedProducts
+      : ["عطر أرابيان أود", "باقة هدايا فاخرة", "عطر مناسبات"];
+
+    sourceProducts.forEach((productName, index) => addDetectedProductToTable(productName, index));
+
+    setCollectedData((prev) => ({
+      ...prev,
+      detectedProducts: prev.detectedProducts.length ? prev.detectedProducts : sourceProducts,
+    }));
+
+    setDataSources((prev) => ({
+      ...prev,
+      website: {
+        status: "scan_completed",
+        confidence: Math.max(prev.website.confidence || 0, 82),
+        message: "تم سحب منتجات من رابط المتجر وإضافتها إلى جدول المنتجات للمراجعة.",
+      },
+    }));
+
+    setDynamicRecommendations((prev) => [
+      "تم سحب المنتجات آليًا من رابط المتجر وإضافتها إلى جدول المنتجات.",
+      "راجع السعر والوصف وخصائص كل منتج قبل استخدامه في الحملات.",
+      ...prev.slice(0, 3),
+    ]);
+  };
+
   const updatePolicy = (title, value) => {
     setForm((prev) => ({
       ...prev,
@@ -203,10 +403,198 @@ export default function StoreSetupPage({ onCreateCampaign }) {
     setSaved(false);
   };
 
+  const scanStoreWebsite = () => {
+    if (!form.storeUrl.trim()) {
+      setDynamicRecommendations((prev) => [
+        "أدخل رابط المتجر أولًا حتى يمكن فحصه.",
+        ...prev.filter((item) => item !== "أدخل رابط المتجر أولًا حتى يمكن فحصه."),
+      ]);
+      return;
+    }
+
+    setDataSources((prev) => ({
+      ...prev,
+      website: {
+        status: "pending_scan",
+        confidence: 25,
+        message: "جاري فحص المتجر وجمع التصنيفات والمنتجات والأصول...",
+      },
+    }));
+
+    window.setTimeout(() => {
+      const result = {
+        detectedPlatform: form.storeUrl.includes("salla")
+          ? "Salla"
+          : form.storeUrl.includes("shopify")
+          ? "Shopify"
+          : "Custom / Unknown",
+        detectedCategories: ["عناية وجمال", "منتجات طبيعية", "هدايا"],
+        detectedProducts: ["سيروم عناية طبيعي", "باقة هدايا طبيعية", "كريم مرطب نيفيا"],
+        brandKeywords: ["طبيعي", "موثوق", "تجربة", "جودة"],
+        detectedTone: ["ودية", "موثوقة", "هادئة"],
+        suggestedAudience: "نساء 25–34 في الرياض والسعودية مهتمات بالعناية والجمال والمنتجات الطبيعية.",
+        suggestedChannels: ["Instagram", "TikTok", "WhatsApp Business", "Email"],
+        assetsNeedingReview: ["صورة المنتج الرئيسية", "شعار المتجر", "صورة باقة الهدايا"],
+        warnings: [
+          "الأصول المكتشفة من المتجر تحتاج تأكيد حقوق الاستخدام قبل استعمالها في الحملات.",
+          "منصة المتجر مكتشفة بشكل تقديري وليست مؤكدة حتى يتم الربط الرسمي.",
+        ],
+      };
+
+      setCollectedData(result);
+
+      setForm((prev) => ({
+        ...prev,
+        category: prev.category || result.detectedCategories[0],
+        subCategories: prev.subCategories?.length ? prev.subCategories : result.detectedCategories,
+        useWords: prev.useWords || result.brandKeywords.join("، "),
+        tone: prev.tone?.length ? prev.tone : result.detectedTone,
+        audiencePain: prev.audiencePain || "الحاجة إلى منتج موثوق وتجربة شراء بسيطة وواضحة.",
+        interests: prev.interests || "العناية، الجمال، المنتجات الطبيعية، الهدايا",
+        productName: prev.productName || result.detectedProducts[0],
+        productDescription:
+          prev.productDescription ||
+          "منتج مناسب لجمهور يبحث عن تجربة طبيعية وموثوقة وسهلة الشراء.",
+        productFlags: Array.from(new Set([...(prev.productFlags || []), "مناسب للهدايا", "يصلح للفيديو"])),
+        channels: Array.from(new Set([...(prev.channels || []), ...result.suggestedChannels])),
+      }));
+
+      setProducts((prev) => {
+        const existingNames = new Set(prev.map((product) => product.name).filter(Boolean));
+        const discovered = result.detectedProducts
+          .filter((name) => !existingNames.has(name))
+          .map((name, index) => ({
+            id: Date.now() + index,
+            name,
+            url: "",
+            price: "",
+            margin: "",
+            description: "منتج مكتشف من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في حملة.",
+            flags: ["مناسب للهدايا", "يصلح للفيديو"],
+          }));
+
+        return discovered.length ? [...prev, ...discovered] : prev;
+      });
+
+
+      setProducts((prev) => {
+        const existingNames = new Set(prev.map((product) => product.name));
+        const pulledProducts = result.detectedProducts
+          .filter((name) => !existingNames.has(name))
+          .map((name, index) => ({
+            id: Date.now() + index,
+            name,
+            url: `${form.storeUrl.replace(/\/$/, "")}/products/${encodeURIComponent(name)}`,
+            price: "",
+            margin: "",
+            description: "منتج مسحوب آليًا من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في الحملات.",
+            flags: ["مناسب للهدايا", "يصلح للفيديو"],
+            source: "store_crawl",
+          }));
+
+        return [...prev, ...pulledProducts];
+      });
+
+      setDataSources((prev) => ({
+        ...prev,
+        website: {
+          status: "scan_completed",
+          confidence: 86,
+          message: "تم جمع منتجات وتصنيفات وكلمات وأصول أولية من رابط المتجر وإضافتها إلى جدول المنتجات.",
+        },
+      }));
+
+      setDynamicRecommendations([
+        "تم عكس نتائج فحص المتجر على المنتجات والجمهور والنبرة والقنوات.",
+        "استخدم المنتجات المكتشفة كاقتراحات في معالج إنشاء الحملة.",
+        "راجع الأصول المكتشفة قبل اعتمادها في مكتبة الأصول.",
+        "ابدأ بقناتين فقط: Instagram وWhatsApp Business قبل التوسع.",
+      ]);
+    }, 850);
+  };
+
+  const approveCollectedData = () => {
+    setDataSources((prev) => ({
+      ...prev,
+      website: {
+        ...prev.website,
+        status: prev.website.status === "scan_completed" ? "approved" : prev.website.status,
+        message:
+          prev.website.status === "scan_completed"
+            ? "تم اعتماد البيانات المجموعة للاستخدام في التوصيات والحملات."
+            : prev.website.message,
+      },
+    }));
+
+    setDynamicRecommendations((prev) => [
+      "تم اعتماد البيانات المجموعة وستُستخدم كـ source_context للحملات القادمة.",
+      ...prev,
+    ]);
+  };
+
+  const analyzePublicSocial = (provider) => {
+    setDataSources((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [provider.id]: {
+          status: "pending_scan",
+          confidence: 20,
+          message: "جاري تحليل الحساب العام...",
+        },
+      },
+    }));
+
+    window.setTimeout(() => {
+      const tone =
+        provider.id === "tiktok"
+          ? ["شبابية", "سريعة", "تجريبية"]
+          : provider.id === "instagram"
+          ? ["ودية", "بصرية", "موثوقة"]
+          : ["مباشرة", "مختصرة"];
+
+      setDataSources((prev) => ({
+        ...prev,
+        social: {
+          ...prev.social,
+          [provider.id]: {
+            status: "scan_completed",
+            confidence: 74,
+            message: `تم تحليل ${provider.name} واكتشاف نبرة: ${tone.join("، ")}`,
+          },
+        },
+      }));
+
+      setForm((prev) => ({
+        ...prev,
+        tone: prev.tone?.length ? prev.tone : tone,
+        channels: Array.from(new Set([...(prev.channels || []), provider.name])),
+      }));
+
+      setDynamicRecommendations((prev) => [
+        `تحليل ${provider.name} يقترح نبرة: ${tone.join("، ")}.`,
+        `تمت إضافة ${provider.name} إلى القنوات المقترحة.`,
+        ...prev.slice(0, 3),
+      ]);
+    }, 750);
+  };
+
   const startConnection = (provider) => {
     setConnections((prev) => ({
       ...prev,
       [provider.id]: "pending",
+    }));
+
+    setDataSources((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [provider.id]: {
+          ...(prev.social[provider.id] || {}),
+          status: "pending_connection",
+          message: "بانتظار موافقة المنصة عبر OAuth.",
+        },
+      },
     }));
 
     window.open(provider.connectPath, "_blank", "noopener,noreferrer");
@@ -216,6 +604,19 @@ export default function StoreSetupPage({ onCreateCampaign }) {
     setConnections((prev) => ({
       ...prev,
       [providerId]: "connected",
+    }));
+
+    setDataSources((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [providerId]: {
+          ...(prev.social[providerId] || {}),
+          status: "connected",
+          confidence: 90,
+          message: "تم الربط التجريبي بنجاح.",
+        },
+      },
     }));
   };
 
@@ -271,11 +672,11 @@ export default function StoreSetupPage({ onCreateCampaign }) {
         </Card>
       </section>
 
-      <div className="store-os-layout">
-        <aside className="steps-panel">
-          <StepTabs steps={steps} step={step} setStep={setStep} />
-        </aside>
+      <div className="steps-panel steps-panel-top">
+        <StepTabs steps={steps} step={step} setStep={setStep} />
+      </div>
 
+      <div className="store-os-layout">
         <section className="screen-panel">
           {step === 1 && (
             <Card>
@@ -346,6 +747,42 @@ export default function StoreSetupPage({ onCreateCampaign }) {
                   selected={form.subCategories}
                   setSelected={(value) => update("subCategories", value)}
                 />
+              </div>
+
+              <div className="data-source-card">
+                <div className="data-source-head">
+                  <div>
+                    <h3>مصدر البيانات: رابط المتجر</h3>
+                    <p>
+                      عند فحص الرابط، ستنعكس البيانات تلقائيًا على المنتجات،
+                      الجمهور، النبرة، القنوات، والتوصيات.
+                    </p>
+                  </div>
+                  <DataSourceStatus
+                    status={dataSources.website.status}
+                    confidence={dataSources.website.confidence}
+                  />
+                </div>
+
+                <div className="data-source-message">
+                  {dataSources.website.message}
+                </div>
+
+                <div className="data-source-actions">
+                  <Button onClick={scanStoreWebsite}>فحص المتجر وجمع المعلومات</Button>
+                  <Button variant="secondary" onClick={approveCollectedData}>
+                    اعتماد البيانات المجموعة
+                  </Button>
+                </div>
+
+                {collectedData.detectedProducts.length ? (
+                  <div className="scan-summary">
+                    <Info label="المنصة المكتشفة" value={collectedData.detectedPlatform} />
+                    <Info label="تصنيفات مكتشفة" value={collectedData.detectedCategories.join("، ")} />
+                    <Info label="منتجات مقترحة" value={collectedData.detectedProducts.join("، ")} />
+                    <Info label="نبرة مكتشفة" value={collectedData.detectedTone.join("، ")} />
+                  </div>
+                ) : null}
               </div>
             </Card>
           )}
@@ -469,60 +906,168 @@ export default function StoreSetupPage({ onCreateCampaign }) {
 
           {step === 4 && (
             <Card>
-              <SectionHeader
-                icon={Package}
-                title="الخطوة 4: المنتجات والخدمات"
-                description="إضافة المنتج، الرابط، السعر، الصور، والخصائص التسويقية."
-              />
+              <div className="products-step-header">
+                <SectionHeader
+                  icon={Package}
+                  title="الخطوة 4: المنتجات والخدمات"
+                  description="إضافة المنتجات في نموذج احترافي ثم إدارتها من جدول قابل للتعديل والحذف."
+                />
+                <Button onClick={pullProductsFromStore}>سحب المنتجات من رابط المتجر</Button>
+              </div>
 
               <Notice tone="amber">
                 هامش الربح اختياري وحساس ولا يجب جعله إلزاميًا في النسخة الأولى.
+                المنتجات المسحوبة آليًا تحتاج مراجعة قبل استخدامها في الحملات.
               </Notice>
 
-              <div className="form-grid">
-                <Field
-                  label="اسم المنتج"
-                  value={form.productName}
-                  onChange={(value) => update("productName", value)}
-                />
-                <Field
-                  label="رابط المنتج"
-                  value={form.productUrl}
-                  onChange={(value) => update("productUrl", value)}
-                />
-                <Field
-                  label="السعر"
-                  value={form.price}
-                  onChange={(value) => update("price", value)}
-                />
-                <UploadBox title="صور المنتج" />
-                <Field
-                  label="هامش الربح التقريبي - اختياري"
-                  value={form.margin}
-                  placeholder="اختياري"
-                  onChange={(value) => update("margin", value)}
-                />
-                <TextArea
-                  label="وصف المنتج ومميزاته"
-                  value={form.productDescription}
-                  onChange={(value) => update("productDescription", value)}
-                />
+              <div className="product-manager-grid">
+                <div className="product-form-card">
+                  <div className="product-form-head">
+                    <div>
+                      <h3>{editingProductId ? "تعديل منتج" : "إضافة منتج جديد"}</h3>
+                      <p>أدخل بيانات المنتج ثم احفظه ليظهر في جدول المنتجات.</p>
+                    </div>
+                    {editingProductId ? <Badge tone="blue">تعديل</Badge> : <Badge tone="green">جديد</Badge>}
+                  </div>
+
+                  <div className="form-grid">
+                    <Field
+                      label="اسم المنتج"
+                      value={productDraft.name}
+                      placeholder="مثال: سيروم عناية طبيعي"
+                      onChange={(value) => updateProductDraft("name", value)}
+                    />
+                    <Field
+                      label="رابط المنتج"
+                      value={productDraft.url}
+                      placeholder="https://store.example/products/..."
+                      onChange={(value) => updateProductDraft("url", value)}
+                    />
+                    <Field
+                      label="السعر"
+                      value={productDraft.price}
+                      placeholder="149 ر.س"
+                      onChange={(value) => updateProductDraft("price", value)}
+                    />
+                    <Field
+                      label="هامش الربح التقريبي - اختياري"
+                      value={productDraft.margin}
+                      placeholder="اختياري"
+                      onChange={(value) => updateProductDraft("margin", value)}
+                    />
+                    <TextArea
+                      label="وصف المنتج ومميزاته"
+                      value={productDraft.description}
+                      placeholder="اكتب وصف المنتج، فوائده، ولماذا يشتريه العميل..."
+                      onChange={(value) => updateProductDraft("description", value)}
+                    />
+                    <UploadBox title="صور المنتج" />
+                  </div>
+
+                  <div className="product-flags-section">
+                    <h4>خصائص المنتج</h4>
+                    <div className="choice-list">
+                      {productFlagOptions.map((flag) => (
+                        <button
+                          key={flag}
+                          type="button"
+                          onClick={() => toggleDraftProductFlag(flag)}
+                          className={`choice ${productDraft.flags.includes(flag) ? "selected" : ""}`}
+                        >
+                          {flag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="product-form-actions">
+                    <Button onClick={saveProductDraft}>
+                      {editingProductId ? "حفظ التعديل" : "إضافة إلى الجدول"}
+                    </Button>
+                    <Button variant="secondary" onClick={resetProductDraft}>
+                      تفريغ النموذج
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="product-table-card">
+                  <div className="product-table-headline">
+                    <div>
+                      <h3>جدول المنتجات</h3>
+                      <p>كل المنتجات المضافة أو المسحوبة من رابط المتجر تظهر هنا ويمكن تعديلها أو حذفها.</p>
+                    </div>
+                    <Badge tone="neutral">{products.length} منتج</Badge>
+                  </div>
+
+                  <div className="product-table">
+                    <div className="product-table-header">
+                      <span>المنتج</span>
+                      <span>السعر</span>
+                      <span>المصدر</span>
+                      <span>الخصائص</span>
+                      <span>إجراء</span>
+                    </div>
+
+                    {products.map((product, index) => (
+                      <div key={product.id} className="product-table-row">
+                        <div>
+                          <strong>{product.name || `منتج بدون اسم ${index + 1}`}</strong>
+                          <small>{product.url || "لا يوجد رابط"}</small>
+                        </div>
+                        <span>{product.price || "—"}</span>
+                        <Badge tone={product.source === "store_crawl" ? "blue" : "neutral"}>
+                          {product.source === "store_crawl" ? "من رابط المتجر" : "يدوي"}
+                        </Badge>
+                        <div className="product-flags-preview">
+                          {(product.flags || []).slice(0, 2).map((flag) => (
+                            <span key={flag}>{flag}</span>
+                          ))}
+                          {product.flags?.length > 2 ? <span>+{product.flags.length - 2}</span> : null}
+                        </div>
+                        <div className="product-row-actions">
+                          <button type="button" onClick={() => startEditProduct(product)}>تعديل</button>
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => removeProduct(product.id)}
+                            disabled={products.length === 1}
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <MultiChoice
-                title="خصائص المنتج"
-                options={[
-                  "موسمي",
-                  "مخزون كبير",
-                  "جديد",
-                  "الأكثر مبيعًا",
-                  "مناسب للهدايا",
-                  "يحتاج شرحًا",
-                  "يصلح للفيديو",
-                ]}
-                selected={form.productFlags}
-                setSelected={(value) => update("productFlags", value)}
-              />
+              {collectedData.detectedProducts.length ? (
+                <div className="data-source-card">
+                  <div className="data-source-head">
+                    <div>
+                      <h3>اقتراحات من فحص المتجر</h3>
+                      <p>هذه المنتجات جُمعت من رابط المتجر ويمكن إضافتها أو تحديثها داخل الجدول.</p>
+                    </div>
+                    <Badge tone="blue">store_crawl</Badge>
+                  </div>
+                  <div className="suggestion-list">
+                    {collectedData.detectedProducts.map((product, index) => (
+                      <button
+                        key={product}
+                        type="button"
+                        onClick={() => addDetectedProductToTable(product, index)}
+                      >
+                        + {product}
+                      </button>
+                    ))}
+                  </div>
+                  {collectedData.assetsNeedingReview.length ? (
+                    <Notice tone="amber">
+                      أصول تحتاج مراجعة حقوق: {collectedData.assetsNeedingReview.join("، ")}
+                    </Notice>
+                  ) : null}
+                </div>
+              ) : null}
             </Card>
           )}
 
@@ -554,6 +1099,8 @@ export default function StoreSetupPage({ onCreateCampaign }) {
                       key={provider.id}
                       provider={provider}
                       status={status}
+                      sourceStatus={dataSources.social[provider.id]}
+                      onAnalyze={() => analyzePublicSocial(provider)}
                       onConnect={() => startConnection(provider)}
                       onMockSuccess={() => markConnectionAsConnected(provider.id)}
                     />
@@ -597,7 +1144,9 @@ export default function StoreSetupPage({ onCreateCampaign }) {
                   <Metric title="اكتمال الملف التجاري" value={`${completion}%`} />
                   <Metric title="القنوات المحددة" value={form.channels.length} />
                   <Metric title="الربط التجريبي" value={connectedCount} />
-                  <Metric title="المنتجات المضافة" value="1" />
+                  <Metric title="منتجات مكتشفة" value={collectedData.detectedProducts.length || "—"} />
+                  <Metric title="أصول تحتاج مراجعة" value={collectedData.assetsNeedingReview.length || "—"} />
+                  <Metric title="المنتجات المضافة" value={String(products.length)} />
                   <Metric title="جودة الهوية" value="جيدة" tone="green" />
                   <Metric title="جاهزية الحملات" value={completion >= 75 ? "جيدة" : "ناقصة"} tone={completion >= 75 ? "green" : "amber"} />
                 </div>
@@ -606,10 +1155,9 @@ export default function StoreSetupPage({ onCreateCampaign }) {
               <Card className="recommendation-card">
                 <h3>توصيات قبل البدء</h3>
                 <div className="recommendation-list">
-                  <div>أضف صور المنتجات قبل أول حملة.</div>
-                  <div>ثبّت قيود الادعاءات قبل التوليد.</div>
-                  <div>ابدأ بقناة أو قناتين فقط.</div>
-                  <div>لا تفعّل النشر التلقائي قبل Audit Log وصلاحيات.</div>
+                  {dynamicRecommendations.map((item) => (
+                    <div key={item}>{item}</div>
+                  ))}
                 </div>
                 <Button onClick={onCreateCampaign}>إنشاء أول حملة</Button>
               </Card>
@@ -797,7 +1345,40 @@ function Notice({ children, tone = "amber" }) {
   return <div className={`notice ${tone}`}>{children}</div>;
 }
 
-function IntegrationCard({ provider, status, onConnect, onMockSuccess }) {
+function DataSourceStatus({ status, confidence = 0, compact = false }) {
+  const label =
+    status === "pending_scan"
+      ? "قيد الفحص"
+      : status === "scan_completed"
+      ? "تم التحليل"
+      : status === "approved"
+      ? "معتمد"
+      : status === "pending_connection"
+      ? "بانتظار الموافقة"
+      : status === "connected"
+      ? "مرتبط"
+      : status === "manual"
+      ? "إدخال يدوي"
+      : "لم يبدأ";
+
+  return (
+    <div className={`data-status ${status} ${compact ? "compact" : ""}`}>
+      <strong>{label}</strong>
+      {!compact ? <span>{confidence}% ثقة</span> : null}
+    </div>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="info-row">
+      <span>{label}</span>
+      <strong>{value || "غير متاح"}</strong>
+    </div>
+  );
+}
+
+function IntegrationCard({ provider, status, sourceStatus, onAnalyze, onConnect, onMockSuccess }) {
   return (
     <article className="integration-card">
       <div className="integration-head">
@@ -814,7 +1395,23 @@ function IntegrationCard({ provider, status, onConnect, onMockSuccess }) {
         ))}
       </div>
 
+      <div className="source-mini-status">
+        <div>
+          <strong>التحليل العام</strong>
+          <span>{sourceStatus?.message || "لم يبدأ تحليل الحساب العام."}</span>
+        </div>
+        <DataSourceStatus
+          status={sourceStatus?.status || "empty"}
+          confidence={sourceStatus?.confidence || 0}
+          compact
+        />
+      </div>
+
       <div className="integration-actions">
+        <button type="button" className="secondary-connect-button" onClick={onAnalyze}>
+          <RefreshCw size={16} />
+          تحليل عام
+        </button>
         <button type="button" className="connect-button" onClick={onConnect}>
           <ExternalLink size={16} />
           ربط الحساب
@@ -1072,12 +1669,16 @@ const styles = `
 
 .store-os-layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   align-items: start;
 }
 
-.steps-panel,
+.steps-panel-top {
+  margin-bottom: 16px;
+  position: static;
+}
+
 .smart-panel {
   position: sticky;
   top: 96px;
@@ -1085,17 +1686,18 @@ const styles = `
 
 .step-tabs {
   display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
 }
 
 .step-tab {
   width: 100%;
-  min-height: 76px;
+  min-height: 86px;
   border-radius: 18px;
   border: 1px solid #e4e7df;
   background: #fff;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px;
   text-align: right;
@@ -1622,6 +2224,155 @@ const styles = `
   font-weight: 900;
 }
 
+
+.data-source-card {
+  margin-top: 18px;
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 22px;
+  padding: 16px;
+}
+
+.data-source-head,
+.source-mini-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.data-source-head h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f241d;
+}
+
+.data-source-head p,
+.data-source-message,
+.source-mini-status span {
+  margin: 6px 0 0;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.data-status {
+  min-width: 104px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.data-status strong {
+  font-size: 12px;
+}
+
+.data-status span {
+  color: #6f746b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.data-status.pending_scan,
+.data-status.pending_connection {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.data-status.scan_completed,
+.data-status.approved,
+.data-status.connected {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.data-status.manual,
+.data-status.empty {
+  color: #475569;
+  background: #f8fafc;
+}
+
+.data-status.compact {
+  min-width: auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+}
+
+.data-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scan-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.info-row {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.info-row span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.info-row strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.suggestion-list button {
+  min-height: 36px;
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.source-mini-status {
+  margin-top: 12px;
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.source-mini-status strong {
+  display: block;
+  font-size: 13px;
+}
+
 @media (max-width: 1280px) {
   .store-os-overview,
   .store-os-layout,
@@ -1629,7 +2380,6 @@ const styles = `
     grid-template-columns: 1fr;
   }
 
-  .steps-panel,
   .smart-panel {
     position: static;
   }
@@ -1665,6 +2415,169 @@ const styles = `
   .connect-button,
   .secondary-connect-button {
     width: 100%;
+  }
+}
+
+
+/* Professional product manager */
+.product-manager-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.product-form-card,
+.product-table-card {
+  border: 1px solid #E4E7DF;
+  background: #F7F8F4;
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.product-form-head,
+.product-table-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.product-form-head h3,
+.product-table-headline h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 950;
+}
+
+.product-form-head p,
+.product-table-headline p {
+  margin: 5px 0 0;
+  color: #6F746B;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.product-flags-section {
+  margin-top: 14px;
+}
+
+.product-flags-section h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.product-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.product-table {
+  border: 1px solid #E4E7DF;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.product-table-header,
+.product-table-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.25fr) 90px 120px minmax(120px, .8fr) 170px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.product-table-header {
+  background: #F7F8F4;
+  color: #6F746B;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.product-table-row {
+  border-top: 1px solid #E4E7DF;
+  font-size: 13px;
+}
+
+.product-table-row strong {
+  display: block;
+  color: #1F241D;
+}
+
+.product-table-row small {
+  display: block;
+  color: #6F746B;
+  margin-top: 3px;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-flags-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.product-flags-preview span {
+  border: 1px solid #D9EAD7;
+  background: #EEF7E9;
+  color: #176B2C;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.product-row-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.product-row-actions button {
+  min-width: 70px;
+  min-height: 34px;
+  border-radius: 12px;
+  border: 1px solid #E4E7DF;
+  background: #fff;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.product-row-actions button.danger {
+  color: #991B1B;
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.product-row-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .product-manager-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-table {
+    overflow-x: auto;
+  }
+
+  .product-table-header,
+  .product-table-row {
+    min-width: 820px;
   }
 }
 `;
