@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6,16 +6,19 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Database,
   FileCheck2,
   FolderOpen,
   ImageIcon,
+  Layers,
   Megaphone,
   Plus,
   ShieldCheck,
   Sparkles,
   Store,
-  TrendingUp,
 } from "lucide-react";
+
+const periodLabels = ["اليوم", "آخر 7 أيام", "هذا الشهر"];
 
 const kpis = [
   {
@@ -26,23 +29,23 @@ const kpis = [
     icon: Megaphone,
   },
   {
-    title: "تحتاج مراجعة",
+    title: "محتوى ينتظر اعتمادًا",
     value: "6",
-    subtitle: "محتوى ينتظر اعتمادًا",
+    subtitle: "راجع قبل الجدولة",
     tone: "amber",
     icon: AlertTriangle,
   },
   {
-    title: "أصول غير معتمدة",
+    title: "أصول غير مؤكدة",
     value: "9",
-    subtitle: "حقوق استخدام غير مؤكدة",
+    subtitle: "حقوق استخدام ناقصة",
     tone: "blue",
     icon: FolderOpen,
   },
   {
-    title: "جاهزية المتجر",
+    title: "جاهزية التشغيل",
     value: "82%",
-    subtitle: "تبقى 3 عناصر",
+    subtitle: "المتجر جيد ويحتاج استكمالًا",
     tone: "green",
     icon: Store,
   },
@@ -88,9 +91,9 @@ const campaigns = [
 ];
 
 const readiness = [
-  ["رابط المتجر", "مفحوص", "green"],
-  ["حساب Instagram", "تم التحليل", "green"],
-  ["الجمهور الافتراضي", "جيد", "green"],
+  ["إعداد المتجر", "82%", "green"],
+  ["كتالوج المنتجات", "4 عناصر", "green"],
+  ["مصادر البيانات", "2 مفحوصة", "green"],
   ["الأصول", "9 تحتاج مراجعة", "amber"],
 ];
 
@@ -103,21 +106,82 @@ const assets = [
 
 const activities = [
   ["تم فحص رابط المتجر وجمع 3 منتجات", "إعداد المتجر", "منذ 12 دقيقة", "green"],
-  ["تم إنشاء حملة تجريبية من Agent Mode", "إنشاء حملة", "منذ 35 دقيقة", "blue"],
-  ["تم طلب مراجعة Reel Script", "المراجعة", "منذ ساعة", "amber"],
+  ["تم إنشاء حملة تجريبية من معالج الحملات", "معالج الحملات", "منذ 35 دقيقة", "blue"],
+  ["تم طلب مراجعة Reel Script", "المحتوى والمراجعة", "منذ ساعة", "amber"],
 ];
 
 export default function DashboardPage({
   onCreateCampaign = () => {},
   onOpenStoreSetup = () => {},
+  onOpenProductCatalog = () => {},
+  onOpenDataSources = () => {},
   onOpenCampaigns = () => {},
   onOpenAssets = () => {},
   onOpenAnalytics = () => {},
   onOpenReview = () => {},
+  onOpenPublishingQueue = () => {},
+  onOpenMultiPlatform = () => {},
 }) {
+  const [period, setPeriod] = useState("آخر 7 أيام");
+
+  const quickActions = useMemo(
+    () => [
+      ["إعداد المتجر", "أكمل بيانات المتجر والهوية", Store, onOpenStoreSetup],
+      ["كتالوج المنتجات", "راجع المنتجات قبل الحملة", Store, onOpenProductCatalog],
+      ["مصادر البيانات", "افحص الروابط والتكاملات", Database, onOpenDataSources],
+      ["إنشاء حملة", "ابدأ من المعالج الرسمي", Megaphone, onCreateCampaign],
+      ["المحتوى والمراجعة", "راجع النصوص والمخرجات", FileCheck2, onOpenReview],
+      ["جدولة النشر", "جهّز خطة النشر", CalendarDays, onOpenPublishingQueue],
+      ["متعدد القنوات", "تحقق من جاهزية القنوات", Layers, onOpenMultiPlatform],
+      ["التحليلات", "راجع الأداء والمؤشرات", BarChart3, onOpenAnalytics],
+    ],
+    [
+      onCreateCampaign,
+      onOpenAnalytics,
+      onOpenDataSources,
+      onOpenMultiPlatform,
+      onOpenProductCatalog,
+      onOpenPublishingQueue,
+      onOpenReview,
+      onOpenStoreSetup,
+    ]
+  );
+
+  const priorities = [
+    {
+      title: "استكمل أساس التشغيل",
+      body: "راجع إعداد المتجر والمنتجات ومصادر البيانات قبل إنشاء حملات جديدة.",
+      action: "فتح مصادر البيانات",
+      icon: Database,
+      tone: "green",
+      onClick: onOpenDataSources,
+    },
+    {
+      title: "راجع الأصول غير المؤكدة",
+      body: "يوجد 9 أصول تحتاج تأكيد حقوق الاستخدام قبل استخدامها في الإعلانات.",
+      action: "فتح مكتبة الأصول",
+      icon: FolderOpen,
+      tone: "amber",
+      onClick: onOpenAssets,
+    },
+    {
+      title: "جهّز النشر متعدد القنوات",
+      body: "بعد اعتماد المحتوى، انتقل إلى الجدولة وفحص جاهزية القنوات.",
+      action: "فتح متعدد القنوات",
+      icon: Layers,
+      tone: "blue",
+      onClick: onOpenMultiPlatform,
+    },
+  ];
+
   return (
     <main className="dashboard-grid-page" dir="rtl">
       <style>{styles}</style>
+
+      <section className="prototype-strip">
+        <ShieldCheck size={17} />
+        <span>البيانات المعروضة في هذه اللوحة تجريبية داخل Prototype ولا تمثل تشغيلًا حقيقيًا أو تكاملات فعلية.</span>
+      </section>
 
       <section className="hero">
         <div>
@@ -126,18 +190,46 @@ export default function DashboardPage({
             مركز قيادة ناشر
           </div>
           <h1>مرحبًا، أحمد 👋</h1>
-          <p>ملخص تنفيذي منظم للحملات، جاهزية المتجر، الأصول، والأداء.</p>
+          <p>لوحة قيادة للرحلة الأساسية: إعداد المتجر، مصادر البيانات، الحملة، المحتوى، النشر، والتحليلات.</p>
         </div>
 
         <div className="hero-actions">
-          <button type="button" className="ghost-button">
-            <CalendarDays size={16} />
-            آخر 7 أيام
-          </button>
+          <div className="period-switch" aria-label="فلتر الفترة التجريبي">
+            {periodLabels.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={period === item ? "active" : ""}
+                onClick={() => setPeriod(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
           <button type="button" className="primary-button" onClick={onCreateCampaign}>
             <Plus size={17} />
             إنشاء حملة
           </button>
+        </div>
+      </section>
+
+      <section className="quick-actions-card">
+        <CardHeader
+          title="اختصارات الرحلة الأساسية"
+          description="روابط مباشرة للمسار الذي يجب تثبيته قبل أي تنفيذ حقيقي."
+          icon={ShieldCheck}
+        />
+        <div className="quick-actions-grid">
+          {quickActions.map(([title, description, Icon, onClick]) => (
+            <button key={title} type="button" className="quick-action" onClick={onClick}>
+              <span className="quick-icon"><Icon size={18} /></span>
+              <span>
+                <strong>{title}</strong>
+                <small>{description}</small>
+              </span>
+              <ArrowLeft size={15} />
+            </button>
+          ))}
         </div>
       </section>
 
@@ -152,7 +244,7 @@ export default function DashboardPage({
               <div>
                 <span>{item.title}</span>
                 <strong>{item.value}</strong>
-                <small>{item.subtitle}</small>
+                <small>{item.subtitle} · {period}</small>
               </div>
             </article>
           );
@@ -162,47 +254,45 @@ export default function DashboardPage({
       <section className="top-row">
         <article className="card next-action-card">
           <CardHeader
-            title="الإجراء التالي"
-            description="أولوية واحدة واضحة بدل بعثرة الكروت."
+            title="الأولويات التالية"
+            description="ثلاث قرارات عملية بدل إجراء واحد قد لا يناسب كل حالة."
             icon={ShieldCheck}
           />
 
-          <div className="next-action-box">
-            <div className="action-icon">
-              <FolderOpen size={24} />
-            </div>
-            <div>
-              <strong>راجع 9 أصول قبل إنشاء الحملة التالية</strong>
-              <p>
-                توجد صور مكتشفة من رابط المتجر تحتاج تأكيد حقوق الاستخدام قبل
-                استخدامها في الإعلانات.
-              </p>
-            </div>
-          </div>
-
-          <div className="button-row">
-            <button type="button" className="primary-button" onClick={onOpenAssets}>
-              فتح مكتبة الأصول
-              <ArrowLeft size={16} />
-            </button>
-            <button type="button" className="secondary-button" onClick={onOpenReview}>
-              فتح المراجعة
-            </button>
+          <div className="priority-list">
+            {priorities.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className={`priority-row ${item.tone}`}>
+                  <div className="action-icon">
+                    <Icon size={22} />
+                  </div>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.body}</p>
+                  </div>
+                  <button type="button" onClick={item.onClick}>
+                    {item.action}
+                    <ArrowLeft size={15} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </article>
 
         <article className="card readiness-card">
           <CardHeader
-            title="جاهزية المتجر"
-            description="مصادر البيانات التي تغذي الحملات."
+            title="جاهزية التشغيل"
+            description="العناصر التي تغذي الحملات قبل التوليد أو النشر."
             icon={Store}
           />
 
           <div className="readiness-summary">
             <div className="ring">82%</div>
             <div>
-              <strong>جيد</strong>
-              <span>تبقى عناصر قليلة قبل الاعتماد الكامل.</span>
+              <strong>جيد، لكن غير مكتمل</strong>
+              <span>المنتجات والمصادر جاهزة مبدئيًا، والأصول تحتاج مراجعة حقوق.</span>
             </div>
           </div>
 
@@ -212,9 +302,10 @@ export default function DashboardPage({
             ))}
           </div>
 
-          <button type="button" className="secondary-button wide" onClick={onOpenStoreSetup}>
-            استكمال إعداد المتجر
-          </button>
+          <div className="split-buttons">
+            <button type="button" className="secondary-button" onClick={onOpenStoreSetup}>إعداد المتجر</button>
+            <button type="button" className="secondary-button" onClick={onOpenDataSources}>مصادر البيانات</button>
+          </div>
         </article>
       </section>
 
@@ -270,7 +361,7 @@ export default function DashboardPage({
         <article className="card small-card">
           <CardHeader
             title="جاهزية الأصول"
-            description="ما يمكن استخدامه وما يحتاج مراجعة."
+            description="تفصيل مختصر لما يؤثر على قرار النشر."
             icon={FolderOpen}
           />
 
@@ -290,29 +381,37 @@ export default function DashboardPage({
 
         <article className="card small-card">
           <CardHeader
-            title="أداء مختصر"
-            description="مؤشرات سريعة لا تستبدل التحليلات."
-            icon={BarChart3}
+            title="النشر والقنوات"
+            description="المرحلة التي تسبق التحليلات بعد اعتماد المحتوى."
+            icon={Layers}
           />
 
           <div className="box-grid">
+            <Mini title="قنوات مختارة" value="4" />
+            <Mini title="جاهزية القنوات" value="75%" />
+            <Mini title="مخرجات جاهزة" value="3/5" />
+            <Mini title="تحتاج موافقة" value="2" />
+          </div>
+
+          <div className="split-buttons">
+            <button type="button" className="secondary-button" onClick={onOpenPublishingQueue}>جدولة النشر</button>
+            <button type="button" className="secondary-button" onClick={onOpenMultiPlatform}>متعدد القنوات</button>
+          </div>
+        </article>
+
+        <article className="card small-card">
+          <CardHeader
+            title="الأداء والنشاط"
+            description="مؤشرات سريعة لا تستبدل شاشة التحليلات."
+            icon={BarChart3}
+          />
+
+          <div className="box-grid compact-metrics">
             <Mini title="الوصول" value="38K" />
             <Mini title="التحويلات" value="124" />
             <Mini title="أفضل قناة" value="Instagram" />
             <Mini title="ROI تقديري" value="2.4x" />
           </div>
-
-          <button type="button" className="secondary-button wide" onClick={onOpenAnalytics}>
-            عرض التحليلات
-          </button>
-        </article>
-
-        <article className="card small-card">
-          <CardHeader
-            title="النشاط الحديث"
-            description="آخر أحداث مؤثرة داخل مساحة العمل."
-            icon={Clock3}
-          />
 
           <div className="activity-list">
             {activities.map(([title, source, time, tone]) => (
@@ -325,6 +424,10 @@ export default function DashboardPage({
               </div>
             ))}
           </div>
+
+          <button type="button" className="secondary-button wide" onClick={onOpenAnalytics}>
+            عرض التحليلات
+          </button>
         </article>
       </section>
     </main>
@@ -380,13 +483,28 @@ const styles = `
   font-family: Inter, "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
+.prototype-strip,
 .hero,
+.quick-actions-card,
 .kpi-card,
 .card {
   background: #ffffff;
   border: 1px solid #e4e7df;
   border-radius: 22px;
   box-shadow: 0 8px 24px rgba(24, 38, 18, 0.032);
+}
+
+.prototype-strip {
+  min-height: 44px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  color: #176b2c;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.7;
 }
 
 .hero {
@@ -422,18 +540,44 @@ const styles = `
 
 .hero p {
   margin: 7px 0 0;
-  max-width: 720px;
+  max-width: 760px;
   color: #6f746b;
   line-height: 1.8;
   font-size: 14px;
 }
 
 .hero-actions,
-.button-row {
+.button-row,
+.split-buttons {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.period-switch {
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  display: flex;
+  gap: 4px;
+}
+
+.period-switch button {
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.period-switch button.active {
+  background: #176b2c;
+  color: #fff;
 }
 
 .primary-button,
@@ -478,6 +622,59 @@ const styles = `
   width: 100%;
 }
 
+.quick-actions-card {
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-action {
+  min-height: 76px;
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  text-align: right;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.quick-action:hover {
+  border-color: #176b2c;
+  background: #eef7e9;
+}
+
+.quick-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #176b2c;
+}
+
+.quick-action strong,
+.quick-action small {
+  display: block;
+}
+
+.quick-action small {
+  margin-top: 4px;
+  color: #6f746b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -504,17 +701,12 @@ const styles = `
   color: #176b2c;
 }
 
-.kpi-card.blue .kpi-icon {
-  color: #2563eb;
-  background: #eff6ff;
-}
+.kpi-card.blue .kpi-icon { color: #2563eb; background: #eff6ff; }
+.kpi-card.amber .kpi-icon { color: #92400e; background: #fffbeb; }
 
-.kpi-card.amber .kpi-icon {
-  color: #92400e;
-  background: #fffbeb;
-}
-
-.kpi-card span {
+.kpi-card span,
+.metric-box span,
+.info-row span {
   display: block;
   color: #6f746b;
   font-size: 12px;
@@ -545,9 +737,7 @@ const styles = `
 }
 
 .middle-row,
-.bottom-row {
-  margin-bottom: 14px;
-}
+.bottom-row { margin-bottom: 14px; }
 
 .bottom-row {
   display: grid;
@@ -556,19 +746,9 @@ const styles = `
   align-items: stretch;
 }
 
-.card {
-  padding: 16px;
-}
-
-.top-row .card {
-  min-height: 300px;
-}
-
-.small-card {
-  min-height: 295px;
-  display: flex;
-  flex-direction: column;
-}
+.card { padding: 16px; }
+.top-row .card { min-height: 300px; }
+.small-card { min-height: 310px; display: flex; flex-direction: column; }
 
 .card-header {
   min-height: 58px;
@@ -579,19 +759,8 @@ const styles = `
   align-items: flex-start;
 }
 
-.card-header h2 {
-  margin: 0;
-  color: #1f241d;
-  font-size: 17px;
-  line-height: 1.35;
-}
-
-.card-header p {
-  margin: 5px 0 0;
-  color: #6f746b;
-  font-size: 12px;
-  line-height: 1.7;
-}
+.card-header h2 { margin: 0; color: #1f241d; font-size: 17px; line-height: 1.35; }
+.card-header p { margin: 5px 0 0; color: #6f746b; font-size: 12px; line-height: 1.7; }
 
 .header-icon {
   width: 40px;
@@ -604,16 +773,23 @@ const styles = `
   flex: 0 0 auto;
 }
 
-.next-action-box {
-  min-height: 132px;
-  border: 1px solid #d9ead7;
-  background: linear-gradient(135deg, #eef7e9, #ffffff);
-  border-radius: 20px;
-  padding: 14px;
-  display: flex;
+.priority-list { display: grid; gap: 10px; }
+
+.priority-row {
+  min-height: 92px;
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
 }
+
+.priority-row.green { border-color: #d9ead7; background: #f7fbf3; }
+.priority-row.amber { border-color: #fde68a; background: #fffaf0; }
+.priority-row.blue { border-color: #bfdbfe; background: #eff6ff; }
 
 .action-icon {
   width: 48px;
@@ -626,20 +802,23 @@ const styles = `
   background: #176b2c;
 }
 
-.next-action-box strong {
-  display: block;
-  font-size: 15px;
-}
+.priority-row.amber .action-icon { background: #d97706; }
+.priority-row.blue .action-icon { background: #2563eb; }
 
-.next-action-box p {
-  margin: 6px 0 0;
-  color: #4d5f4a;
-  line-height: 1.7;
-  font-size: 13px;
-}
-
-.button-row {
-  margin-top: 12px;
+.priority-row strong { display: block; font-size: 14px; }
+.priority-row p { margin: 5px 0 0; color: #4d5f4a; line-height: 1.65; font-size: 12px; }
+.priority-row button {
+  min-height: 36px;
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .readiness-summary {
@@ -666,23 +845,10 @@ const styles = `
   flex: 0 0 auto;
 }
 
-.readiness-summary strong {
-  display: block;
-}
+.readiness-summary strong { display: block; }
+.readiness-summary span { display: block; color: #6f746b; margin-top: 5px; line-height: 1.6; font-size: 12px; }
 
-.readiness-summary span {
-  display: block;
-  color: #6f746b;
-  margin-top: 5px;
-  line-height: 1.6;
-  font-size: 12px;
-}
-
-.compact-list {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-}
+.compact-list { display: grid; gap: 6px; margin-bottom: 12px; }
 
 .info-row {
   min-height: 34px;
@@ -693,33 +859,13 @@ const styles = `
   gap: 12px;
 }
 
-.info-row span {
-  color: #6f746b;
-  font-size: 12px;
-  font-weight: 900;
-}
+.info-row strong { font-size: 12px; }
+.info-row strong.green { color: #166534; }
+.info-row strong.amber { color: #92400e; }
 
-.info-row strong {
-  font-size: 12px;
-}
+.split-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-.info-row strong.green {
-  color: #166534;
-}
-
-.info-row strong.amber {
-  color: #92400e;
-}
-
-.campaigns-card {
-  width: 100%;
-}
-
-.campaign-table {
-  border: 1px solid #e4e7df;
-  border-radius: 18px;
-  overflow: hidden;
-}
+.campaign-table { border: 1px solid #e4e7df; border-radius: 18px; overflow: hidden; }
 
 .campaign-row {
   width: 100%;
@@ -737,44 +883,13 @@ const styles = `
   cursor: pointer;
 }
 
-.campaign-row:first-child {
-  border-top: 0;
-}
+.campaign-row:first-child { border-top: 0; }
+.campaign-row:hover { background: #fbfdf9; }
 
-.campaign-row:hover {
-  background: #fbfdf9;
-}
-
-.campaign-main {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.campaign-thumb {
-  width: 40px;
-  height: 38px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 13px;
-  color: #176b2c;
-  background: #eef7e9;
-}
-
-.campaign-main strong {
-  display: block;
-  color: #1f241d;
-  font-size: 13px;
-}
-
-.campaign-main span,
-.muted {
-  display: block;
-  margin-top: 4px;
-  color: #6f746b;
-  font-size: 11px;
-}
+.campaign-main { display: flex; gap: 10px; align-items: center; }
+.campaign-thumb { width: 40px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 13px; color: #176b2c; background: #eef7e9; }
+.campaign-main strong { display: block; color: #1f241d; font-size: 13px; }
+.campaign-main span, .muted { display: block; margin-top: 4px; color: #6f746b; font-size: 11px; }
 
 .status {
   width: fit-content;
@@ -786,211 +901,56 @@ const styles = `
   font-size: 11px;
   font-weight: 900;
 }
+.status.green { color: #166534; background: #f0fdf4; }
+.status.amber { color: #92400e; background: #fffbeb; }
+.status.slate { color: #475569; background: #f8fafc; }
+.status.blue { color: #1d4ed8; background: #eff6ff; }
 
-.status.green {
-  color: #166534;
-  background: #f0fdf4;
-}
+.readiness-cell { display: flex; align-items: center; gap: 8px; }
+.readiness-cell i { width: 74px; height: 7px; overflow: hidden; border-radius: 999px; background: #e4e7df; }
+.readiness-cell b { display: block; height: 100%; background: #176b2c; }
+.readiness-cell small { color: #1f241d; font-size: 11px; font-weight: 900; }
+.channel-pill { width: fit-content; border: 1px solid #e4e7df; background: #fff; border-radius: 999px; padding: 5px 9px; font-size: 10px; font-weight: 900; }
 
-.status.amber {
-  color: #92400e;
-  background: #fffbeb;
-}
+.box-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 12px; }
+.compact-metrics { margin-bottom: 8px; }
+.metric-box { min-height: 72px; border: 1px solid #e4e7df; background: #f7f8f4; border-radius: 15px; padding: 11px; }
+.metric-box strong { display: block; margin-top: 6px; color: #1f241d; font-size: 18px; }
+.metric-box.green strong { color: #166534; }
+.metric-box.amber strong { color: #92400e; }
 
-.status.slate {
-  color: #475569;
-  background: #f8fafc;
-}
-
-.status.blue {
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
-.readiness-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.readiness-cell i {
-  width: 74px;
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e4e7df;
-}
-
-.readiness-cell b {
-  display: block;
-  height: 100%;
-  background: #176b2c;
-}
-
-.readiness-cell small {
-  color: #1f241d;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.channel-pill {
-  width: fit-content;
-  border: 1px solid #e4e7df;
-  background: #fff;
-  border-radius: 999px;
-  padding: 5px 9px;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.box-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  margin-bottom: 12px;
-}
-
-.metric-box {
-  min-height: 72px;
-  border: 1px solid #e4e7df;
-  background: #f7f8f4;
-  border-radius: 15px;
-  padding: 11px;
-}
-
-.metric-box span {
-  display: block;
-  color: #6f746b;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.metric-box strong {
-  display: block;
-  margin-top: 6px;
-  color: #1f241d;
-  font-size: 18px;
-}
-
-.metric-box.green strong {
-  color: #166534;
-}
-
-.metric-box.amber strong {
-  color: #92400e;
-}
-
-.bar-chart {
-  height: 116px;
-  border: 1px solid #e4e7df;
-  background: linear-gradient(180deg, #ffffff, #fbfdf9);
-  border-radius: 16px;
-  padding: 14px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 9px;
-  margin-bottom: 12px;
-}
-
-.bar-chart span {
-  width: 100%;
-  border-radius: 999px 999px 6px 6px;
-  background: linear-gradient(180deg, #176b2c, #8bbf83);
-}
-
-.activity-list {
-  display: grid;
-  gap: 9px;
-}
-
-.activity-row {
-  min-height: 55px;
-  border: 1px solid #e4e7df;
-  background: #f7f8f4;
-  border-radius: 15px;
-  padding: 10px;
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-}
-
-.dot {
-  width: 9px;
-  height: 9px;
-  margin-top: 8px;
-  border-radius: 999px;
-  flex: 0 0 auto;
-}
-
-.dot.green {
-  background: #16a34a;
-}
-
-.dot.blue {
-  background: #2563eb;
-}
-
-.dot.amber {
-  background: #f59e0b;
-}
-
-.activity-row strong {
-  display: block;
-  font-size: 12px;
-}
-
-.activity-row span {
-  display: block;
-  margin-top: 3px;
-  color: #6f746b;
-  font-size: 11px;
-}
+.activity-list { display: grid; gap: 8px; margin-bottom: 12px; }
+.activity-row { min-height: 50px; border: 1px solid #e4e7df; background: #f7f8f4; border-radius: 15px; padding: 9px; display: flex; align-items: flex-start; gap: 9px; }
+.dot { width: 9px; height: 9px; margin-top: 8px; border-radius: 999px; flex: 0 0 auto; }
+.dot.green { background: #16a34a; }
+.dot.blue { background: #2563eb; }
+.dot.amber { background: #f59e0b; }
+.activity-row strong { display: block; font-size: 12px; }
+.activity-row span { display: block; margin-top: 3px; color: #6f746b; font-size: 11px; }
 
 @media (max-width: 1320px) {
   .top-row,
-  .bottom-row {
-    grid-template-columns: 1fr;
-  }
-
-  .kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .campaign-row {
-    grid-template-columns: 1fr;
-  }
-
-  .small-card {
-    min-height: auto;
-  }
+  .bottom-row,
+  .quick-actions-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .campaign-row { grid-template-columns: 1fr; }
+  .small-card { min-height: auto; }
+  .priority-row { grid-template-columns: 48px minmax(0, 1fr); }
+  .priority-row button { grid-column: 2; width: fit-content; }
 }
 
 @media (max-width: 760px) {
-  .dashboard-grid-page {
-    padding: 16px;
-  }
-
+  .dashboard-grid-page { padding: 16px; }
   .hero,
   .hero-actions,
-  .button-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .hero h1 {
-    font-size: 27px;
-  }
-
+  .button-row { align-items: stretch; flex-direction: column; }
+  .hero h1 { font-size: 27px; }
   .kpi-grid,
-  .box-grid {
-    grid-template-columns: 1fr;
-  }
-
+  .box-grid,
+  .split-buttons { grid-template-columns: 1fr; }
   .primary-button,
   .secondary-button,
-  .ghost-button {
-    width: 100%;
-  }
+  .ghost-button { width: 100%; }
+  .period-switch { width: 100%; overflow:auto; }
 }
 `;
