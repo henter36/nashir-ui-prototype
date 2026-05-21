@@ -116,14 +116,18 @@ export default function App() {
 
   if (activeScreen === "dashboard") {
     pageContent = (
-      <DashboardPage
-        onCreateCampaign={() => setActiveScreen("campaigns")}
-        onOpenStoreSetup={() => setActiveScreen("storeSetup")}
-        onOpenCampaigns={() => setActiveScreen("campaignsList")}
-        onOpenAssets={() => setActiveScreen("assetLibrary")}
-        onOpenAnalytics={() => setActiveScreen("analytics")}
-        onOpenReview={() => setActiveScreen("content")}
-      />
+<DashboardPage
+  onCreateCampaign={() => setActiveScreen("campaigns")}
+  onOpenStoreSetup={() => setActiveScreen("storeSetup")}
+  onOpenProductCatalog={() => setActiveScreen("productCatalog")}
+  onOpenDataSources={() => setActiveScreen("dataSourcesHub")}
+  onOpenCampaigns={() => setActiveScreen("campaignsList")}
+  onOpenAssets={() => setActiveScreen("assetLibrary")}
+  onOpenAnalytics={() => setActiveScreen("analytics")}
+  onOpenReview={() => setActiveScreen("content")}
+  onOpenPublishingQueue={() => setActiveScreen("publishingQueue")}
+  onOpenMultiPlatform={() => setActiveScreen("multiPlatform")}
+/>
     );
   }
 
