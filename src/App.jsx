@@ -102,7 +102,9 @@ export default function App() {
   let pageContent = null;
 
   if (activeScreen === "dashboard") {
-    pageContent = <DashboardPage />;
+    pageContent = (
+      <DashboardPage onCreateCampaign={() => setActiveScreen("campaigns")} />
+    );
   }
 
   if (activeScreen === "storeSetup") {
