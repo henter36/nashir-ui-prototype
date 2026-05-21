@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   BarChart3,
   CalendarDays,
-  CheckCircle2,
   Database,
   DollarSign,
   FileCheck2,
@@ -11,10 +10,8 @@ import {
   LayoutDashboard,
   Layers,
   Megaphone,
-  MonitorSmartphone,
   Settings,
   Shield,
-  Sparkles,
   Store,
   Users,
   Workflow,
@@ -23,21 +20,16 @@ import {
 
 import AppShell from "./components/layout/AppShell.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
-import OnboardingFlowPage from "./pages/OnboardingFlowPage.jsx";
 import StoreSetupPage from "./pages/StoreSetupPage.jsx";
 import CampaignWizardPage from "./pages/CampaignWizardPage.jsx";
-import CampaignIntakePage from "./pages/CampaignIntakePage.jsx";
 import CampaignsUnifiedPage from "./pages/CampaignsUnifiedPage.jsx";
 import AnalyticsUnifiedPage from "./pages/AnalyticsUnifiedPage.jsx";
 import AssetLibraryPage from "./pages/AssetLibraryPage.jsx";
 import PublishingQueuePage from "./pages/PublishingQueuePage.jsx";
-import DualGuidedIntakePage from "./pages/DualGuidedIntakePage.jsx";
 import TemplateEnginePage from "./pages/TemplateEnginePage.jsx";
-import LivePreviewPage from "./pages/LivePreviewPage.jsx";
 import MultiPlatformPage from "./pages/MultiPlatformPage.jsx";
 import TeamCollaborationPage from "./pages/TeamCollaborationPage.jsx";
 import ContentStudioPage from "./pages/ContentStudioPage.jsx";
-import ReviewPage from "./pages/ReviewPage.jsx";
 import SystemAdminPage from "./pages/SystemAdminPage.jsx";
 import SecretsAndKeysPage from "./pages/SecretsAndKeysPage.jsx";
 import ModelRoutingPage from "./pages/ModelRoutingPage.jsx";
@@ -91,26 +83,25 @@ export default function App() {
 
   const screens = useMemo(
     () => [
-      { id: "onboarding", label: "التهيئة الأولى", icon: Sparkles, enabled: true },
       { id: "dashboard", label: "لوحة التحكم", icon: LayoutDashboard, enabled: true },
       { id: "storeSetup", label: "إعداد المتجر", icon: Store, enabled: true },
       { id: "productCatalog", label: "كتالوج المنتجات", icon: Store, enabled: true },
       { id: "dataSourcesHub", label: "مركز المصادر البياناتية", icon: Database, enabled: true },
       { id: "assetLibrary", label: "مكتبة الأصول", icon: FolderOpen, enabled: true },
-      { id: "campaignIntake", label: "إنشاء حملة", icon: Megaphone, enabled: true },
-      { id: "dualGuidedIntake", label: "الإدخال الذكي", icon: Wand2, enabled: true },
+
+      { id: "campaigns", label: "معالج الحملات", icon: Megaphone, enabled: true },
       { id: "campaignsList", label: "الحملات", icon: Megaphone, enabled: true },
-      { id: "content", label: "المحتوى", icon: FileCheck2, enabled: true },
-      { id: "review", label: "المراجعة", icon: CheckCircle2, enabled: true },
+
+      { id: "content", label: "المحتوى والمراجعة", icon: FileCheck2, enabled: true },
       { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
-      { id: "workflowRuns", label: "تشغيلات النظام", icon: Workflow, enabled: true },
+
       { id: "analytics", label: "التحليلات", icon: BarChart3, enabled: true },
-      { id: "smartAnalytics", label: "التحليلات الذكية", icon: Sparkles, enabled: true },
+
       { id: "templateEngine", label: "محرك القوالب", icon: Wand2, enabled: true },
-      { id: "livePreview", label: "المعاينة الحية", icon: MonitorSmartphone, enabled: true },
       { id: "multiPlatform", label: "متعدد القنوات", icon: Layers, enabled: true },
       { id: "teamCollaboration", label: "تعاون الفريق", icon: Users, enabled: true },
-      { id: "campaigns", label: "معالج الحملات القديم", icon: Megaphone, enabled: true },
+
+      { id: "workflowRuns", label: "تشغيلات النظام", icon: Workflow, enabled: true },
       { id: "systemAdmin", label: "إدارة النظام", icon: Shield, enabled: true },
       { id: "secrets", label: "الأسرار والمفاتيح", icon: KeyRound, enabled: true },
       { id: "modelRouting", label: "توجيه النماذج", icon: Wand2, enabled: true },
@@ -123,19 +114,15 @@ export default function App() {
 
   let pageContent = null;
 
-  if (activeScreen === "onboarding") {
-    pageContent = <OnboardingFlowPage onFinish={() => setActiveScreen("dashboard")} />;
-  }
-
   if (activeScreen === "dashboard") {
     pageContent = (
       <DashboardPage
-        onCreateCampaign={() => setActiveScreen("campaignIntake")}
+        onCreateCampaign={() => setActiveScreen("campaigns")}
         onOpenStoreSetup={() => setActiveScreen("storeSetup")}
         onOpenCampaigns={() => setActiveScreen("campaignsList")}
         onOpenAssets={() => setActiveScreen("assetLibrary")}
         onOpenAnalytics={() => setActiveScreen("analytics")}
-        onOpenReview={() => setActiveScreen("review")}
+        onOpenReview={() => setActiveScreen("content")}
       />
     );
   }
@@ -144,28 +131,26 @@ export default function App() {
   if (activeScreen === "productCatalog") pageContent = <ProductCatalogPage />;
   if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
-  if (activeScreen === "campaignIntake") pageContent = <CampaignIntakePage />;
-  if (activeScreen === "dualGuidedIntake") pageContent = <DualGuidedIntakePage />;
+
+  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage />;
 
   if (activeScreen === "campaignsList") {
     pageContent = (
       <CampaignsUnifiedPage
-        onCreateCampaign={() => setActiveScreen("campaignIntake")}
+        onCreateCampaign={() => setActiveScreen("campaigns")}
       />
     );
   }
 
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
-  if (activeScreen === "review") pageContent = <ReviewPage />;
   if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
-  if (activeScreen === "workflowRuns") pageContent = <WorkflowRunsPage />;
   if (activeScreen === "analytics") pageContent = <AnalyticsUnifiedPage />;
-  if (activeScreen === "smartAnalytics") pageContent = <AnalyticsUnifiedPage />;
+
   if (activeScreen === "templateEngine") pageContent = <TemplateEnginePage />;
-  if (activeScreen === "livePreview") pageContent = <LivePreviewPage />;
   if (activeScreen === "multiPlatform") pageContent = <MultiPlatformPage />;
   if (activeScreen === "teamCollaboration") pageContent = <TeamCollaborationPage />;
-  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage />;
+
+  if (activeScreen === "workflowRuns") pageContent = <WorkflowRunsPage />;
   if (activeScreen === "systemAdmin") pageContent = <SystemAdminPage />;
   if (activeScreen === "secrets") pageContent = <SecretsAndKeysPage />;
   if (activeScreen === "modelRouting") pageContent = <ModelRoutingPage />;

@@ -349,6 +349,66 @@ const ROUTES_SEED = [
   },
 ];
 
+
+const WORKFLOW_USAGE_SEED = [
+  {
+    taskType: "store_reading",
+    workflow: "Store Intelligence",
+    workflowId: "store_intelligence",
+    steps: ["analyze_store_brand"],
+    source: "Store Setup",
+  },
+  {
+    taskType: "product_extraction",
+    workflow: "Store Intelligence",
+    workflowId: "store_intelligence",
+    steps: ["extract_products"],
+    source: "Store Setup",
+  },
+  {
+    taskType: "campaign_strategy",
+    workflow: "Campaign Generation",
+    workflowId: "campaign_generation",
+    steps: ["build_campaign_strategy"],
+    source: "Campaign Wizard",
+  },
+  {
+    taskType: "ad_copy_generation",
+    workflow: "Campaign Generation",
+    workflowId: "campaign_generation",
+    steps: ["generate_content_plan"],
+    source: "Campaign Wizard",
+  },
+  {
+    taskType: "content_rewrite",
+    workflow: "Content Regeneration",
+    workflowId: "content_generation",
+    steps: ["rewrite_content"],
+    source: "Content Studio",
+  },
+  {
+    taskType: "video_script_generation",
+    workflow: "Video Generation",
+    workflowId: "video_generation",
+    steps: ["write_customer_video_brief", "write_internal_video_prompt"],
+    source: "Content Studio",
+  },
+  {
+    taskType: "video_generation",
+    workflow: "Video Generation",
+    workflowId: "video_generation",
+    steps: ["generate_video_asset"],
+    source: "Content Studio",
+  },
+  {
+    taskType: "risk_review",
+    workflow: "Video Generation",
+    workflowId: "video_generation",
+    steps: ["review_video_prompt"],
+    source: "Review Gate",
+  },
+];
+
 const STATUS_META = {
   active: ["نشط", "green"],
   testing: ["تجريبي", "amber"],
@@ -370,6 +430,18 @@ function findTask(taskType) {
 
 function modelName(models, id) {
   return models.find((model) => model.id === id)?.displayName || "غير محدد";
+}
+
+
+function getWorkflowUsage(taskType) {
+  return WORKFLOW_USAGE_SEED.filter((usage) => usage.taskType === taskType);
+}
+
+function getWorkflowUsageLabel(taskType) {
+  const usage = getWorkflowUsage(taskType);
+  if (!usage.length) return "غير مستخدم";
+  const stepCount = usage.reduce((sum, item) => sum + item.steps.length, 0);
+  return `${usage.length} Workflow · ${stepCount} خطوة`;
 }
 
 export default function ModelRoutingPage() {
@@ -616,6 +688,7 @@ export default function ModelRoutingPage() {
                 <span>الشاشة</span>
                 <span>النموذج الأساسي</span>
                 <span>Fallback</span>
+                <span>الاستخدام</span>
                 <span>المراجعة</span>
                 <span>التكلفة</span>
               </div>
@@ -636,6 +709,7 @@ export default function ModelRoutingPage() {
                     <span>{task?.[2] || "—"}</span>
                     <span>{modelName(models, route.primaryModelId)}</span>
                     <span>{route.fallbackModelIds.length}</span>
+                    <span>{getWorkflowUsageLabel(route.taskType)}</span>
                     <span>{route.governance.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"}</span>
                     <span>{route.cost.maxCostPerRun}$ / run</span>
                   </button>
@@ -677,6 +751,8 @@ export default function ModelRoutingPage() {
                 ))}
               </select>
             </div>
+
+            <WorkflowUsagePanel route={selectedRoute} />
 
             <div className="editor-grid">
               <Field
@@ -760,6 +836,10 @@ export default function ModelRoutingPage() {
                         <span>{modelName(models, modelId)}</span>
                       </React.Fragment>
                     ))}
+                  </div>
+                  <div className="usage-mini-row">
+                    <ListChecks size={14} />
+                    <span>{getWorkflowUsageLabel(route.taskType)}</span>
                   </div>
                   <p>
                     {route.policy.retryOnFailure ? "Retry مفعّل" : "Retry غير مفعّل"} ·{" "}
@@ -853,6 +933,45 @@ export default function ModelRoutingPage() {
         </section>
       )}
     </main>
+  );
+}
+
+
+function WorkflowUsagePanel({ route }) {
+  const usage = getWorkflowUsage(route.taskType);
+
+  return (
+    <section className={`workflow-usage-box ${usage.length ? "linked" : "orphan"}`}>
+      <div className="usage-box-head">
+        <ListChecks size={16} />
+        <strong>Workflow Usage</strong>
+      </div>
+
+      {usage.length ? (
+        <div className="usage-list">
+          {usage.map((item) => (
+            <div key={`${item.workflowId}-${item.taskType}`} className="usage-item">
+              <div>
+                <strong>{item.workflow}</strong>
+                <span>{item.source} · {item.workflowId}</span>
+              </div>
+              <div className="usage-steps">
+                {item.steps.map((step) => (
+                  <code key={step}>{step}</code>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="usage-warning">
+          <AlertTriangle size={16} />
+          <span>
+            هذا المسار غير مستخدم في أي Workflow ظاهر داخل النموذج الحالي. لا تحذفه الآن، لكنه يحتاج قرار لاحق: ربطه، إخفاؤه، أو وسمه كمستقبلي.
+          </span>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1250,7 +1369,7 @@ const styles = `
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) 140px 180px 90px 110px 110px;
+  grid-template-columns: minmax(220px, 1.4fr) 130px 170px 80px 130px 110px 100px;
   gap: 10px;
   align-items: center;
   padding: 13px 14px;
@@ -1291,6 +1410,87 @@ const styles = `
 .route-editor {
   position: sticky;
   top: 96px;
+}
+
+
+.workflow-usage-box {
+  border: 1px solid #e4e7df;
+  border-radius: 18px;
+  padding: 12px;
+  margin: 14px 0;
+  background: #fbfdf9;
+}
+
+.workflow-usage-box.orphan {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.usage-box-head,
+.usage-mini-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #176b2c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.usage-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.usage-item {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.usage-item strong,
+.usage-item span {
+  display: block;
+}
+
+.usage-item span {
+  color: #6f746b;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.usage-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.usage-steps code {
+  direction: ltr;
+  background: #f7f8f4;
+  border: 1px solid #e4e7df;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 11px;
+  color: #374151;
+}
+
+.usage-warning {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 8px;
+}
+
+.usage-mini-row {
+  margin-top: 12px;
+  color: #374151;
 }
 
 .route-editor p {
@@ -1549,7 +1749,7 @@ const styles = `
 
   .table-head,
   .table-row {
-    min-width: 920px;
+    min-width: 1040px;
   }
 }
 

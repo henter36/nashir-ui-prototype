@@ -1262,3 +1262,165 @@ min-width: 0;
     padding: 14px !important;
   }
 }
+/* Sidebar stability after adding many screens */
+
+.sidebar {
+  width: 292px;
+  min-width: 292px;
+  max-width: 292px;
+  height: 100vh;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  display: block !important;
+  background: #ffffff;
+  border-left: 1px solid var(--border);
+  padding: 0;
+  overflow: hidden;
+}
+
+.sidebar-inner {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.brand {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+}
+
+.sidebar-nav {
+  flex: 1 1 auto;
+  display: block;
+  overflow-y: auto;
+  padding-inline-end: 4px;
+  padding-bottom: 12px;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #d7ddcf;
+  border-radius: 999px;
+}
+
+.sidebar-group {
+  margin-bottom: 16px;
+}
+
+.sidebar-group-title {
+  padding: 0 10px 8px;
+  color: #6f746b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sidebar-group-list {
+  display: grid;
+  gap: 5px;
+}
+
+.sidebar-item {
+  min-height: 42px;
+  padding: 9px 11px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.sidebar-item svg {
+  flex: 0 0 auto;
+}
+
+.sidebar-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-item em {
+  flex: 0 0 auto;
+  color: #9ca3af;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-help,
+.plan-card {
+  margin: 0;
+}
+
+.plan-card {
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.help-row {
+  min-height: 38px;
+}
+
+/* Do not hide sidebar on medium screens */
+@media (max-width: 1100px) {
+  .sidebar {
+    display: block !important;
+    width: 292px !important;
+    min-width: 292px !important;
+  }
+
+  .app-shell {
+    display: flex !important;
+  }
+
+  .app-main {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+}
+
+/* On very small screens, put sidebar on top instead of hiding it */
+@media (max-width: 760px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none;
+    height: auto;
+    min-height: auto;
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-inner {
+    height: auto;
+    max-height: 58vh;
+  }
+
+  .sidebar-nav {
+    max-height: 38vh;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+}

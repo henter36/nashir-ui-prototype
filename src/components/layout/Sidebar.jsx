@@ -3,31 +3,43 @@ import { Sparkles, HelpCircle } from "lucide-react";
 const groups = [
   {
     title: "الرئيسية",
-    ids: ["onboarding", "dashboard", "storeSetup"],
+    ids: [
+      "dashboard",
+      "storeSetup",
+      "productCatalog",
+      "dataSourcesHub",
+      "assetLibrary",
+    ],
   },
   {
     title: "الحملات والمحتوى",
     ids: [
-      "campaignIntake",
-      "dualGuidedIntake",
-      "campaignsList",
-      "campaignDetail",
       "campaigns",
+      "campaignsList",
       "content",
-      "review",
+      "publishingQueue",
     ],
   },
   {
-    title: "الأصول والنشر",
-    ids: ["assetLibrary", "livePreview", "multiPlatform", "publishingQueue"],
+    title: "التحليلات والقنوات",
+    ids: [
+      "analytics",
+      "templateEngine",
+      "multiPlatform",
+      "teamCollaboration",
+    ],
   },
   {
-    title: "التحليلات والتعاون",
-    ids: ["analytics", "smartAnalytics", "teamCollaboration"],
-  },
-  {
-    title: "الإدارة",
-    ids: ["systemAdmin", "secrets", "modelRouting", "workflowRuns", "settings"],
+    title: "الإدارة والحوكمة",
+    ids: [
+      "workflowRuns",
+      "systemAdmin",
+      "secrets",
+      "modelRouting",
+      "promptGovernance",
+      "costMonitor",
+      "settings",
+    ],
   },
 ];
 
