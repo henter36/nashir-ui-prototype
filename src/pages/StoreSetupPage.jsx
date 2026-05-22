@@ -27,6 +27,13 @@ import {
   deleteProduct as deleteCatalogProduct,
 } from "../utils/productCatalogStore.js";
 
+import {
+  readStoreScanSnapshot,
+  markStoreScanPending,
+  runMockStoreScan,
+  writeStoreScanSnapshot,
+} from "../utils/dataSourcesStore.js";
+
 const steps = [
   [1, "بيانات المتجر", "البيانات الأساسية والهوية التشغيلية."],
   [2, "المنتجات", "جدول المنتجات والخدمات المستخدمة في الحملات."],
@@ -206,6 +213,46 @@ function writeSharedIntegrationConnections(nextConnections, preferredChannels = 
   }
 }
 
+function snapshotToStoreSource(snapshot) {
+  if (!snapshot) {
+    return {
+      status: "manual",
+      confidence: 35,
+      message: "رابط المتجر مُدخل يدويًا ولم يتم فحصه بعد.",
+    };
+  }
+
+  return {
+    status: snapshot.status || "manual",
+    confidence: snapshot.confidence || 35,
+    message: snapshot.message || "رابط المتجر مُدخل يدويًا ولم يتم فحصه بعد.",
+  };
+}
+
+function snapshotToCollectedData(snapshot) {
+  if (!snapshot) {
+    return {
+      detectedPlatform: "",
+      detectedCategories: [],
+      detectedProducts: [],
+      brandKeywords: [],
+      detectedTone: [],
+      suggestedChannels: [],
+      assetsNeedingReview: [],
+    };
+  }
+
+  return {
+    detectedPlatform: snapshot.detectedPlatform || "",
+    detectedCategories: snapshot.detectedCategories || [],
+    detectedProducts: snapshot.detectedProducts || [],
+    brandKeywords: snapshot.brandKeywords || [],
+    detectedTone: snapshot.detectedTone || [],
+    suggestedChannels: snapshot.suggestedChannels || [],
+    assetsNeedingReview: snapshot.assetsNeedingReview || [],
+  };
+}
+
 export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(defaultForm);
@@ -221,21 +268,13 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     flags: [],
     source: "manual",
   });
-  const [storeSource, setStoreSource] = useState({
-    status: "manual",
-    confidence: 35,
-    message: "رابط المتجر مُدخل يدويًا ولم يتم فحصه بعد.",
-  });
+  const [storeSource, setStoreSource] = useState(() =>
+    snapshotToStoreSource(readStoreScanSnapshot())
+  );
   const [channelConnections, setChannelConnections] = useState(() => readSharedIntegrationConnections());
-  const [collectedData, setCollectedData] = useState({
-    detectedPlatform: "",
-    detectedCategories: [],
-    detectedProducts: [],
-    brandKeywords: [],
-    detectedTone: [],
-    suggestedChannels: [],
-    assetsNeedingReview: [],
-  });
+  const [collectedData, setCollectedData] = useState(() =>
+    snapshotToCollectedData(readStoreScanSnapshot())
+  );
   const [recommendations, setRecommendations] = useState([
     "ابدأ بفحص المتجر لتحويل الرابط إلى منتجات وتصنيف ونبرة مبدئية.",
     "راجع المنتجات المسحوبة قبل استخدامها في أي حملة.",
@@ -255,6 +294,26 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       window.removeEventListener("focus", refreshProducts);
       window.removeEventListener("storage", refreshProducts);
       window.removeEventListener("nashir-product-catalog-updated", refreshProducts);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshStoreScan = () => {
+      const snapshot = readStoreScanSnapshot();
+      setStoreSource(snapshotToStoreSource(snapshot));
+      setCollectedData(snapshotToCollectedData(snapshot));
+    };
+
+    window.addEventListener("focus", refreshStoreScan);
+    window.addEventListener("storage", refreshStoreScan);
+    window.addEventListener("nashir-store-scan-updated", refreshStoreScan);
+    window.addEventListener("nashir-data-sources-updated", refreshStoreScan);
+
+    return () => {
+      window.removeEventListener("focus", refreshStoreScan);
+      window.removeEventListener("storage", refreshStoreScan);
+      window.removeEventListener("nashir-store-scan-updated", refreshStoreScan);
+      window.removeEventListener("nashir-data-sources-updated", refreshStoreScan);
     };
   }, []);
 
@@ -482,28 +541,17 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       return;
     }
 
-    setStoreSource({
-      status: "pending_scan",
-      confidence: 25,
-      message: "جاري فحص المتجر وجمع التصنيف والمنتجات والنبرة الأولية...",
-    });
+    const pending = markStoreScanPending({ storeUrl: form.storeUrl });
+    setStoreSource(snapshotToStoreSource(pending.snapshot));
+    setCollectedData(snapshotToCollectedData(pending.snapshot));
 
     window.setTimeout(() => {
-      const result = {
-        detectedPlatform: form.storeUrl.includes("salla")
-          ? "Salla"
-          : form.storeUrl.includes("shopify")
-            ? "Shopify"
-            : "Custom / Unknown",
-        detectedCategories: ["عناية وجمال", "منتجات طبيعية", "هدايا"],
-        detectedProducts: ["سيروم عناية طبيعي", "باقة هدايا طبيعية", "كريم مرطب نيفيا"],
-        brandKeywords: ["طبيعي", "موثوق", "تجربة", "جودة"],
-        detectedTone: ["ودية", "موثوقة", "هادئة"],
-        suggestedChannels: ["Instagram", "TikTok", "WhatsApp Business", "Email"],
-        assetsNeedingReview: ["صورة المنتج الرئيسية", "شعار المتجر", "صورة باقة الهدايا"],
-      };
+      const { snapshot } = runMockStoreScan({ storeUrl: form.storeUrl });
+      const result = snapshotToCollectedData(snapshot);
 
       setCollectedData(result);
+      setStoreSource(snapshotToStoreSource(snapshot));
+
       setForm((prev) => ({
         ...prev,
         category: prev.category || result.detectedCategories[0],
@@ -537,15 +585,9 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
 
       setProducts(nextProducts);
 
-      setStoreSource({
-        status: "scan_completed",
-        confidence: 86,
-        message: "تم جمع منتجات وتصنيف ونبرة وقنوات مبدئية من رابط المتجر.",
-      });
-
       setRecommendations([
-        "تم عكس نتائج فحص المتجر على المنتجات والنبرة والقنوات المقترحة.",
-        "راجع المنتجات المكتشفة قبل استخدامها في معالج إنشاء الحملة.",
+        "تم عكس نتائج فحص المتجر على نفس مصدر بيانات DataSourcesHub.",
+        "تمت إضافة المنتجات المكتشفة إلى كتالوج المنتجات المشترك.",
         "أصول المتجر المكتشفة يجب مراجعة حقوقها في مكتبة الأصول.",
         "ابدأ بقناتين فقط في أول حملة قبل التوسع.",
       ]);
@@ -553,14 +595,16 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   };
 
   const approveStoreScan = () => {
-    setStoreSource((prev) => ({
-      ...prev,
-      status: prev.status === "scan_completed" ? "approved" : prev.status,
-      message:
-        prev.status === "scan_completed"
-          ? "تم اعتماد بيانات فحص المتجر كمصدر مساعد للحملات."
-          : prev.message,
-    }));
+    const currentSnapshot = readStoreScanSnapshot();
+    if (currentSnapshot?.status === "scan_completed") {
+      const approvedSnapshot = writeStoreScanSnapshot({
+        ...currentSnapshot,
+        status: "approved",
+        message: "تم اعتماد بيانات فحص المتجر كمصدر مساعد للحملات.",
+      });
+      setStoreSource(snapshotToStoreSource(approvedSnapshot));
+      setCollectedData(snapshotToCollectedData(approvedSnapshot));
+    }
 
     setRecommendations((prev) => [
       "تم اعتماد بيانات فحص المتجر كمصدر مساعد للحملات القادمة.",
@@ -605,9 +649,8 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
         <div>
           <strong>Scope Guardrail</strong>
           <span>
-            لا يوجد ربط فعلي، ولا OAuth، ولا Backend، ولا تخزين بيانات. إعداد
-            المتجر هنا يحدد السياق التشغيلي فقط، أما التكاملات التفصيلية فتدار
-            من صفحة مصادر البيانات والتكاملات.
+            لا يوجد Backend أو API حقيقي. زر فحص المتجر هنا اختصار فقط؛ نتيجة الفحص
+            تُحفظ في نفس مصدر بيانات DataSourcesHub، وليست حالة مستقلة داخل إعداد المتجر.
           </span>
         </div>
       </section>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,6 +18,14 @@ import {
   Unlink,
   XCircle,
 } from "lucide-react";
+
+import {
+  readDataSources,
+  writeDataSources,
+  upsertDataSource,
+  deleteDataSource,
+  runMockStoreScan,
+} from "../utils/dataSourcesStore.js";
 
 const initialSources = [
   {
@@ -225,10 +233,30 @@ function createNewSource() {
 }
 
 export default function DataSourcesHubPage() {
-  const [sources, setSources] = useState(initialSources);
-  const [selectedId, setSelectedId] = useState(initialSources[0].id);
+  const [sources, setSources] = useState(() => readDataSources(initialSources));
+  const [selectedId, setSelectedId] = useState(() => readDataSources(initialSources)[0]?.id || initialSources[0].id);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    const refreshSources = () => {
+      const latest = readDataSources(initialSources);
+      setSources(latest);
+      setSelectedId((prev) => prev || latest[0]?.id || "");
+    };
+
+    window.addEventListener("focus", refreshSources);
+    window.addEventListener("storage", refreshSources);
+    window.addEventListener("nashir-data-sources-updated", refreshSources);
+    window.addEventListener("nashir-store-scan-updated", refreshSources);
+
+    return () => {
+      window.removeEventListener("focus", refreshSources);
+      window.removeEventListener("storage", refreshSources);
+      window.removeEventListener("nashir-data-sources-updated", refreshSources);
+      window.removeEventListener("nashir-store-scan-updated", refreshSources);
+    };
+  }, []);
 
   const selected = sources.find((source) => source.id === selectedId) || sources[0];
 
@@ -255,108 +283,98 @@ export default function DataSourcesHubPage() {
   }, [sources]);
 
   const updateSelected = (key, value) => {
-    setSources((prev) =>
-      prev.map((source) =>
-        source.id === selected.id
-          ? {
-              ...source,
-              [key]: value,
-              last: key === "status" ? "الآن" : source.last,
-            }
-          : source
-      )
-    );
+    const updated = {
+      ...selected,
+      [key]: value,
+      last: key === "status" ? "الآن" : selected.last,
+    };
+    const next = upsertDataSource(updated, initialSources);
+    setSources(next);
   };
 
   const scan = (id) => {
-    setSources((prev) =>
-      prev.map((source) =>
-        source.id === id
-          ? {
-              ...source,
-              status: "pending_scan",
-              output: "جاري التحليل...",
-              last: "الآن",
-              scanLog: [`بدأ فحص المصدر: ${source.name}`, ...(source.scanLog || [])],
-            }
-          : source
-      )
-    );
+    const target = sources.find((source) => source.id === id);
+    if (!target) return;
+
+    const pending = {
+      ...target,
+      status: "pending_scan",
+      output: "جاري التحليل...",
+      last: "الآن",
+      scanLog: [`بدأ فحص المصدر: ${target.name}`, ...(target.scanLog || [])],
+    };
+    setSources(upsertDataSource(pending, initialSources));
 
     window.setTimeout(() => {
-      setSources((prev) =>
-        prev.map((source) =>
-          source.id === id
-            ? {
-                ...source,
-                status: source.connectionMode === "official_integration" ? "connected" : "scan_completed",
-                confidence: Math.max(source.confidence, source.connectionMode === "official_integration" ? 82 : 78),
-                output:
-                  source.connectionMode === "official_integration"
-                    ? "تكامل تمثيلي متصل محليًا بدون API حقيقي"
-                    : "تم جمع بيانات جديدة وتحديث التوصيات",
-                last: "الآن",
-                scanLog: [
-                  "اكتمل الفحص المحلي.",
-                  "تم تحديث الثقة والمخرجات.",
-                  "تم وسم النتائج كمخرجات تحتاج مراجعة قبل الاستخدام.",
-                  ...(source.scanLog || []),
-                ],
-              }
-            : source
-        )
-      );
+      if (target.id === "website") {
+        const { sources: nextSources } = runMockStoreScan({
+          storeUrl: target.sourceUrl || "https://store.example.com",
+          seedSources: initialSources,
+        });
+        setSources(nextSources);
+        return;
+      }
+
+      const completed = {
+        ...pending,
+        status: target.connectionMode === "official_integration" ? "connected" : "scan_completed",
+        confidence: Math.max(target.confidence, target.connectionMode === "official_integration" ? 82 : 78),
+        output:
+          target.connectionMode === "official_integration"
+            ? "تكامل تمثيلي متصل محليًا بدون API حقيقي"
+            : "تم جمع بيانات جديدة وتحديث التوصيات",
+        last: "الآن",
+        scanLog: [
+          "اكتمل الفحص المحلي.",
+          "تم تحديث الثقة والمخرجات.",
+          "تم وسم النتائج كمخرجات تحتاج مراجعة قبل الاستخدام.",
+          ...(target.scanLog || []),
+        ],
+      };
+      setSources(upsertDataSource(completed, initialSources));
     }, 800);
   };
 
   const addSource = () => {
-    const next = createNewSource();
-    setSources((prev) => [next, ...prev]);
-    setSelectedId(next.id);
+    const nextSource = createNewSource();
+    const next = upsertDataSource(nextSource, initialSources);
+    setSources(next);
+    setSelectedId(nextSource.id);
   };
 
   const disableSource = () => {
-    setSources((prev) =>
-      prev.map((source) =>
-        source.id === selected.id
-          ? {
-              ...source,
-              status: "disabled",
-              destinations: [],
-              output: "تم تعطيل المصدر محليًا",
-              last: "الآن",
-              scanLog: ["تم تعطيل المصدر وفك جميع الروابط.", ...(source.scanLog || [])],
-            }
-          : source
-      )
-    );
+    const disabled = {
+      ...selected,
+      status: "disabled",
+      destinations: [],
+      output: "تم تعطيل المصدر محليًا",
+      last: "الآن",
+      scanLog: ["تم تعطيل المصدر وفك جميع الروابط.", ...(selected.scanLog || [])],
+    };
+    setSources(upsertDataSource(disabled, initialSources));
   };
 
   const deleteSource = () => {
-    const remaining = sources.filter((source) => source.id !== selected.id);
+    const remaining = deleteDataSource(selected.id, initialSources);
     setSources(remaining);
     setSelectedId(remaining[0]?.id || "");
   };
 
   const toggleDestination = (destinationId) => {
-    setSources((prev) =>
-      prev.map((source) => {
-        if (source.id !== selected.id) return source;
-        const exists = source.destinations.includes(destinationId);
-        return {
-          ...source,
-          destinations: exists
-            ? source.destinations.filter((id) => id !== destinationId)
-            : [...source.destinations, destinationId],
-          scanLog: [
-            `${exists ? "تم فك الربط عن" : "تم ربط المصدر بـ"} ${
-              DESTINATION_OPTIONS.find(([id]) => id === destinationId)?.[1] || destinationId
-            }`,
-            ...(source.scanLog || []),
-          ],
-        };
-      })
-    );
+    const exists = selected.destinations.includes(destinationId);
+    const updated = {
+      ...selected,
+      destinations: exists
+        ? selected.destinations.filter((id) => id !== destinationId)
+        : [...selected.destinations, destinationId],
+      scanLog: [
+        `${exists ? "تم فك الربط عن" : "تم ربط المصدر بـ"} ${
+          DESTINATION_OPTIONS.find(([id]) => id === destinationId)?.[1] || destinationId
+        }`,
+        ...(selected.scanLog || []),
+      ],
+    };
+    setSources(upsertDataSource(updated, initialSources));
   };
 
   const warnings = selected ? buildGovernanceWarnings(selected) : [];
@@ -401,8 +419,8 @@ export default function DataSourcesHubPage() {
         <div>
           <strong>Prototype فقط — لا يوجد ربط API حقيقي</strong>
           <span>
-            الفحص والربط هنا محليان لتثبيت تجربة المنتج. أي مصدر يحتاج مراجعة قبل
-            استخدامه كمصدر نهائي للحملات.
+            الفحص والربط هنا محليان لتثبيت تجربة المنتج. هذه الصفحة هي مصدر الحقيقة
+            لمصادر البيانات، وزر فحص المتجر في StoreSetupPage يكتب في نفس المصدر.
           </span>
         </div>
       </section>
