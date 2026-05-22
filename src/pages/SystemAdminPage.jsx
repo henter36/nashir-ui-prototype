@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -22,6 +22,12 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import {
+  addActivity,
+  readActivityLog,
+  readWorkspaceMembers,
+  readWorkspaceRoles,
+} from "../utils/teamAccessStore.js";
 
 const workspaces = [
   {
@@ -77,6 +83,33 @@ const users = [
     role: "Editor",
     workspace: "متجر الهدايا",
     status: "محدود",
+  },
+];
+
+const roles = [
+  {
+    id: "Owner",
+    label: "Owner",
+    description: "إدارة الفريق والصلاحيات والاعتماد النهائي.",
+    tone: "green",
+    permissions: ["إدارة الأعضاء", "تغيير الصلاحيات", "اعتماد نهائي", "عرض السجل"],
+    risk: "مرتفع",
+  },
+  {
+    id: "Reviewer",
+    label: "Reviewer",
+    description: "مراجعة واعتماد أو رفض المحتوى قبل النشر.",
+    tone: "blue",
+    permissions: ["مراجعة المحتوى", "طلب تعديل", "اعتماد محتوى", "عرض التعليقات"],
+    risk: "متوسط",
+  },
+  {
+    id: "Editor",
+    label: "Editor",
+    description: "تحرير المحتوى وإضافة تعليقات دون اعتماد نهائي.",
+    tone: "amber",
+    permissions: ["تحرير المحتوى", "إضافة تعليق", "طلب مراجعة"],
+    risk: "متوسط",
   },
 ];
 
@@ -196,18 +229,47 @@ const featureFlags = [
 export default function SystemAdminPage() {
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState(featureFlags);
+  const [workspaceMembers, setWorkspaceMembers] = useState(() => readWorkspaceMembers(users));
+  const [workspaceRoles, setWorkspaceRoles] = useState(() => readWorkspaceRoles(roles));
+  const [adminAuditLogs, setAdminAuditLogs] = useState(() => readActivityLog(auditLogs));
+
+  useEffect(() => {
+    const reloadAccessState = () => {
+      setWorkspaceMembers(readWorkspaceMembers(users));
+      setWorkspaceRoles(readWorkspaceRoles(roles));
+      setAdminAuditLogs(readActivityLog(auditLogs));
+    };
+
+    window.addEventListener("focus", reloadAccessState);
+    window.addEventListener("storage", reloadAccessState);
+    window.addEventListener("nashir-workspace-members-updated", reloadAccessState);
+    window.addEventListener("nashir-workspace-roles-updated", reloadAccessState);
+    window.addEventListener("nashir-activity-log-updated", reloadAccessState);
+
+    return () => {
+      window.removeEventListener("focus", reloadAccessState);
+      window.removeEventListener("storage", reloadAccessState);
+      window.removeEventListener("nashir-workspace-members-updated", reloadAccessState);
+      window.removeEventListener("nashir-workspace-roles-updated", reloadAccessState);
+      window.removeEventListener("nashir-activity-log-updated", reloadAccessState);
+    };
+  }, []);
 
   const stats = useMemo(() => {
     return {
       workspaces: workspaces.length,
-      users: users.length,
+      users: workspaceMembers.length,
       activeIntegrations: integrations.filter((item) => item.status === "healthy")
         .length,
-      warnings: auditLogs.filter(
-        (item) => item.level === "warning" || item.level === "critical"
+      warnings: adminAuditLogs.filter(
+        (item) =>
+          item.level === "warning" ||
+          item.level === "critical" ||
+          item.severity === "warning" ||
+          item.severity === "critical"
       ).length,
     };
-  }, []);
+  }, [adminAuditLogs, workspaceMembers]);
 
   const filteredWorkspaces = workspaces.filter((workspace) => {
     const text = `${workspace.name} ${workspace.owner} ${workspace.plan}`.toLowerCase();
@@ -218,6 +280,17 @@ export default function SystemAdminPage() {
     setFlags((prev) =>
       prev.map((flag) =>
         flag.key === key ? { ...flag, enabled: !flag.enabled } : flag
+      )
+    );
+    setAdminAuditLogs(
+      addActivity(
+        {
+          action: `تغيير حالة خاصية ${key}`,
+          actor: "System Admin",
+          target: "Feature Flags",
+          severity: "warning",
+        },
+        auditLogs
       )
     );
   };
@@ -465,9 +538,9 @@ export default function SystemAdminPage() {
           </div>
 
           <div className="audit-list">
-            {auditLogs.map((log) => (
+            {adminAuditLogs.map((log) => (
               <div key={`${log.action}-${log.time}`} className="audit-row">
-                <div className={`audit-dot ${log.level}`} />
+                <div className={`audit-dot ${log.level || log.severity}`} />
 
                 <div>
                   <strong>{log.action}</strong>

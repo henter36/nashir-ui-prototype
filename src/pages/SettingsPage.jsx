@@ -19,8 +19,10 @@ import {
   SlidersHorizontal,
   Sparkles,
   Store,
+  Users,
 } from "lucide-react";
 import { getModelRoutingSummary } from "../utils/modelCostStore.js";
+import { getWorkspaceTeamSummary } from "../utils/teamAccessStore.js";
 
 const INTEGRATION_CONNECTIONS_KEY = "nashir_mock_integration_connections";
 
@@ -523,6 +525,7 @@ export default function SettingsPage() {
     buildDefaultChannels(readSharedIntegrationConnections())
   );
   const [modelRoutingSummary, setModelRoutingSummary] = useState(() => getModelRoutingSummary());
+  const [workspaceTeamSummary, setWorkspaceTeamSummary] = useState(() => getWorkspaceTeamSummary());
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [auditLog, setAuditLog] = useState([
@@ -569,6 +572,28 @@ export default function SettingsPage() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("nashir-integration-connections-updated", handleRefresh);
       document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshWorkspaceTeamSummary = () => {
+      setWorkspaceTeamSummary(getWorkspaceTeamSummary());
+    };
+
+    window.addEventListener("focus", refreshWorkspaceTeamSummary);
+    window.addEventListener("storage", refreshWorkspaceTeamSummary);
+    window.addEventListener("nashir-workspace-members-updated", refreshWorkspaceTeamSummary);
+    window.addEventListener("nashir-workspace-roles-updated", refreshWorkspaceTeamSummary);
+    window.addEventListener("nashir-collaboration-comments-updated", refreshWorkspaceTeamSummary);
+    window.addEventListener("nashir-activity-log-updated", refreshWorkspaceTeamSummary);
+
+    return () => {
+      window.removeEventListener("focus", refreshWorkspaceTeamSummary);
+      window.removeEventListener("storage", refreshWorkspaceTeamSummary);
+      window.removeEventListener("nashir-workspace-members-updated", refreshWorkspaceTeamSummary);
+      window.removeEventListener("nashir-workspace-roles-updated", refreshWorkspaceTeamSummary);
+      window.removeEventListener("nashir-collaboration-comments-updated", refreshWorkspaceTeamSummary);
+      window.removeEventListener("nashir-activity-log-updated", refreshWorkspaceTeamSummary);
     };
   }, []);
 
@@ -904,6 +929,8 @@ export default function SettingsPage() {
                   <SummaryRow label="اللغة والنبرة" value={`${outputSettings.defaultLanguage} · ${outputSettings.defaultTone}`} />
                   <SummaryRow label="مسارات الذكاء الاصطناعي" value={modelRoutingSummary.routes || "غير محدد"} />
                   <SummaryRow label="استهلاك التكلفة" value={`${modelRoutingSummary.usage || 0}%`} />
+                  <SummaryRow label="أعضاء الفريق" value={workspaceTeamSummary.members || 0} />
+                  <SummaryRow label="تعليقات مفتوحة" value={workspaceTeamSummary.openComments || 0} />
                 </div>
               </SettingsCard>
             </>
@@ -1336,6 +1363,19 @@ export default function SettingsPage() {
               <SummaryRow label="النماذج النشطة" value={modelRoutingSummary.activeModels || 0} />
               <SummaryRow label="مسارات المراجعة" value={modelRoutingSummary.reviewRoutes || 0} />
               <SummaryRow label="توقع التكلفة" value={`${modelRoutingSummary.forecastUsage || 0}%`} />
+            </div>
+          </SettingsCard>
+
+          <SettingsCard
+            icon={Users}
+            title="الفريق"
+            description="ملخص قراءة فقط لحالة الأعضاء والتعليقات."
+          >
+            <div className="summary-list">
+              <SummaryRow label="الأعضاء النشطون" value={workspaceTeamSummary.activeMembers || 0} />
+              <SummaryRow label="الدعوات المعلقة" value={workspaceTeamSummary.invitedMembers || 0} />
+              <SummaryRow label="الأدوار" value={workspaceTeamSummary.roles || 0} />
+              <SummaryRow label="تعليقات مفتوحة" value={workspaceTeamSummary.openComments || 0} />
             </div>
           </SettingsCard>
         </aside>

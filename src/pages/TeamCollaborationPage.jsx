@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Ban,
@@ -21,6 +21,16 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import {
+  addActivity,
+  getRoleById,
+  readActivityLog,
+  readCollaborationComments,
+  readWorkspaceMembers,
+  readWorkspaceRoles,
+  upsertCollaborationComment,
+  upsertWorkspaceMember,
+} from "../utils/teamAccessStore.js";
 
 const ROLE_OPTIONS = [
   {
@@ -212,9 +222,10 @@ function governanceWarnings(members, comments) {
 }
 
 export default function TeamCollaborationPage() {
-  const [members, setMembers] = useState(INITIAL_MEMBERS);
-  const [comments, setComments] = useState(INITIAL_COMMENTS);
-  const [changes, setChanges] = useState(INITIAL_CHANGES);
+  const [members, setMembers] = useState(() => readWorkspaceMembers(INITIAL_MEMBERS));
+  const [comments, setComments] = useState(() => readCollaborationComments(INITIAL_COMMENTS));
+  const [roles, setRoles] = useState(() => readWorkspaceRoles(ROLE_OPTIONS));
+  const [changes, setChanges] = useState(() => readActivityLog(INITIAL_CHANGES));
   const [comment, setComment] = useState("");
   const [commentTarget, setCommentTarget] = useState(REVIEW_ITEMS[0].title);
   const [commentDecision, setCommentDecision] = useState("note");
@@ -225,6 +236,31 @@ export default function TeamCollaborationPage() {
   const [selectedRole, setSelectedRole] = useState("all");
   const [commentFilter, setCommentFilter] = useState("all");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const reloadTeamState = () => {
+      setMembers(readWorkspaceMembers(INITIAL_MEMBERS));
+      setComments(readCollaborationComments(INITIAL_COMMENTS));
+      setRoles(readWorkspaceRoles(ROLE_OPTIONS));
+      setChanges(readActivityLog(INITIAL_CHANGES));
+    };
+
+    window.addEventListener("focus", reloadTeamState);
+    window.addEventListener("storage", reloadTeamState);
+    window.addEventListener("nashir-workspace-members-updated", reloadTeamState);
+    window.addEventListener("nashir-workspace-roles-updated", reloadTeamState);
+    window.addEventListener("nashir-collaboration-comments-updated", reloadTeamState);
+    window.addEventListener("nashir-activity-log-updated", reloadTeamState);
+
+    return () => {
+      window.removeEventListener("focus", reloadTeamState);
+      window.removeEventListener("storage", reloadTeamState);
+      window.removeEventListener("nashir-workspace-members-updated", reloadTeamState);
+      window.removeEventListener("nashir-workspace-roles-updated", reloadTeamState);
+      window.removeEventListener("nashir-collaboration-comments-updated", reloadTeamState);
+      window.removeEventListener("nashir-activity-log-updated", reloadTeamState);
+    };
+  }, []);
 
   const score = useMemo(() => scoreTeamGovernance(members, comments), [members, comments]);
   const warnings = useMemo(() => governanceWarnings(members, comments), [members, comments]);
@@ -252,7 +288,9 @@ export default function TeamCollaborationPage() {
     });
   }, [comments, commentFilter]);
 
-  const addAudit = (entry) => setChanges((prev) => [entry, ...prev]);
+  const addAudit = (entry) => {
+    setChanges(addActivity(entry, INITIAL_CHANGES));
+  };
 
   const addComment = () => {
     if (!comment.trim()) return;
@@ -268,27 +306,31 @@ export default function TeamCollaborationPage() {
       status: commentDecision === "approved_with_note" ? "resolved" : "open",
     };
 
-    setComments((prev) => [newComment, ...prev]);
+    setComments(upsertCollaborationComment(newComment, INITIAL_COMMENTS));
     addAudit(createAudit(`إضافة تعليق على ${commentTarget}`, "أنت", commentPriority === "high" ? "medium" : "low"));
     setComment("");
   };
 
   const resolveComment = (id) => {
     const target = comments.find((item) => item.id === id);
-    setComments((prev) => prev.map((item) => (item.id === id ? { ...item, status: "resolved" } : item)));
+    if (target) {
+      setComments(upsertCollaborationComment({ ...target, status: "resolved" }, INITIAL_COMMENTS));
+    }
     addAudit(createAudit(`إغلاق تعليق: ${target?.target || id}`, "أنت", "low"));
   };
 
   const reopenComment = (id) => {
     const target = comments.find((item) => item.id === id);
-    setComments((prev) => prev.map((item) => (item.id === id ? { ...item, status: "open" } : item)));
+    if (target) {
+      setComments(upsertCollaborationComment({ ...target, status: "open" }, INITIAL_COMMENTS));
+    }
     addAudit(createAudit(`إعادة فتح تعليق: ${target?.target || id}`, "أنت", "medium"));
   };
 
   const inviteMember = () => {
     if (!newMemberName.trim()) return;
 
-    const role = getRole(newMemberRole);
+    const role = getRoleById(newMemberRole, ROLE_OPTIONS) || getRole(newMemberRole);
     const member = {
       id: `m-${Date.now()}`,
       name: newMemberName.trim(),
@@ -299,7 +341,7 @@ export default function TeamCollaborationPage() {
       lastActive: "لم يقبل الدعوة",
     };
 
-    setMembers((prev) => [member, ...prev]);
+    setMembers(upsertWorkspaceMember(member, INITIAL_MEMBERS));
     addAudit(createAudit(`إرسال دعوة إلى ${member.name} بدور ${member.role}`, "أنت", "medium"));
     setNewMemberName("");
     setNewMemberEmail("");
@@ -308,29 +350,33 @@ export default function TeamCollaborationPage() {
 
   const updateRole = (memberId, roleId) => {
     const member = members.find((item) => item.id === memberId);
-    const role = getRole(roleId);
+    const role = getRoleById(roleId, ROLE_OPTIONS) || getRole(roleId);
 
-    setMembers((prev) =>
-      prev.map((item) =>
-        item.id === memberId
-          ? {
-              ...item,
-              role: roleId,
-              scope: role.description,
-            }
-          : item
+    if (!member) return;
+
+    setMembers(
+      upsertWorkspaceMember(
+        {
+          ...member,
+          role: roleId,
+          roleId,
+          scope: role.description,
+        },
+        INITIAL_MEMBERS
       )
     );
 
-    addAudit(createAudit(`تغيير دور ${member?.name || memberId} إلى ${roleId}`, "أنت", roleId === "Owner" ? "high" : "medium"));
+    addAudit(createAudit(`تغيير دور ${member?.name || "العضو المحدد"} إلى ${role.label}`, "أنت", roleId === "Owner" ? "high" : "medium"));
   };
 
   const toggleMemberStatus = (memberId) => {
     const member = members.find((item) => item.id === memberId);
     const nextStatus = member?.status === "suspended" ? "active" : "suspended";
 
-    setMembers((prev) => prev.map((item) => (item.id === memberId ? { ...item, status: nextStatus } : item)));
-    addAudit(createAudit(`${nextStatus === "suspended" ? "تعطيل" : "إعادة تفعيل"} عضو: ${member?.name || memberId}`, "أنت", "high"));
+    if (member) {
+      setMembers(upsertWorkspaceMember({ ...member, status: nextStatus }, INITIAL_MEMBERS));
+    }
+    addAudit(createAudit(`${nextStatus === "suspended" ? "تعطيل" : "إعادة تفعيل"} عضو: ${member?.name || "العضو المحدد"}`, "أنت", "high"));
   };
 
   return (
@@ -399,7 +445,7 @@ export default function TeamCollaborationPage() {
               <Filter size={16} />
               <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
                 <option value="all">كل الأدوار</option>
-                {ROLE_OPTIONS.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
+                {roles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
               </select>
             </label>
           </div>
@@ -409,14 +455,14 @@ export default function TeamCollaborationPage() {
             <input value={newMemberName} onChange={(e) => setNewMemberName(e.target.value)} placeholder="اسم العضو" />
             <input value={newMemberEmail} onChange={(e) => setNewMemberEmail(e.target.value)} placeholder="البريد — تمثيلي فقط" />
             <select value={newMemberRole} onChange={(e) => setNewMemberRole(e.target.value)}>
-              {ROLE_OPTIONS.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
+              {roles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}
             </select>
             <button type="button" onClick={inviteMember}><Plus size={16} /> إضافة دعوة</button>
           </div>
 
           <div className="members">
             {filteredMembers.map((member) => {
-              const role = getRole(member.role);
+              const role = getRoleById(member.role, roles) || getRole(member.role);
               return (
                 <div key={member.id} className={`member-row ${member.status === "suspended" ? "muted" : ""}`}>
                   <div className="member-main">
@@ -431,7 +477,7 @@ export default function TeamCollaborationPage() {
                     <Badge tone={role.tone}>{role.label}</Badge>
                     <StatusBadge value={member.status} map={statusMeta} />
                     <select value={member.role} onChange={(e) => updateRole(member.id, e.target.value)}>
-                      {ROLE_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                      {roles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select>
                     <button type="button" className="ghost danger" onClick={() => toggleMemberStatus(member.id)}>
                       {member.status === "suspended" ? <CheckCircle2 size={15} /> : <Ban size={15} />}
@@ -533,7 +579,7 @@ export default function TeamCollaborationPage() {
               <Eye size={20} />
             </div>
             <div className="role-list">
-              {ROLE_OPTIONS.map((role) => (
+              {roles.map((role) => (
                 <details key={role.id}>
                   <summary>
                     <Badge tone={role.tone}>{role.label}</Badge>
