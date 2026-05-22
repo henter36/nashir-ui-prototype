@@ -128,7 +128,163 @@ Administration and governance screens support the above journey but should not d
 - Immutable audit logs.
 - Real cost metering.
 
-## 8. Transition Rule
+## 8. Single Source of Truth Rule
+
+Any field, state, or entity that appears in more than one screen must have exactly one source of truth.
+
+Repeated display across screens is allowed only for shortcut, summary, contextual action, or read-only convenience. It must not create a second entity, duplicate state, separate save path, or independent meaning.
+
+### 8.1 Required Definition
+
+If a field or entity appears in more than one screen, the project must define:
+
+| Required Definition | Meaning |
+|---|---|
+| Source Entity | The single data/entity that owns the value. |
+| Owner Surface | The primary screen responsible for full management. |
+| Shortcut Surfaces | Screens allowed to display or trigger limited actions for convenience. |
+| Editable Surfaces | Screens allowed to write back to the same source entity. |
+| Read-only Mirrors | Screens allowed only to display the value. |
+| Forbidden Duplicate State | Any local copy or separate interpretation that is not allowed. |
+
+### 8.2 Allowed Repetition
+
+A repeated field, state, or entity is allowed only when it is one of the following:
+
+- Shortcut action.
+- Summary display.
+- Contextual edit of the same source entity.
+- Read-only mirror.
+- Operational status indicator.
+- Action trigger that writes back to the same source entity.
+
+### 8.3 Forbidden Repetition
+
+A repeated field, state, or entity is not allowed when it creates:
+
+- A duplicate entity.
+- A second local state.
+- A separate save path.
+- A different meaning for the same concept.
+- A conflicting status between screens.
+- Hidden ownership ambiguity.
+- Manual synchronization between two independent copies.
+
+### 8.4 Current Source-of-Truth Mapping
+
+| Concept | Source of Truth | Owner Surface | Shortcut / Mirror Surfaces |
+|---|---|---|---|
+| Store profile | StoreProfile | StoreSetupPage | DashboardPage, CampaignWizardPage |
+| Products / services | ProductCatalog / StoreProducts | ProductCatalogPage | StoreSetupPage, CampaignWizardPage, CampaignsUnifiedPage |
+| Default audience | AudienceProfile | StoreSetupPage | CampaignWizardPage, CampaignsUnifiedPage |
+| Channel connections | IntegrationConnections | SettingsPage | StoreSetupPage, MultiPlatformPage, PublishingQueuePage |
+| Channel readiness | IntegrationConnections + MultiPlatformReadiness | MultiPlatformPage | DashboardPage, PublishingQueuePage |
+| Data sources and store scans | DataSource + StoreScanSnapshot | DataSourcesHubPage | StoreSetupPage, DashboardPage, WorkflowRunsPage |
+| Governance policies | GovernancePolicy | SettingsPage / PromptGovernancePage | StoreSetupPage, ContentStudioPage, PublishingQueuePage |
+| Prompt templates | PromptTemplate | PromptGovernancePage | TemplateEnginePage, ContentStudioPage |
+| Content templates | ContentTemplate | TemplateEnginePage | ContentStudioPage, CampaignWizardPage |
+| AI model routing | ModelRoutingPolicy | ModelRoutingPage | SettingsPage, CostMonitorPage, WorkflowRunsPage |
+| Cost controls | CostPolicy / UsageBudget | CostMonitorPage | DashboardPage, SettingsPage, ModelRoutingPage |
+| Workflow runs | WorkflowRun | WorkflowRunsPage | DashboardPage, StoreSetupPage, CampaignWizardPage, ContentStudioPage, PublishingQueuePage |
+| Campaign brief | CampaignBrief | CampaignWizardPage | CampaignsUnifiedPage, ContentStudioPage, DashboardPage |
+| Campaign content | CampaignContent | ContentStudioPage | CampaignsUnifiedPage, PublishingQueuePage, MultiPlatformPage |
+| Publishing schedule | PublishingQueue | PublishingQueuePage | DashboardPage, MultiPlatformPage, CampaignsUnifiedPage |
+| Analytics metrics | AnalyticsSnapshot / CampaignMetricSnapshot | AnalyticsUnifiedPage | DashboardPage, CampaignsUnifiedPage |
+| Assets | Asset | AssetLibraryPage | StoreSetupPage, ContentStudioPage, MultiPlatformPage, PublishingQueuePage |
+| Members and roles | WorkspaceMember / Role | SystemAdminPage | TeamCollaborationPage, SettingsPage |
+| Comments and reviews | Comment / ReviewDecision | TeamCollaborationPage / ContentStudioPage | CampaignsUnifiedPage, PublishingQueuePage |
+| Secrets and keys | SecretReference | SecretsAndKeysPage | SettingsPage, DataSourcesHubPage, ModelRoutingPage |
+
+### 8.5 Channel Connection Rule
+
+Channel connections must be represented as one shared IntegrationConnections source.
+
+StoreSetupPage may show a shortcut to start OAuth because it helps the merchant complete setup quickly.
+
+SettingsPage is the management surface for viewing connection status, reconnecting, disconnecting, and later managing permissions.
+
+Both surfaces must read and write the same IntegrationConnections entity.
+
+They must not create separate channel records, separate connection states, duplicated connection fields, or manual synchronization flows.
+
+In the current prototype, the shared mock source is:
+
+```text
+nashir_mock_integration_connections
+```
+
+In the real implementation, this should become a backend-backed table/entity such as:
+
+```text
+integration_connections
+```
+
+or:
+
+```text
+workspace_channel_connections
+```
+
+### 8.6 Product Rule
+
+Products and services must be represented as one ProductCatalog / StoreProducts source.
+
+StoreSetupPage may provide a shortcut to add or review products during setup.
+
+ProductCatalogPage remains the owner surface for full product management.
+
+CampaignWizardPage and CampaignsUnifiedPage may select or display products, but they must not create independent product entities unless that action writes back to the same ProductCatalog source.
+
+### 8.7 Content and Publishing Rule
+
+PublishingQueuePage owns scheduling state, not content ownership.
+
+CampaignContent must be owned by ContentStudioPage.
+
+PublishingQueuePage may reference approved content and attach schedule metadata, but it must not create a separate content entity that diverges from CampaignContent.
+
+MultiPlatformPage may display channel readiness and format readiness, but it must not create separate channel connection or publishing records.
+
+### 8.8 Data Source and Store Scan Rule
+
+DataSourcesHubPage owns DataSource and StoreScanSnapshot state.
+
+StoreSetupPage may trigger or summarize a store scan as a setup shortcut, but the scan source, confidence, collected outputs, and latest scan state must resolve back to DataSourcesHubPage ownership.
+
+### 8.9 OAuth Prototype Rule
+
+In the prototype, OAuth buttons may simulate the connection flow and open the provider consent page for UX demonstration.
+
+This must remain clearly marked as OAuth Mock.
+
+The frontend must not store access tokens, refresh tokens, client secrets, or real credentials.
+
+Real implementation must use a backend-owned OAuth flow:
+
+```text
+Frontend connect button
+→ Backend starts OAuth
+→ Provider consent screen
+→ Backend callback
+→ Backend stores encrypted token
+→ Frontend displays connection status only
+```
+
+### 8.10 Review Checklist
+
+Before approving any new screen or field, answer:
+
+1. Does this field/entity already appear in another screen?
+2. What is the source entity?
+3. Which screen owns full management?
+4. Is the current screen a shortcut, mirror, or owner?
+5. Does this action write back to the same entity?
+6. Could this create a conflicting status or duplicate state?
+7. Should the field be read-only here instead?
+
+If these questions cannot be answered, the field is not approved for implementation.
+
+## 9. Transition Rule
 
 Before moving to backend, API, database, or production implementation, the project should pass a UI Stabilization Gate covering:
 
@@ -138,8 +294,9 @@ Before moving to backend, API, database, or production implementation, the proje
 4. Mock-vs-real behavior marking.
 5. Removal or archival of unused files.
 6. Documentation alignment between README, screen map, and source code.
+7. Source-of-truth ownership review for every repeated field, state, and entity.
 
-## 9. Immediate Risks
+## 10. Immediate Risks
 
 | Risk | Impact | Required Control |
 |---|---|---|
@@ -148,3 +305,4 @@ Before moving to backend, API, database, or production implementation, the proje
 | Admin/governance surfaces dominate | Business user friction | Keep admin screens secondary. |
 | Inline CSS and repeated card patterns | Maintenance friction | Introduce shared UI components later. |
 | No real routing | Weak implementation readiness | Add React Router only after screen map stabilizes. |
+| Repeated fields without source ownership | Duplicate entities and conflicting state | Apply Single Source of Truth Rule before approving fields. |
