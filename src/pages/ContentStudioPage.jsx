@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -16,6 +16,10 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import {
+  readCampaignContent,
+  upsertCampaignContentItem,
+} from "../utils/campaignContentStore.js";
 
 const initialItems = [
   {
@@ -89,10 +93,26 @@ const statusMap = {
 };
 
 export default function ContentStudioPage() {
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(() => readCampaignContent(initialItems));
   const [activeItemId, setActiveItemId] = useState(initialItems[0].id);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const reloadItems = () => {
+      setItems(readCampaignContent(initialItems));
+    };
+
+    window.addEventListener("focus", reloadItems);
+    window.addEventListener("storage", reloadItems);
+    window.addEventListener("nashir-campaign-content-updated", reloadItems);
+
+    return () => {
+      window.removeEventListener("focus", reloadItems);
+      window.removeEventListener("storage", reloadItems);
+      window.removeEventListener("nashir-campaign-content-updated", reloadItems);
+    };
+  }, []);
 
   const activeItem = useMemo(() => {
     return items.find((item) => item.id === activeItemId) || items[0];
@@ -108,33 +128,27 @@ export default function ContentStudioPage() {
   }, [items]);
 
   const updateActiveContent = (value) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === activeItem.id
-          ? {
-              ...item,
-              content: value,
-              status: item.status === "ready" ? "needs_review" : item.status,
-            }
-          : item
-      )
-    );
+    const updatedItem = {
+      ...activeItem,
+      content: value,
+      status: activeItem.status === "ready" ? "needs_review" : activeItem.status,
+    };
+    const next = upsertCampaignContentItem(updatedItem, initialItems);
+
+    setItems(next);
 
     setSaved(false);
     setCopied(false);
   };
 
   const updateStatus = (status) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === activeItem.id
-          ? {
-              ...item,
-              status,
-            }
-          : item
-      )
-    );
+    const updatedItem = {
+      ...activeItem,
+      status,
+    };
+    const next = upsertCampaignContentItem(updatedItem, initialItems);
+
+    setItems(next);
 
     setSaved(false);
   };
@@ -159,17 +173,9 @@ export default function ContentStudioPage() {
 
     if (!original) return;
 
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === activeItem.id
-          ? {
-              ...item,
-              content: original.content,
-              status: original.status,
-            }
-          : item
-      )
-    );
+    const next = upsertCampaignContentItem(original, initialItems);
+
+    setItems(next);
 
     setSaved(false);
     setCopied(false);

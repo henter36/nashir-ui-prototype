@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -20,6 +20,13 @@ import {
   Wand2,
   XCircle,
 } from "lucide-react";
+import {
+  buildReadinessFromContent,
+  readCampaignContent,
+  readMultiPlatformReadiness,
+  upsertMultiPlatformReadinessItem,
+  writeMultiPlatformReadiness,
+} from "../utils/campaignContentStore.js";
 
 const initialAccounts = [
   {
@@ -202,7 +209,15 @@ function getReadiness(account, assets) {
 
 export default function MultiPlatformPage() {
   const [accounts, setAccounts] = useState(initialAccounts);
-  const [assets, setAssets] = useState(initialAssets);
+  const [contentItems, setContentItems] = useState(() => readCampaignContent([]));
+  const [assets, setAssets] = useState(() => {
+    const content = readCampaignContent([]);
+    const stored = readMultiPlatformReadiness(initialAssets);
+    const derived = buildReadinessFromContent(content, stored);
+    const next = derived.length ? derived : stored;
+    writeMultiPlatformReadiness(next);
+    return next;
+  });
   const [selectedAccountId, setSelectedAccountId] = useState(initialAccounts[0].id);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -213,6 +228,31 @@ export default function MultiPlatformPage() {
     ["تمت مراجعة WhatsApp Broadcast", "Reviewer", "قبل ساعة"],
     ["تم اكتشاف نقص فيديو TikTok", "Content Studio", "قبل ساعتين"],
   ]);
+
+  useEffect(() => {
+    const reloadReadiness = () => {
+      const content = readCampaignContent([]);
+      const stored = readMultiPlatformReadiness(initialAssets);
+      const derived = buildReadinessFromContent(content, stored);
+      const next = derived.length ? derived : stored;
+
+      setContentItems(content);
+      setAssets(next);
+      writeMultiPlatformReadiness(next);
+    };
+
+    window.addEventListener("focus", reloadReadiness);
+    window.addEventListener("storage", reloadReadiness);
+    window.addEventListener("nashir-campaign-content-updated", reloadReadiness);
+    window.addEventListener("nashir-multi-platform-readiness-updated", reloadReadiness);
+
+    return () => {
+      window.removeEventListener("focus", reloadReadiness);
+      window.removeEventListener("storage", reloadReadiness);
+      window.removeEventListener("nashir-campaign-content-updated", reloadReadiness);
+      window.removeEventListener("nashir-multi-platform-readiness-updated", reloadReadiness);
+    };
+  }, []);
 
   const selectedAccount =
     accounts.find((account) => account.id === selectedAccountId) || accounts[0];
@@ -283,9 +323,17 @@ export default function MultiPlatformPage() {
   };
 
   const updateAsset = (assetId, key, value) => {
-    setAssets((prev) =>
-      prev.map((asset) => (asset.id === assetId ? { ...asset, [key]: value } : asset))
-    );
+    const asset = assets.find((item) => item.id === assetId);
+
+    if (!asset) return;
+
+    const updatedItem = {
+      ...asset,
+      [key]: value,
+    };
+    const next = upsertMultiPlatformReadinessItem(updatedItem, initialAssets);
+
+    setAssets(next);
   };
 
   const syncAccounts = () => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -17,6 +17,13 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import {
+  createQueueItemFromContent,
+  deletePublishingQueueItem,
+  readCampaignContent,
+  readPublishingQueue,
+  upsertPublishingQueueItem,
+} from "../utils/campaignContentStore.js";
 
 const initialItems = [
   {
@@ -186,8 +193,9 @@ function getReadiness(item, allItems) {
 }
 
 export default function PublishingQueuePage() {
-  const [items, setItems] = useState(initialItems);
-  const [selectedId, setSelectedId] = useState(initialItems[0].id);
+  const [contentItems, setContentItems] = useState(() => readCampaignContent([]));
+  const [items, setItems] = useState(() => readPublishingQueue(initialItems));
+  const [selectedId, setSelectedId] = useState(String(initialItems[0].id));
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
@@ -204,6 +212,25 @@ export default function PublishingQueuePage() {
     ["تم منع Reel وعي من النشر بسبب حقوق الصوت", "Governance", "قبل ساعة"],
     ["تم تحديث موعد رسالة WhatsApp", "أحمد", "قبل ساعتين"],
   ]);
+
+  useEffect(() => {
+    const reloadItems = () => {
+      setContentItems(readCampaignContent([]));
+      setItems(readPublishingQueue(initialItems));
+    };
+
+    window.addEventListener("focus", reloadItems);
+    window.addEventListener("storage", reloadItems);
+    window.addEventListener("nashir-campaign-content-updated", reloadItems);
+    window.addEventListener("nashir-publishing-queue-updated", reloadItems);
+
+    return () => {
+      window.removeEventListener("focus", reloadItems);
+      window.removeEventListener("storage", reloadItems);
+      window.removeEventListener("nashir-campaign-content-updated", reloadItems);
+      window.removeEventListener("nashir-publishing-queue-updated", reloadItems);
+    };
+  }, []);
 
   const selected = items.find((item) => item.id === selectedId) || items[0];
 
@@ -271,83 +298,85 @@ export default function PublishingQueuePage() {
   };
 
   const updateSelected = (key, value) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === selected.id
-          ? {
-              ...item,
-              [key]: value,
-            }
-          : item
-      )
-    );
+    const updatedItem = {
+      ...selected,
+      [key]: value,
+    };
+    const next = upsertPublishingQueueItem(updatedItem, initialItems);
+
+    setItems(next);
   };
 
   const updateChecklist = (key) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === selected.id
-          ? {
-              ...item,
-              checklist: {
-                ...item.checklist,
-                [key]: !item.checklist[key],
-              },
-            }
-          : item
-      )
-    );
+    const updatedItem = {
+      ...selected,
+      checklist: {
+        ...selected.checklist,
+        [key]: !selected.checklist[key],
+      },
+    };
+    const next = upsertPublishingQueueItem(updatedItem, initialItems);
+
+    setItems(next);
   };
 
   const addItem = () => {
-    const title = newItem.title.trim();
-    if (!title) return;
+    const sourceContent =
+      contentItems.find((content) => content.status === "ready") ||
+      contentItems.find((content) => content.approval === "approved") ||
+      contentItems[0];
 
-    const item = {
-      id: Date.now(),
-      title,
+    if (!sourceContent) {
+      addAudit("لا يوجد محتوى جاهز للجدولة.", "Editor");
+      return;
+    }
+
+    const item = createQueueItemFromContent(sourceContent, {
+      title: newItem.title.trim() || sourceContent.title,
       campaign: newItem.campaign,
       channel: newItem.channel,
       date: newItem.date,
       time: newItem.time,
-      status: "draft",
-      approval: "needs_review",
-      owner: "غير محدد",
       contentType: newItem.contentType,
-      risk: newItem.channel === "WhatsApp" || newItem.channel === "TikTok" ? "high" : "medium",
-      preview: "عنصر جديد أضيف محليًا لقائمة النشر ويحتاج مراجعة.",
-      checklist: {
-        contentApproved: false,
-        assetRights: true,
-        linkChecked: false,
-        channelReady: newItem.channel !== "Snapchat",
-      },
-    };
+    });
+    const next = upsertPublishingQueueItem(item, initialItems);
 
-    setItems((prev) => [...prev, item]);
-    setSelectedId(item.id);
+    setItems(next);
+    setSelectedId(item.scheduleId || item.id);
     setNewItem((prev) => ({ ...prev, title: "" }));
-    addAudit(`تمت إضافة ${title} إلى قائمة النشر`, "Editor");
+    addAudit(`تمت إضافة ${item.title} إلى قائمة النشر`, "Editor");
   };
 
   const deleteSelected = () => {
     if (!selected) return;
 
-    const remaining = items.filter((item) => item.id !== selected.id);
-    setItems(remaining);
-    setSelectedId(remaining[0]?.id || null);
+    const next = deletePublishingQueueItem(selected.scheduleId || selected.id, initialItems);
+    setItems(next);
+    setSelectedId(next[0]?.scheduleId || next[0]?.id || null);
     addAudit(`تم حذف ${selected.title} من قائمة النشر`, "Editor");
   };
 
   const approveSelected = () => {
-    updateSelected("approval", "approved");
-    updateSelected("status", "ready");
+    const updatedItem = {
+      ...selected,
+      approval: "approved",
+      status: "ready",
+    };
+    const next = upsertPublishingQueueItem(updatedItem, initialItems);
+
+    setItems(next);
     addAudit(`تم اعتماد ${selected.title} للنشر اليدوي`, "Reviewer");
   };
 
   const blockSelected = () => {
-    updateSelected("status", "blocked");
-    updateSelected("approval", "rejected");
+    const updatedItem = {
+      ...selected,
+      status: "blocked",
+      approval: "rejected",
+    };
+    const next = upsertPublishingQueueItem(updatedItem, initialItems);
+
+    setItems(next);
     addAudit(`تم حظر ${selected.title} من النشر`, "Governance");
   };
 
@@ -357,7 +386,15 @@ export default function PublishingQueuePage() {
       return;
     }
 
-    updateSelected("status", "published_mock");
+    const next = upsertPublishingQueueItem(
+      {
+        ...selected,
+        status: "published_mock",
+      },
+      initialItems
+    );
+
+    setItems(next);
     addAudit(`تمت محاكاة نشر ${selected.title} دون إرسال فعلي`, "Publishing Queue");
   };
 

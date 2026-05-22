@@ -30,6 +30,7 @@ function normalizeContentItem(item = {}) {
     owner: item.owner || "فريق المحتوى",
     approval: item.approval || (item.status === "ready" ? "approved" : "needs_review"),
     risk: item.risk || "medium",
+    icon: item.icon,
     createdAt: item.createdAt || item.updatedAt || nowIso(),
     updatedAt: item.updatedAt || nowIso(),
 
@@ -80,6 +81,7 @@ function normalizeReadinessItem(item = {}) {
     id: readinessId,
     readinessId,
     contentId: item.contentId || "",
+    name: item.name || item.title || item.platform || "مخرج قناة",
     platform: item.platform || item.channel || "عام",
     size: item.size || "",
     type: item.type || item.contentType || "محتوى",
@@ -121,6 +123,18 @@ function readJsonStore(key, fallbackItems, normalizer) {
 function writeJsonStore(key, items) {
   if (typeof window === "undefined") return;
 
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const currentItems = Array.isArray(parsed) ? parsed : parsed?.items;
+
+    if (Array.isArray(currentItems) && JSON.stringify(currentItems) === JSON.stringify(items)) {
+      return;
+    }
+  } catch {
+    // Continue with a clean write if the stored payload is invalid.
+  }
+
   const source =
     key === CAMPAIGN_CONTENT_KEY
       ? "nashir_ui_prototype_campaign_content"
@@ -149,7 +163,20 @@ function writeJsonStore(key, items) {
 }
 
 export function readCampaignContent(seed = []) {
-  return readJsonStore(CAMPAIGN_CONTENT_KEY, seed, normalizeContentItem);
+  const seedById = new Map(
+    seed.map((item) => [String(item.contentId || item.id), item])
+  );
+
+  return readJsonStore(CAMPAIGN_CONTENT_KEY, seed, normalizeContentItem).map((item) => {
+    const seedItem = seedById.get(String(item.contentId || item.id));
+
+    return seedItem
+      ? {
+          ...item,
+          icon: item.icon || seedItem.icon,
+        }
+      : item;
+  });
 }
 
 export function writeCampaignContent(items = []) {
@@ -299,6 +326,7 @@ export function buildReadinessFromContent(contentItems = [], existingReadiness =
       ...(existing || {}),
       id: existing?.id || `readiness_${normalized.contentId}_${platform.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
       contentId: normalized.contentId,
+      name: normalized.title,
       platform,
       type: normalized.type,
       status: normalized.status === "ready" ? "ready" : "needs_review",
