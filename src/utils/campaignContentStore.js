@@ -6,46 +6,56 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+/**
+ * Internal-only metadata rule:
+ * - contentId, sourceSurface, source, and ownership metadata are for data consistency only.
+ * - Do not render them directly in the customer/user UI.
+ */
 function normalizeContentItem(item = {}) {
-  const id = String(item.id || item.contentId || `content_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  const id = String(item.contentId || item.id || makeId("content"));
 
   return {
     id,
     contentId: id,
-    title: item.title || "مخرج محتوى بدون عنوان",
+    title: item.title || "محتوى بدون عنوان",
     type: item.type || item.contentType || "محتوى",
-    channel: item.channel || "General",
+    channel: item.channel || "عام",
     status: item.status || "draft",
     content: item.content || item.preview || "",
     campaign: item.campaign || "حملة تجريبية",
-    owner: item.owner || "Content Studio",
-    source: item.source || "content_studio",
-    sourceSurface: item.sourceSurface || "ContentStudioPage",
+    owner: item.owner || "فريق المحتوى",
     approval: item.approval || (item.status === "ready" ? "approved" : "needs_review"),
     risk: item.risk || "medium",
-    updatedAt: item.updatedAt || nowIso(),
     createdAt: item.createdAt || item.updatedAt || nowIso(),
+    updatedAt: item.updatedAt || nowIso(),
+
+    // Internal-only fields. Never display these as user-facing labels.
+    source: item.source || "content_studio",
+    sourceSurface: item.sourceSurface || "ContentStudioPage",
     metadata: item.metadata || {},
   };
 }
 
 function normalizeQueueItem(item = {}) {
-  const id = String(item.id || item.scheduleId || `schedule_${Date.now()}_${Math.random().toString(16).slice(2)}`);
-  const contentId = item.contentId || item.id || "";
+  const scheduleId = String(item.scheduleId || item.id || makeId("schedule"));
 
   return {
-    id,
-    scheduleId: id,
-    contentId,
+    id: scheduleId,
+    scheduleId,
+    contentId: item.contentId || "",
     title: item.title || "عنصر نشر بدون عنوان",
-    channel: item.channel || "General",
-    date: item.date || "2026-05-24",
-    time: item.time || "09:00",
+    channel: item.channel || "عام",
+    date: item.date || "",
+    time: item.time || "",
     status: item.status || "draft",
     approval: item.approval || "needs_review",
     campaign: item.campaign || "حملة تجريبية",
-    owner: item.owner || "Publishing Queue",
-    contentType: item.contentType || item.type || "Post",
+    owner: item.owner || "فريق النشر",
+    contentType: item.contentType || item.type || "منشور",
     risk: item.risk || "medium",
     preview: item.preview || item.content || "",
     checklist: {
@@ -54,67 +64,75 @@ function normalizeQueueItem(item = {}) {
       linkChecked: Boolean(item.checklist?.linkChecked),
       channelReady: item.checklist?.channelReady ?? true,
     },
+    createdAt: item.createdAt || item.updatedAt || nowIso(),
+    updatedAt: item.updatedAt || nowIso(),
+
+    // Internal-only fields. Never display these as user-facing labels.
     source: item.source || "publishing_queue",
     sourceSurface: item.sourceSurface || "PublishingQueuePage",
-    updatedAt: item.updatedAt || nowIso(),
-    createdAt: item.createdAt || item.updatedAt || nowIso(),
   };
 }
 
 function normalizeReadinessItem(item = {}) {
-  const id = String(item.id || item.readinessId || `readiness_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+  const readinessId = String(item.readinessId || item.id || makeId("readiness"));
+
   return {
-    id,
-    readinessId: id,
+    id: readinessId,
+    readinessId,
     contentId: item.contentId || "",
-    platform: item.platform || item.channel || "General",
+    platform: item.platform || item.channel || "عام",
     size: item.size || "",
-    type: item.type || item.contentType || "Content",
+    type: item.type || item.contentType || "محتوى",
     status: item.status || "needs_review",
     issue: item.issue || "يحتاج مراجعة قبل النشر.",
     approval: item.approval || "needs_review",
+    updatedAt: item.updatedAt || nowIso(),
+
+    // Internal-only fields. Never display these as user-facing labels.
     source: item.source || "multi_platform",
     sourceSurface: item.sourceSurface || "MultiPlatformPage",
-    updatedAt: item.updatedAt || nowIso(),
   };
 }
 
-function readJsonStore(key, fallback) {
-  if (typeof window === "undefined") return fallback;
+function readJsonStore(key, fallbackItems, normalizer) {
+  if (typeof window === "undefined") return fallbackItems.map(normalizer);
 
   try {
     const raw = window.localStorage.getItem(key);
+
     if (!raw) {
-      writeJsonStore(key, fallback);
-      return fallback;
+      writeJsonStore(key, fallbackItems.map(normalizer));
+      return fallbackItems.map(normalizer);
     }
 
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    const items = Array.isArray(parsed) ? parsed : parsed?.items;
 
-    if (key === CAMPAIGN_CONTENT_KEY && Array.isArray(parsed?.items)) return parsed.items;
-    if (key === PUBLISHING_QUEUE_KEY && Array.isArray(parsed?.items)) return parsed.items;
-    if (key === MULTI_PLATFORM_READINESS_KEY && Array.isArray(parsed?.items)) return parsed.items;
+    if (!Array.isArray(items)) {
+      return fallbackItems.map(normalizer);
+    }
 
-    return fallback;
+    return items.map(normalizer);
   } catch {
-    return fallback;
+    return fallbackItems.map(normalizer);
   }
 }
 
 function writeJsonStore(key, items) {
   if (typeof window === "undefined") return;
 
+  const source =
+    key === CAMPAIGN_CONTENT_KEY
+      ? "nashir_ui_prototype_campaign_content"
+      : key === PUBLISHING_QUEUE_KEY
+        ? "nashir_ui_prototype_publishing_queue"
+        : "nashir_ui_prototype_multi_platform_readiness";
+
   window.localStorage.setItem(
     key,
     JSON.stringify({
       version: 1,
-      source:
-        key === CAMPAIGN_CONTENT_KEY
-          ? "nashir_ui_prototype_campaign_content"
-          : key === PUBLISHING_QUEUE_KEY
-            ? "nashir_ui_prototype_publishing_queue"
-            : "nashir_ui_prototype_multi_platform_readiness",
+      source,
       updatedAt: nowIso(),
       items,
     })
@@ -131,7 +149,7 @@ function writeJsonStore(key, items) {
 }
 
 export function readCampaignContent(seed = []) {
-  return readJsonStore(CAMPAIGN_CONTENT_KEY, seed.map(normalizeContentItem)).map(normalizeContentItem);
+  return readJsonStore(CAMPAIGN_CONTENT_KEY, seed, normalizeContentItem);
 }
 
 export function writeCampaignContent(items = []) {
@@ -140,29 +158,38 @@ export function writeCampaignContent(items = []) {
 
 export function upsertCampaignContentItem(item, seed = []) {
   const current = readCampaignContent(seed);
-  const normalized = normalizeContentItem(item);
-  const exists = current.some((candidate) => candidate.contentId === normalized.contentId || candidate.id === normalized.id);
+  const normalized = normalizeContentItem({
+    ...item,
+    updatedAt: nowIso(),
+  });
+
+  const exists = current.some(
+    (candidate) => candidate.contentId === normalized.contentId || candidate.id === normalized.id
+  );
 
   const next = exists
     ? current.map((candidate) =>
         candidate.contentId === normalized.contentId || candidate.id === normalized.id
-          ? { ...candidate, ...normalized, updatedAt: nowIso() }
+          ? { ...candidate, ...normalized }
           : candidate
       )
-    : [...current, { ...normalized, createdAt: nowIso(), updatedAt: nowIso() }];
+    : [...current, normalized];
 
   writeCampaignContent(next);
   return readCampaignContent(seed);
 }
 
 export function deleteCampaignContentItem(contentId, seed = []) {
-  const next = readCampaignContent(seed).filter((item) => item.contentId !== contentId && item.id !== contentId);
+  const next = readCampaignContent(seed).filter(
+    (item) => item.contentId !== contentId && item.id !== contentId
+  );
+
   writeCampaignContent(next.length ? next : seed.map(normalizeContentItem));
   return readCampaignContent(seed);
 }
 
 export function readPublishingQueue(seed = []) {
-  return readJsonStore(PUBLISHING_QUEUE_KEY, seed.map(normalizeQueueItem)).map(normalizeQueueItem);
+  return readJsonStore(PUBLISHING_QUEUE_KEY, seed, normalizeQueueItem);
 }
 
 export function writePublishingQueue(items = []) {
@@ -171,23 +198,32 @@ export function writePublishingQueue(items = []) {
 
 export function upsertPublishingQueueItem(item, seed = []) {
   const current = readPublishingQueue(seed);
-  const normalized = normalizeQueueItem(item);
-  const exists = current.some((candidate) => candidate.scheduleId === normalized.scheduleId || candidate.id === normalized.id);
+  const normalized = normalizeQueueItem({
+    ...item,
+    updatedAt: nowIso(),
+  });
+
+  const exists = current.some(
+    (candidate) => candidate.scheduleId === normalized.scheduleId || candidate.id === normalized.id
+  );
 
   const next = exists
     ? current.map((candidate) =>
         candidate.scheduleId === normalized.scheduleId || candidate.id === normalized.id
-          ? { ...candidate, ...normalized, updatedAt: nowIso() }
+          ? { ...candidate, ...normalized }
           : candidate
       )
-    : [...current, { ...normalized, createdAt: nowIso(), updatedAt: nowIso() }];
+    : [...current, normalized];
 
   writePublishingQueue(next);
   return readPublishingQueue(seed);
 }
 
 export function deletePublishingQueueItem(scheduleId, seed = []) {
-  const next = readPublishingQueue(seed).filter((item) => item.scheduleId !== scheduleId && item.id !== scheduleId);
+  const next = readPublishingQueue(seed).filter(
+    (item) => item.scheduleId !== scheduleId && item.id !== scheduleId
+  );
+
   writePublishingQueue(next);
   return readPublishingQueue(seed);
 }
@@ -198,9 +234,9 @@ export function createQueueItemFromContent(contentItem, overrides = {}) {
   return normalizeQueueItem({
     contentId: content.contentId,
     title: content.title,
-    channel: content.channel,
+    channel: overrides.channel || content.channel,
     campaign: content.campaign,
-    contentType: content.type,
+    contentType: overrides.contentType || content.type,
     preview: content.content,
     approval: content.approval,
     status: content.status === "ready" ? "ready" : "review",
@@ -218,7 +254,7 @@ export function createQueueItemFromContent(contentItem, overrides = {}) {
 }
 
 export function readMultiPlatformReadiness(seed = []) {
-  return readJsonStore(MULTI_PLATFORM_READINESS_KEY, seed.map(normalizeReadinessItem)).map(normalizeReadinessItem);
+  return readJsonStore(MULTI_PLATFORM_READINESS_KEY, seed, normalizeReadinessItem);
 }
 
 export function writeMultiPlatformReadiness(items = []) {
@@ -227,16 +263,22 @@ export function writeMultiPlatformReadiness(items = []) {
 
 export function upsertMultiPlatformReadinessItem(item, seed = []) {
   const current = readMultiPlatformReadiness(seed);
-  const normalized = normalizeReadinessItem(item);
-  const exists = current.some((candidate) => candidate.readinessId === normalized.readinessId || candidate.id === normalized.id);
+  const normalized = normalizeReadinessItem({
+    ...item,
+    updatedAt: nowIso(),
+  });
+
+  const exists = current.some(
+    (candidate) => candidate.readinessId === normalized.readinessId || candidate.id === normalized.id
+  );
 
   const next = exists
     ? current.map((candidate) =>
         candidate.readinessId === normalized.readinessId || candidate.id === normalized.id
-          ? { ...candidate, ...normalized, updatedAt: nowIso() }
+          ? { ...candidate, ...normalized }
           : candidate
       )
-    : [...current, { ...normalized, updatedAt: nowIso() }];
+    : [...current, normalized];
 
   writeMultiPlatformReadiness(next);
   return readMultiPlatformReadiness(seed);
@@ -269,6 +311,60 @@ export function buildReadinessFromContent(contentItems = [], existingReadiness =
       sourceSurface: "ContentStudioPage",
     });
   });
+}
+
+/**
+ * UI-safe display helpers.
+ * These functions intentionally expose user-facing labels only.
+ */
+export function getContentStatusLabel(status) {
+  const map = {
+    draft: "مسودة",
+    review: "قيد المراجعة",
+    ready: "جاهز",
+    approved: "معتمد",
+    scheduled: "مجدول",
+    blocked: "محظور",
+    needs_review: "يحتاج مراجعة",
+  };
+
+  return map[status] || "يحتاج مراجعة";
+}
+
+export function getApprovalLabel(approval) {
+  const map = {
+    approved: "معتمد",
+    needs_review: "يحتاج مراجعة",
+    rejected: "مرفوض",
+  };
+
+  return map[approval] || "يحتاج مراجعة";
+}
+
+export function getRiskLabel(risk) {
+  const map = {
+    low: "منخفض",
+    medium: "متوسط",
+    high: "مرتفع",
+  };
+
+  return map[risk] || "متوسط";
+}
+
+export function toContentDisplayModel(item = {}) {
+  const normalized = normalizeContentItem(item);
+
+  return {
+    id: normalized.contentId,
+    title: normalized.title,
+    type: normalized.type,
+    channel: normalized.channel,
+    statusLabel: getContentStatusLabel(normalized.status),
+    approvalLabel: getApprovalLabel(normalized.approval),
+    riskLabel: getRiskLabel(normalized.risk),
+    content: normalized.content,
+    updatedAt: normalized.updatedAt,
+  };
 }
 
 export {
