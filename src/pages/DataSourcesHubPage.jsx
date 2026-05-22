@@ -15,13 +15,11 @@ import {
   ShieldCheck,
   Store,
   Trash2,
-  Unlink,
   XCircle,
 } from "lucide-react";
 
 import {
   readDataSources,
-  writeDataSources,
   upsertDataSource,
   deleteDataSource,
   runMockStoreScan,
@@ -38,17 +36,17 @@ const initialSources = [
     last: "منذ 12 دقيقة",
     connectionMode: "public_url",
     sourceUrl: "https://store.example.com",
-    owner: "Store Setup",
+    owner: "فريق المتجر",
     visibility: "reviewer_only",
     reviewRequired: true,
     sensitive: false,
-    destinations: ["storeSetup", "productCatalog", "assetLibrary"],
+    destinations: ["storeSetup", "productCatalog", "assetLibrary"], // internal-only metadata
     fields: ["store_url", "product_candidates", "asset_candidates", "brand_insights"],
     warnings: ["تحتاج المنتجات المستخرجة إلى اعتماد قبل استخدامها في الحملات."],
     scanLog: [
       "تم فحص رابط المتجر.",
       "تم استخراج المنتجات والتصنيفات.",
-      "تم إرسال الأصول المرشحة إلى مكتبة الأصول.",
+      "تم تجهيز الأصول المرشحة للمراجعة.",
     ],
   },
   {
@@ -61,13 +59,13 @@ const initialSources = [
     last: "منذ ساعة",
     connectionMode: "public_profile",
     sourceUrl: "https://instagram.com/example",
-    owner: "Brand Signals",
+    owner: "فريق العلامة",
     visibility: "internal_only",
     reviewRequired: true,
     sensitive: false,
-    destinations: ["storeSetup", "content"],
+    destinations: ["storeSetup", "content"], // internal-only metadata
     fields: ["tone_signals", "visual_themes", "audience_hints"],
-    warnings: ["تحليل الحسابات العامة مؤشر مساعد وليس مصدر حقيقة نهائي."],
+    warnings: ["تحليل الحسابات العامة مؤشر مساعد وليس مصدر قرار نهائي."],
     scanLog: [
       "تمت قراءة بيانات عامة فقط.",
       "تم استنتاج نبرة محتوى مبدئية.",
@@ -84,11 +82,11 @@ const initialSources = [
     last: "لم يحلل",
     connectionMode: "manual_url",
     sourceUrl: "https://tiktok.com/@example",
-    owner: "Manual Intake",
+    owner: "فريق المحتوى",
     visibility: "reviewer_only",
     reviewRequired: true,
     sensitive: false,
-    destinations: ["content"],
+    destinations: ["content"], // internal-only metadata
     fields: ["manual_social_url"],
     warnings: ["لم يتم تحليل المصدر بعد؛ لا تستخدمه كمدخل للحملة قبل الفحص."],
     scanLog: ["تم إدخال الرابط يدويًا فقط."],
@@ -103,11 +101,11 @@ const initialSources = [
     last: "لم يبدأ",
     connectionMode: "official_integration",
     sourceUrl: "",
-    owner: "Commerce Integration",
+    owner: "فريق التجارة",
     visibility: "admin_only",
     reviewRequired: true,
     sensitive: true,
-    destinations: ["productCatalog", "storeSetup"],
+    destinations: ["productCatalog", "storeSetup"], // internal-only metadata
     fields: ["catalog_sync", "orders_scope_disabled", "inventory_scope_disabled"],
     warnings: ["الربط الرسمي مؤجل في البروتوتايب ولا توجد صلاحيات API حقيقية."],
     scanLog: [],
@@ -140,16 +138,6 @@ const VISIBILITY = [
   ["admin_only", "للمدير فقط"],
 ];
 
-const DESTINATION_OPTIONS = [
-  ["storeSetup", "إعداد المتجر"],
-  ["productCatalog", "كتالوج المنتجات"],
-  ["assetLibrary", "مكتبة الأصول"],
-  ["campaigns", "معالج الحملات"],
-  ["content", "المحتوى والمراجعة"],
-  ["analytics", "التحليلات"],
-  ["workflowRuns", "تشغيلات النظام"],
-];
-
 const FILTERS = [
   ["all", "الكل"],
   ["scan_completed", "تم التحليل"],
@@ -164,7 +152,7 @@ function buildGovernanceWarnings(source) {
   const warnings = [...(source.warnings || [])];
 
   if (source.status === "empty") {
-    warnings.push("المصدر غير مفعّل ولا يمد أي شاشة ببيانات موثوقة.");
+    warnings.push("المصدر غير مفعّل ولا يمد التجربة ببيانات موثوقة.");
   }
 
   if (source.status === "manual") {
@@ -187,8 +175,8 @@ function buildGovernanceWarnings(source) {
     warnings.push("تعطيل المراجعة غير آمن لمصدر ثقة أقل من 80%.");
   }
 
-  if (!source.destinations.length) {
-    warnings.push("المصدر غير مربوط بأي شاشة؛ فائدته التشغيلية غير واضحة.");
+  if (!source.destinations?.length) {
+    warnings.push("المصدر يحتاج تحديد استخدام تشغيلي داخلي قبل الاعتماد.");
   }
 
   return Array.from(new Set(warnings));
@@ -196,18 +184,28 @@ function buildGovernanceWarnings(source) {
 
 function getSourceHealth(source) {
   if (source.status === "disabled") return 0;
+
   let score = 40;
 
   if (source.status === "scan_completed" || source.status === "connected") score += 25;
   if (source.status === "manual") score += 5;
   if (source.sourceUrl || source.connectionMode === "official_integration") score += 10;
-  if (source.destinations.length) score += 10;
+  if (source.destinations?.length) score += 10;
   if (source.reviewRequired) score += 5;
   if (source.confidence >= 75) score += 10;
   if (source.sensitive && source.visibility === "customer_visible") score -= 25;
   if (source.status === "empty") score -= 20;
 
   return Math.max(0, Math.min(100, score));
+}
+
+function getUsageLabel(source) {
+  if (source.status === "disabled") return "معطل";
+  if (source.status === "empty") return "غير جاهز";
+  if (source.status === "manual") return "يحتاج فحص";
+  if (source.reviewRequired) return "جاهز بعد المراجعة";
+  if (source.confidence >= 80) return "جاهز للاستخدام";
+  return "يحتاج مراجعة";
 }
 
 function createNewSource() {
@@ -221,13 +219,13 @@ function createNewSource() {
     last: "الآن",
     connectionMode: "manual_url",
     sourceUrl: "",
-    owner: "Manual Intake",
+    owner: "فريق المراجعة",
     visibility: "reviewer_only",
     reviewRequired: true,
     sensitive: false,
-    destinations: [],
+    destinations: [], // internal-only metadata
     fields: ["manual_input"],
-    warnings: ["مصدر جديد يحتاج مراجعة وربط قبل استخدامه."],
+    warnings: ["مصدر جديد يحتاج مراجعة قبل استخدامه."],
     scanLog: ["تم إنشاء مصدر محلي جديد داخل البروتوتايب."],
   };
 }
@@ -346,10 +344,9 @@ export default function DataSourcesHubPage() {
     const disabled = {
       ...selected,
       status: "disabled",
-      destinations: [],
       output: "تم تعطيل المصدر محليًا",
       last: "الآن",
-      scanLog: ["تم تعطيل المصدر وفك جميع الروابط.", ...(selected.scanLog || [])],
+      scanLog: ["تم تعطيل المصدر.", ...(selected.scanLog || [])],
     };
     setSources(upsertDataSource(disabled, initialSources));
   };
@@ -358,23 +355,6 @@ export default function DataSourcesHubPage() {
     const remaining = deleteDataSource(selected.id, initialSources);
     setSources(remaining);
     setSelectedId(remaining[0]?.id || "");
-  };
-
-  const toggleDestination = (destinationId) => {
-    const exists = selected.destinations.includes(destinationId);
-    const updated = {
-      ...selected,
-      destinations: exists
-        ? selected.destinations.filter((id) => id !== destinationId)
-        : [...selected.destinations, destinationId],
-      scanLog: [
-        `${exists ? "تم فك الربط عن" : "تم ربط المصدر بـ"} ${
-          DESTINATION_OPTIONS.find(([id]) => id === destinationId)?.[1] || destinationId
-        }`,
-        ...(selected.scanLog || []),
-      ],
-    };
-    setSources(upsertDataSource(updated, initialSources));
   };
 
   const warnings = selected ? buildGovernanceWarnings(selected) : [];
@@ -393,7 +373,7 @@ export default function DataSourcesHubPage() {
           <h1>مصادر البيانات والتكاملات</h1>
           <p>
             مركز إدارة مصادر المتجر والحسابات والتكاملات. كل مصدر له حالة، ثقة،
-            مخرجات، وجهات استخدام، وتحذيرات حوكمة قبل أن يؤثر على الحملات.
+            مخرجات، وتحذيرات حوكمة قبل أن يؤثر على الحملات.
           </p>
         </div>
 
@@ -419,8 +399,8 @@ export default function DataSourcesHubPage() {
         <div>
           <strong>Prototype فقط — لا يوجد ربط API حقيقي</strong>
           <span>
-            الفحص والربط هنا محليان لتثبيت تجربة المنتج. هذه الصفحة هي مصدر الحقيقة
-            لمصادر البيانات، وزر فحص المتجر في StoreSetupPage يكتب في نفس المصدر.
+            الفحص والربط هنا محليان لتثبيت تجربة المنتج. المستخدم يتعامل مع حالة
+            المصدر ومخرجاته فقط، أما توزيع البيانات على الشاشات فيدار داخليًا.
           </span>
         </div>
       </section>
@@ -463,7 +443,7 @@ export default function DataSourcesHubPage() {
           <div className="panel-header">
             <div>
               <h2>المصادر</h2>
-              <p>اختر مصدرًا لمراجعة مخرجاته وربطه بالشاشات.</p>
+              <p>اختر مصدرًا لمراجعة حالته ومخرجاته.</p>
             </div>
             <span>{visibleSources.length} ظاهر</span>
           </div>
@@ -479,11 +459,7 @@ export default function DataSourcesHubPage() {
                 <div className="source-main">
                   <strong>{source.name}</strong>
                   <span>{source.type} · {source.output}</span>
-                  <small>
-                    {source.destinations.length
-                      ? `مرتبط بـ ${source.destinations.length} شاشة`
-                      : "غير مربوط"}
-                  </small>
+                  <small>{getUsageLabel(source)}</small>
                 </div>
 
                 <div className="source-meta">
@@ -511,7 +487,7 @@ export default function DataSourcesHubPage() {
 
             <div className="health-card">
               <div>
-                <span>Source Health</span>
+                <span>جاهزية المصدر</span>
                 <strong>{health}%</strong>
               </div>
               <div className="meter">
@@ -556,7 +532,7 @@ export default function DataSourcesHubPage() {
               </label>
 
               <label className="field">
-                <span>المالك</span>
+                <span>مسؤول المراجعة</span>
                 <input value={selected.owner} onChange={(e) => updateSelected("owner", e.target.value)} />
               </label>
 
@@ -620,27 +596,18 @@ export default function DataSourcesHubPage() {
             </div>
 
             <Info label="آخر فحص" value={selected.last} />
-            <Info label="حقول المخرجات" value={selected.fields.join("، ")} />
+            <Info label="حالة الاستخدام" value={getUsageLabel(selected)} />
 
-            <div className="destination-box">
-              <h3>ربط المخرجات بالشاشات</h3>
-              <p>اختيار الوجهات يوضح أين ستظهر مخرجات المصدر داخل البروتوتايب.</p>
-
-              <div className="destination-grid">
-                {DESTINATION_OPTIONS.map(([id, label]) => {
-                  const linked = selected.destinations.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={linked ? "linked" : ""}
-                      onClick={() => toggleDestination(id)}
-                    >
-                      {linked ? <Link2 size={15} /> : <Unlink size={15} />}
-                      {label}
-                    </button>
-                  );
-                })}
+            <div className="usage-box">
+              <h3>استخدام البيانات</h3>
+              <p>
+                يستخدم النظام هذه المخرجات داخليًا في التجربة حسب جاهزية المصدر
+                وحالة المراجعة. لا يحتاج المستخدم إلى اختيار شاشة أو وجهة ربط.
+              </p>
+              <div className="usage-summary">
+                <span>{selected.reviewRequired ? "يتطلب مراجعة" : "لا يتطلب مراجعة"}</span>
+                <span>{selected.sensitive ? "بيانات حساسة" : "بيانات عادية"}</span>
+                <span>{selected.confidence >= 80 ? "ثقة عالية" : "تحتاج تحقق"}</span>
               </div>
             </div>
 
@@ -733,5 +700,5 @@ function Info({ label, value }) {
 const styles = `
 .data-sources-page{min-height:calc(100vh - 80px);padding:24px;background:#f7f8f4;color:#1f241d;font-family:Inter,"Segoe UI",Tahoma,Arial,sans-serif}
 .page-hero,.governance-strip,.stat-card,.panel,.tools-row{background:#fff;border:1px solid #e4e7df;border-radius:24px;box-shadow:0 8px 26px rgba(24,38,18,.035)}
-.page-hero{padding:22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}.eyebrow{width:fit-content;min-height:30px;padding:0 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:#176b2c;background:#eef7e9;font-size:12px;font-weight:900;margin-bottom:10px}.page-hero h1{margin:0;font-size:34px;letter-spacing:-.04em}.page-hero p{color:#6f746b;line-height:1.8;max-width:760px;margin:10px 0 0}.hero-actions,.action-row,.toggle-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.primary-button,.secondary-button,.danger-button,.danger-soft{min-height:42px;border-radius:16px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-family:inherit;cursor:pointer}.primary-button{border:0;background:#176b2c;color:#fff}.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:not-allowed}.secondary-button{border:1px solid #e4e7df;background:#fff;color:#1f241d}.danger-button{border:0;background:#991b1b;color:#fff}.danger-soft{border:1px solid #fecaca;background:#fff5f5;color:#991b1b}.governance-strip{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;color:#176b2c;margin-bottom:14px}.governance-strip strong{display:block;font-size:14px}.governance-strip span{display:block;margin-top:4px;color:#6f746b;line-height:1.7;font-size:13px}.stats-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}.stat-card{padding:16px}.stat-card span{color:#6f746b;font-size:12px;font-weight:900}.stat-card strong{display:block;margin-top:8px;font-size:28px}.stat-card.warn strong{color:#92400e}.stat-card.ok strong{color:#176b2c}.tools-row{padding:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:14px}.search-box{display:grid;gap:6px;min-width:320px}.search-box span,.field span{color:#6f746b;font-size:12px;font-weight:900}.search-box input,.field input,.field select,.field textarea{border:1px solid #e4e7df;border-radius:14px;padding:11px 12px;font-family:inherit;background:#fff;color:#1f241d;outline:none}.field textarea{resize:vertical}.filter-pills{display:flex;gap:8px;flex-wrap:wrap}.filter-pills button{border:1px solid #e4e7df;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;font-family:inherit;color:#6f746b}.filter-pills button.active{background:#176b2c;border-color:#176b2c;color:#fff}.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}.panel{padding:18px}.panel-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.panel h2,.panel h3{margin:0}.panel-header p,.destination-box p{margin:6px 0 0;color:#6f746b;line-height:1.7;font-size:13px}.panel-header span{background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px}.source-list{display:grid;gap:10px}.source-list button{border:1px solid #e4e7df;background:#fff;border-radius:18px;padding:14px;text-align:right;display:flex;justify-content:space-between;gap:12px;font-family:inherit;cursor:pointer}.source-list button.selected{border-color:#176b2c;background:#eef7e9}.source-main strong{display:block}.source-main span{display:block;color:#6f746b;margin-top:4px;font-size:12px}.source-main small{display:block;color:#176b2c;margin-top:6px;font-weight:900}.source-meta{display:grid;justify-items:end;gap:8px}.source-meta b{font-size:13px;color:#176b2c}.status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;height:fit-content;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.green{background:#f0fdf4;color:#166534}.amber{background:#fffbeb;color:#92400e}.slate{background:#f8fafc;color:#475569}.red{background:#fef2f2;color:#991b1b}.detail-panel{position:sticky;top:18px}.source-icon{width:54px;height:54px;background:#176b2c;color:#fff;display:grid;place-items:center;border-radius:18px;margin-bottom:12px}.detail-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.detail-title p{color:#6f746b;margin:5px 0 0}.health-card{border:1px solid #e4e7df;border-radius:18px;padding:12px;margin-bottom:14px}.health-card div:first-child{display:flex;justify-content:space-between;color:#6f746b;font-weight:900;font-size:12px}.health-card strong{color:#176b2c;font-size:20px}.meter{height:8px;background:#eef0ea;border-radius:999px;overflow:hidden;margin-top:10px}.meter i{display:block;height:100%;background:#176b2c;border-radius:999px}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px;margin-bottom:10px}.field.wide{margin-top:4px}.toggle{min-height:38px;border:1px solid #e4e7df;border-radius:14px;background:#fff;padding:0 12px;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:900;color:#6f746b}.toggle.active{background:#eef7e9;border-color:#176b2c;color:#176b2c}.toggle.active.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}.info-row{min-height:44px;border-bottom:1px solid #e4e7df;display:flex;justify-content:space-between;gap:12px;align-items:center}.info-row span{color:#6f746b;font-size:12px;font-weight:900}.info-row strong{text-align:left;font-size:13px;line-height:1.7}.destination-box,.warnings-box,.scan-log{border:1px solid #e4e7df;border-radius:18px;padding:13px;margin-top:14px}.destination-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.destination-grid button{border:1px solid #e4e7df;background:#fff;border-radius:14px;padding:10px;display:flex;align-items:center;gap:7px;font-weight:900;font-family:inherit;color:#6f746b}.destination-grid button.linked{border-color:#176b2c;background:#eef7e9;color:#176b2c}.warnings-box{background:#fffaf0;border-color:#fde68a}.warnings-box h3{display:flex;align-items:center;gap:7px;color:#92400e;margin-bottom:8px}.warnings-box p{margin:7px 0;color:#92400e;font-size:12px;line-height:1.8;font-weight:800}.warnings-box .safe{color:#166534}.log-row{display:flex;gap:10px;border-bottom:1px solid #eef0ea;padding:8px 0}.log-row:last-child{border-bottom:0}.log-row span{width:24px;height:24px;background:#eef7e9;color:#176b2c;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:900;flex:0 0 auto}.log-row p{margin:0;color:#4d5549;line-height:1.7;font-size:12px;font-weight:700}.empty{color:#6f746b;line-height:1.8;font-weight:800}.action-row{margin-top:14px}@media(max-width:1180px){.stats-grid{grid-template-columns:repeat(3,1fr)}.main-layout{grid-template-columns:1fr}.detail-panel{position:static}}@media(max-width:760px){.page-hero,.tools-row{flex-direction:column;align-items:stretch}.stats-grid,.editor-grid,.destination-grid{grid-template-columns:1fr}.search-box{min-width:0}}
+.page-hero{padding:22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}.eyebrow{width:fit-content;min-height:30px;padding:0 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:#176b2c;background:#eef7e9;font-size:12px;font-weight:900;margin-bottom:10px}.page-hero h1{margin:0;font-size:34px;letter-spacing:-.04em}.page-hero p{color:#6f746b;line-height:1.8;max-width:760px;margin:10px 0 0}.hero-actions,.action-row,.toggle-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.primary-button,.secondary-button,.danger-button,.danger-soft{min-height:42px;border-radius:16px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-family:inherit;cursor:pointer}.primary-button{border:0;background:#176b2c;color:#fff}.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:not-allowed}.secondary-button{border:1px solid #e4e7df;background:#fff;color:#1f241d}.danger-button{border:0;background:#991b1b;color:#fff}.danger-soft{border:1px solid #fecaca;background:#fff5f5;color:#991b1b}.governance-strip{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;color:#176b2c;margin-bottom:14px}.governance-strip strong{display:block;font-size:14px}.governance-strip span{display:block;margin-top:4px;color:#6f746b;line-height:1.7;font-size:13px}.stats-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}.stat-card{padding:16px}.stat-card span{color:#6f746b;font-size:12px;font-weight:900}.stat-card strong{display:block;margin-top:8px;font-size:28px}.stat-card.warn strong{color:#92400e}.stat-card.ok strong{color:#176b2c}.tools-row{padding:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:14px}.search-box{display:grid;gap:6px;min-width:320px}.search-box span,.field span{color:#6f746b;font-size:12px;font-weight:900}.search-box input,.field input,.field select,.field textarea{border:1px solid #e4e7df;border-radius:14px;padding:11px 12px;font-family:inherit;background:#fff;color:#1f241d;outline:none}.field textarea{resize:vertical}.filter-pills{display:flex;gap:8px;flex-wrap:wrap}.filter-pills button{border:1px solid #e4e7df;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;font-family:inherit;color:#6f746b}.filter-pills button.active{background:#176b2c;border-color:#176b2c;color:#fff}.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}.panel{padding:18px}.panel-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.panel h2,.panel h3{margin:0}.panel-header p,.usage-box p{margin:6px 0 0;color:#6f746b;line-height:1.7;font-size:13px}.panel-header span{background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px}.source-list{display:grid;gap:10px}.source-list button{border:1px solid #e4e7df;background:#fff;border-radius:18px;padding:14px;text-align:right;display:flex;justify-content:space-between;gap:12px;font-family:inherit;cursor:pointer}.source-list button.selected{border-color:#176b2c;background:#eef7e9}.source-main strong{display:block}.source-main span{display:block;color:#6f746b;margin-top:4px;font-size:12px}.source-main small{display:block;color:#176b2c;margin-top:6px;font-weight:900}.source-meta{display:grid;justify-items:end;gap:8px}.source-meta b{font-size:13px;color:#176b2c}.status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;height:fit-content;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.green{background:#f0fdf4;color:#166534}.amber{background:#fffbeb;color:#92400e}.slate{background:#f8fafc;color:#475569}.red{background:#fef2f2;color:#991b1b}.detail-panel{position:sticky;top:18px}.source-icon{width:54px;height:54px;background:#176b2c;color:#fff;display:grid;place-items:center;border-radius:18px;margin-bottom:12px}.detail-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.detail-title p{color:#6f746b;margin:5px 0 0}.health-card{border:1px solid #e4e7df;border-radius:18px;padding:12px;margin-bottom:14px}.health-card div:first-child{display:flex;justify-content:space-between;color:#6f746b;font-weight:900;font-size:12px}.health-card strong{color:#176b2c;font-size:20px}.meter{height:8px;background:#eef0ea;border-radius:999px;overflow:hidden;margin-top:10px}.meter i{display:block;height:100%;background:#176b2c;border-radius:999px}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px;margin-bottom:10px}.field.wide{margin-top:4px}.toggle{min-height:38px;border:1px solid #e4e7df;border-radius:14px;background:#fff;padding:0 12px;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:900;color:#6f746b}.toggle.active{background:#eef7e9;border-color:#176b2c;color:#176b2c}.toggle.active.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}.info-row{min-height:44px;border-bottom:1px solid #e4e7df;display:flex;justify-content:space-between;gap:12px;align-items:center}.info-row span{color:#6f746b;font-size:12px;font-weight:900}.info-row strong{text-align:left;font-size:13px;line-height:1.7}.usage-box,.warnings-box,.scan-log{border:1px solid #e4e7df;border-radius:18px;padding:13px;margin-top:14px}.usage-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.usage-summary span{border:1px solid #d9ead7;background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900}.warnings-box{background:#fffaf0;border-color:#fde68a}.warnings-box h3{display:flex;align-items:center;gap:7px;color:#92400e;margin-bottom:8px}.warnings-box p{margin:7px 0;color:#92400e;font-size:12px;line-height:1.8;font-weight:800}.warnings-box .safe{color:#166534}.log-row{display:flex;gap:10px;border-bottom:1px solid #eef0ea;padding:8px 0}.log-row:last-child{border-bottom:0}.log-row span{width:24px;height:24px;background:#eef7e9;color:#176b2c;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:900;flex:0 0 auto}.log-row p{margin:0;color:#4d5549;line-height:1.7;font-size:12px;font-weight:700}.empty{color:#6f746b;line-height:1.8;font-weight:800}.action-row{margin-top:14px}@media(max-width:1180px){.stats-grid{grid-template-columns:repeat(3,1fr)}.main-layout{grid-template-columns:1fr}.detail-panel{position:static}}@media(max-width:760px){.page-hero,.tools-row{flex-direction:column;align-items:stretch}.stats-grid,.editor-grid{grid-template-columns:1fr}.search-box{min-width:0}}
 `;
