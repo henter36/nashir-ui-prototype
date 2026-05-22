@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,6 +15,18 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+
+import {
+  readProductCatalog,
+  upsertProduct,
+} from "../utils/productCatalogStore.js";
+
+import {
+  deriveMetricsFromCampaigns,
+  refreshDashboardSummary,
+  upsertCampaign,
+  writeCampaignMetrics,
+} from "../utils/campaignAnalyticsStore.js";
 
 const goals = [
   "زيادة المبيعات",
@@ -151,7 +163,7 @@ export default function CampaignWizardPage() {
   const [endDate, setEndDate] = useState("2025-03-15");
   const [budget, setBudget] = useState("5,000 ريال");
 
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState(() => readProductCatalog(initialProducts));
   const [selectedProductId, setSelectedProductId] = useState("p-1");
   const [showQuickProduct, setShowQuickProduct] = useState(false);
   const [quickProduct, setQuickProduct] = useState({
@@ -178,6 +190,23 @@ export default function CampaignWizardPage() {
   const [style, setStyle] = useState("مباشر");
 
   const [generatedTexts, setGeneratedTexts] = useState({});
+  const [saveNotice, setSaveNotice] = useState("");
+
+  useEffect(() => {
+    const refreshProducts = () => {
+      setProducts(readProductCatalog(initialProducts));
+    };
+
+    window.addEventListener("focus", refreshProducts);
+    window.addEventListener("storage", refreshProducts);
+    window.addEventListener("nashir-product-catalog-updated", refreshProducts);
+
+    return () => {
+      window.removeEventListener("focus", refreshProducts);
+      window.removeEventListener("storage", refreshProducts);
+      window.removeEventListener("nashir-product-catalog-updated", refreshProducts);
+    };
+  }, []);
 
   const selectedProduct = products.find((product) => product.id === selectedProductId) || products[0];
 
@@ -249,7 +278,8 @@ export default function CampaignWizardPage() {
       description: quickProduct.description,
     };
 
-    setProducts((prev) => [...prev, product]);
+    const nextProducts = upsertProduct(product, initialProducts);
+    setProducts(nextProducts);
     setSelectedProductId(product.id);
     setQuickProduct({ name: "", url: "", price: "", description: "" });
     setShowQuickProduct(false);
@@ -298,14 +328,62 @@ export default function CampaignWizardPage() {
     if (step > 1) setStep((current) => current - 1);
   };
 
+  const saveCampaignDraft = () => {
+    if (!canGenerate) return;
+
+    const campaignOutputs = outputs.map((output) => {
+      const generated = generatedTexts[output];
+
+      return [
+        output,
+        "مسودة",
+        channels[0] || "عام",
+        generated?.customer || makeCustomerText({
+          output,
+          productName: selectedProduct?.name || "المنتج",
+          goal,
+          offer,
+          style,
+          videoDuration,
+        }),
+      ];
+    });
+
+    const numericBudget = Number(String(budget).replace(/[^0-9.]/g, "")) || 0;
+
+    const campaign = {
+      name: campaignName,
+      product: selectedProduct?.name || "غير محدد",
+      goal,
+      status: "draft",
+      stage: "تم إنشاؤها من المعالج",
+      owner: "أنت",
+      budget,
+      budgetValue: numericBudget,
+      readiness,
+      channels,
+      channel: channels[0] || "عام",
+      outputs: campaignOutputs,
+      edits: [["تم إنشاء الحملة من معالج إنشاء الحملة", "أنت", "الآن"]],
+      updatedAt: "الآن",
+    };
+
+    const nextCampaigns = upsertCampaign(campaign);
+    const nextMetrics = deriveMetricsFromCampaigns(nextCampaigns);
+    writeCampaignMetrics(nextMetrics);
+    refreshDashboardSummary(nextCampaigns, nextMetrics);
+
+    setSaveNotice("تم حفظ الحملة كمسودة ويمكن متابعتها من صفحة الحملات.");
+  };
+
   return (
     <main className="campaign-wizard-page" dir="rtl">
       <style>{styles}</style>
 
       <PageTitle
-        title="معالج الحملات القديم"
-        description="نسخة مختصرة ومحكومة من المعالج القديم مع إخفاء المطالبات الداخلية عن العميل."
-        status="Legacy Wizard"
+        title="معالج إنشاء الحملة"
+        description="معالج محكوم لإنشاء الحملة وتجهيز مخرجاتها قبل المراجعة والنشر."
+        status="معتمد"
       />
 
       <StepTabs steps={steps} step={step} setStep={setStep} />
@@ -586,10 +664,16 @@ export default function CampaignWizardPage() {
                     <RefreshCw size={16} />
                     توليد/إعادة توليد كل النصوص
                   </button>
-                  <button type="button" className="button secondary" disabled={!canGenerate}>
+                  <button type="button" className="button secondary" disabled={!canGenerate} onClick={saveCampaignDraft}>
                     توليد الحملة
                   </button>
                 </div>
+
+                {saveNotice && (
+                  <Notice tone="amber">
+                    {saveNotice}
+                  </Notice>
+                )}
               </Card>
 
               <Card>
