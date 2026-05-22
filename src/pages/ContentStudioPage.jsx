@@ -20,6 +20,10 @@ import {
   readCampaignContent,
   upsertCampaignContentItem,
 } from "../utils/campaignContentStore.js";
+import {
+  getActivePrompts,
+  getApprovedTemplates,
+} from "../utils/promptTemplateStore.js";
 
 const initialItems = [
   {
@@ -94,6 +98,8 @@ const statusMap = {
 
 export default function ContentStudioPage() {
   const [items, setItems] = useState(() => readCampaignContent(initialItems));
+  const [approvedTemplates, setApprovedTemplates] = useState(() => getApprovedTemplates([]));
+  const [activePrompts, setActivePrompts] = useState(() => getActivePrompts([]));
   const [activeItemId, setActiveItemId] = useState(initialItems[0].id);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -111,6 +117,25 @@ export default function ContentStudioPage() {
       window.removeEventListener("focus", reloadItems);
       window.removeEventListener("storage", reloadItems);
       window.removeEventListener("nashir-campaign-content-updated", reloadItems);
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadPromptTemplateReadiness = () => {
+      setApprovedTemplates(getApprovedTemplates([]));
+      setActivePrompts(getActivePrompts([]));
+    };
+
+    window.addEventListener("focus", reloadPromptTemplateReadiness);
+    window.addEventListener("storage", reloadPromptTemplateReadiness);
+    window.addEventListener("nashir-template-engine-updated", reloadPromptTemplateReadiness);
+    window.addEventListener("nashir-prompt-governance-updated", reloadPromptTemplateReadiness);
+
+    return () => {
+      window.removeEventListener("focus", reloadPromptTemplateReadiness);
+      window.removeEventListener("storage", reloadPromptTemplateReadiness);
+      window.removeEventListener("nashir-template-engine-updated", reloadPromptTemplateReadiness);
+      window.removeEventListener("nashir-prompt-governance-updated", reloadPromptTemplateReadiness);
     };
   }, []);
 
@@ -231,6 +256,25 @@ export default function ContentStudioPage() {
             <div>
               <b>{stats.ready}</b>
               <small>جاهزة</small>
+            </div>
+          </div>
+
+          <div className="readiness-summary">
+            <div>
+              <b>{approvedTemplates.length}</b>
+              <span>
+                {approvedTemplates.length
+                  ? "قوالب معتمدة متاحة"
+                  : "لا توجد قوالب معتمدة"}
+              </span>
+            </div>
+            <div>
+              <b>{activePrompts.length}</b>
+              <span>
+                {activePrompts.length
+                  ? "مطالبات نشطة متاحة"
+                  : "لا توجد مطالبات نشطة"}
+              </span>
             </div>
           </div>
         </div>
@@ -539,6 +583,35 @@ const styles = `
   margin-top: 3px;
   color: #64748b;
   font-size: 11px;
+}
+
+.readiness-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.readiness-summary div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.readiness-summary b {
+  color: #047857;
+  font-size: 18px;
+}
+
+.readiness-summary span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
 }
 
 .studio-layout {
