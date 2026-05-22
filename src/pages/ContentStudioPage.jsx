@@ -96,6 +96,28 @@ const statusMap = {
   },
 };
 
+
+function getSafeContentIcon(item) {
+  if (typeof item?.icon === "function") return item.icon;
+
+  const text = `${item?.type || ""} ${item?.channel || ""} ${item?.title || ""}`.toLowerCase();
+
+  if (text.includes("video") || text.includes("reel") || text.includes("فيديو")) return PlayCircle;
+  if (text.includes("email") || text.includes("بريد")) return Mail;
+  if (text.includes("whatsapp") || text.includes("واتساب")) return MessageCircle;
+  if (text.includes("image") || text.includes("post") || text.includes("منشور") || text.includes("صورة")) return ImageIcon;
+
+  return FileText;
+}
+
+function getSafeStatusConfig(status) {
+  return statusMap[status] || statusMap.draft || {
+    label: "مسودة",
+    className: "draft",
+    icon: Clock3,
+  };
+}
+
 export default function ContentStudioPage() {
   const [items, setItems] = useState(() => readCampaignContent(initialItems));
   const [approvedTemplates, setApprovedTemplates] = useState(() => getApprovedTemplates([]));
@@ -206,8 +228,9 @@ export default function ContentStudioPage() {
     setCopied(false);
   };
 
-  const ActiveIcon = activeItem.icon;
-  const StatusIcon = statusMap[activeItem.status].icon;
+  const ActiveIcon = getSafeContentIcon(activeItem);
+  const activeStatus = getSafeStatusConfig(activeItem?.status);
+  const StatusIcon = activeStatus.icon;
 
   return (
     <main className="content-studio-page" dir="rtl">
@@ -289,8 +312,8 @@ export default function ContentStudioPage() {
 
           <div className="content-list">
             {items.map((item) => {
-              const Icon = item.icon;
-              const itemStatus = statusMap[item.status];
+              const Icon = getSafeContentIcon(item);
+              const itemStatus = getSafeStatusConfig(item.status);
               const ItemStatusIcon = itemStatus.icon;
               const active = item.id === activeItemId;
 
