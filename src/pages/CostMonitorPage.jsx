@@ -143,16 +143,29 @@ function getForecastUsage(row) {
 }
 
 function getRowWarnings(row) {
-  const warnings = [];
-  const usage = getUsage(row);
-  const forecastUsage = getForecastUsage(row);
+  if (!row) {
+    return ["لا يوجد مسار تكلفة محدد حاليًا."];
+  }
 
-  if (row.status === "risk") warnings.push("المسار مصنف عالي التكلفة ويحتاج اعتمادًا قبل التوسع.");
+  const safeRow = {
+    status: "ok",
+    avgRunCost: 0,
+    approvalAbove: Number.POSITIVE_INFINITY,
+    autoThrottle: true,
+    task: "",
+    ...row,
+  };
+
+  const warnings = [];
+  const usage = getUsage(safeRow);
+  const forecastUsage = getForecastUsage(safeRow);
+
+  if (safeRow.status === "risk") warnings.push("المسار مصنف عالي التكلفة ويحتاج اعتمادًا قبل التوسع.");
   if (usage >= 80) warnings.push("الاستهلاك الحالي تجاوز 80% من الحد.");
   if (forecastUsage > 100) warnings.push("التوقع الشهري يتجاوز الحد المحدد.");
-  if (row.avgRunCost > row.approvalAbove) warnings.push("متوسط تكلفة التشغيل أعلى من حد الموافقة.");
-  if (!row.autoThrottle && usage >= 70) warnings.push("يفضل تفعيل الخفض التلقائي قبل تجاوز الميزانية.");
-  if (row.task === "video_generation") warnings.push("توليد الفيديو لا يجب أن يعمل دون موافقة بشرية صريحة.");
+  if (safeRow.avgRunCost > safeRow.approvalAbove) warnings.push("متوسط تكلفة التشغيل أعلى من حد الموافقة.");
+  if (!safeRow.autoThrottle && usage >= 70) warnings.push("يفضل تفعيل الخفض التلقائي قبل تجاوز الميزانية.");
+  if (safeRow.task === "video_generation") warnings.push("توليد الفيديو لا يجب أن يعمل دون موافقة بشرية صريحة.");
 
   return warnings;
 }
@@ -191,7 +204,11 @@ export default function CostMonitorPage() {
     });
   }, [rows, query, statusFilter]);
 
-  const selected = rows.find((row) => row.task === selectedTask) || rows[0];
+  const selected =
+    rows.find((row) => row.task === selectedTask) ||
+    rows[0] ||
+    initialRows[0] ||
+    null;
 
   useEffect(() => {
     const reloadCosts = () => {
