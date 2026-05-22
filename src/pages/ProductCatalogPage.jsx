@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
   Edit3,
   ImageIcon,
   Link2,
@@ -10,6 +9,12 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+
+import {
+  readProductCatalog,
+  upsertProduct,
+  deleteProduct as deleteCatalogProduct,
+} from "../utils/productCatalogStore.js";
 
 const initialProducts = [
   {
@@ -81,9 +86,11 @@ function toggleValue(list, value) {
 }
 
 export default function ProductCatalogPage() {
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState(() => readProductCatalog(initialProducts));
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(initialProducts[0].id);
+  const [selectedId, setSelectedId] = useState(
+    () => readProductCatalog(initialProducts)[0]?.id || initialProducts[0].id
+  );
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
@@ -94,6 +101,24 @@ export default function ProductCatalogPage() {
     flags: [],
   });
 
+  useEffect(() => {
+    const refreshProducts = () => {
+      const next = readProductCatalog(initialProducts);
+      setProducts(next);
+      setSelectedId((current) => current || next[0]?.id || initialProducts[0].id);
+    };
+
+    window.addEventListener("focus", refreshProducts);
+    window.addEventListener("storage", refreshProducts);
+    window.addEventListener("nashir-product-catalog-updated", refreshProducts);
+
+    return () => {
+      window.removeEventListener("focus", refreshProducts);
+      window.removeEventListener("storage", refreshProducts);
+      window.removeEventListener("nashir-product-catalog-updated", refreshProducts);
+    };
+  }, []);
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) =>
       `${product.name} ${product.category} ${product.flags.join(" ")} ${product.source}`
@@ -103,7 +128,7 @@ export default function ProductCatalogPage() {
   }, [products, query]);
 
   const selectedProduct =
-    products.find((product) => product.id === selectedId) || products[0];
+    products.find((product) => product.id === selectedId) || products[0] || initialProducts[0];
 
   const stats = useMemo(() => {
     return {
@@ -130,23 +155,27 @@ export default function ProductCatalogPage() {
     if (!draft.name.trim()) return;
 
     if (editingId) {
-      setProducts((prev) =>
-        prev.map((product) =>
-          product.id === editingId
-            ? {
-                ...product,
-                name: draft.name,
-                category: draft.category || "غير مصنف",
-                price: draft.price || "غير محدد",
-                url: draft.url,
-                description: draft.description,
-                flags: draft.flags,
-                readiness: Math.max(product.readiness, 55),
-                status: product.status === "blocked" ? product.status : "review",
-              }
-            : product
-        )
+      const currentProduct = products.find((product) => product.id === editingId);
+      if (!currentProduct) return;
+
+      const next = upsertProduct(
+        {
+          ...currentProduct,
+          name: draft.name,
+          category: draft.category || "غير مصنف",
+          price: draft.price || "غير محدد",
+          url: draft.url,
+          description: draft.description,
+          flags: draft.flags,
+          readiness: Math.max(currentProduct.readiness, 55),
+          status: currentProduct.status === "blocked" ? currentProduct.status : "review",
+          sourceSurface: "ProductCatalogPage",
+        },
+        initialProducts
       );
+
+      setProducts(next);
+      setSelectedId(editingId);
       resetDraft();
       return;
     }
@@ -162,12 +191,14 @@ export default function ProductCatalogPage() {
       status: "draft",
       assets: 0,
       source: "Manual",
+      sourceSurface: "ProductCatalogPage",
       flags: draft.flags.length ? draft.flags : ["جديد"],
       claims: ["يحتاج مراجعة وصف المنتج قبل استخدامه في حملة"],
       description: draft.description || "منتج جديد يحتاج استكمال التفاصيل قبل استخدامه في الحملات.",
     };
 
-    setProducts((prev) => [product, ...prev]);
+    const next = upsertProduct(product, initialProducts);
+    setProducts(next);
     setSelectedId(product.id);
     resetDraft();
   };
@@ -187,7 +218,7 @@ export default function ProductCatalogPage() {
 
   const deleteProduct = (id) => {
     if (products.length <= 1) return;
-    const next = products.filter((product) => product.id !== id);
+    const next = deleteCatalogProduct(id, initialProducts);
     setProducts(next);
     if (selectedId === id) setSelectedId(next[0].id);
     if (editingId === id) resetDraft();
@@ -206,6 +237,7 @@ export default function ProductCatalogPage() {
         status: "review",
         assets: 2,
         source: "Store Crawler",
+        sourceSurface: "ProductCatalogPage",
         flags: ["من رابط المتجر", "يحتاج مراجعة"],
         claims: ["تأكد من حقوق الصور قبل استخدامها"],
         description: "منتج تم سحبه كمحاكاة من رابط المتجر ويحتاج مراجعة قبل استخدامه.",
@@ -221,13 +253,19 @@ export default function ProductCatalogPage() {
         status: "review",
         assets: 3,
         source: "Store Crawler",
+        sourceSurface: "ProductCatalogPage",
         flags: ["موسمي", "مناسب للهدايا"],
         claims: ["تأكد من توفر المخزون وسعر العرض"],
         description: "باقة موسمية تم سحبها كمحاكاة من المتجر.",
       },
     ];
 
-    setProducts((prev) => [...crawled, ...prev]);
+    let next = products;
+    crawled.forEach((product) => {
+      next = upsertProduct(product, initialProducts);
+    });
+
+    setProducts(next);
     setSelectedId(crawled[0].id);
   };
 

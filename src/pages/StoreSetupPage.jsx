@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,6 +20,12 @@ import {
   Users,
   Wand2,
 } from "lucide-react";
+
+import {
+  readProductCatalog,
+  upsertProduct,
+  deleteProduct as deleteCatalogProduct,
+} from "../utils/productCatalogStore.js";
 
 const steps = [
   [1, "بيانات المتجر", "البيانات الأساسية والهوية التشغيلية."],
@@ -203,7 +209,7 @@ function writeSharedIntegrationConnections(nextConnections, preferredChannels = 
 export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(defaultForm);
-  const [products, setProducts] = useState(defaultProducts);
+  const [products, setProducts] = useState(() => readProductCatalog(defaultProducts));
   const [saved, setSaved] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
@@ -235,6 +241,22 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     "راجع المنتجات المسحوبة قبل استخدامها في أي حملة.",
     "أي أصل مكتشف من المتجر يحتاج تأكيد حقوق قبل النشر.",
   ]);
+
+  useEffect(() => {
+    const refreshProducts = () => {
+      setProducts(readProductCatalog(defaultProducts));
+    };
+
+    window.addEventListener("focus", refreshProducts);
+    window.addEventListener("storage", refreshProducts);
+    window.addEventListener("nashir-product-catalog-updated", refreshProducts);
+
+    return () => {
+      window.removeEventListener("focus", refreshProducts);
+      window.removeEventListener("storage", refreshProducts);
+      window.removeEventListener("nashir-product-catalog-updated", refreshProducts);
+    };
+  }, []);
 
   const completion = useMemo(() => {
     const checks = [
@@ -393,19 +415,17 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       return;
     }
 
-    if (editingProductId) {
-      setProducts((prev) =>
-        prev.map((product) =>
-          product.id === editingProductId ? { ...productDraft, id: editingProductId } : product
-        )
-      );
-    } else {
-      setProducts((prev) => [
-        ...prev,
-        { ...productDraft, id: Date.now(), source: productDraft.source || "manual" },
-      ]);
-    }
+    const next = upsertProduct(
+      {
+        ...productDraft,
+        id: editingProductId || productDraft.id || Date.now(),
+        source: productDraft.source || "store_setup",
+        sourceSurface: "StoreSetupPage",
+      },
+      defaultProducts
+    );
 
+    setProducts(next);
     resetProductDraft();
     setSaved(false);
   };
@@ -424,19 +444,18 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   };
 
   const removeProduct = (id) => {
-    setProducts((prev) =>
-      prev.length > 1 ? prev.filter((product) => product.id !== id) : prev
-    );
+    const next = deleteCatalogProduct(id, defaultProducts);
+    setProducts(next);
     if (editingProductId === id) resetProductDraft();
     setSaved(false);
   };
 
   const addDetectedProduct = (name, index = 0) => {
-    const exists = products.some((product) => product.name === name);
+    const current = readProductCatalog(defaultProducts);
+    const exists = current.some((product) => product.name === name);
     if (exists) return;
 
-    setProducts((prev) => [
-      ...prev,
+    const next = upsertProduct(
       {
         id: Date.now() + index,
         name,
@@ -446,8 +465,12 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
         description: "منتج مسحوب من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في الحملات.",
         flags: ["مناسب للهدايا", "يصلح للفيديو"],
         source: "store_scan",
+        sourceSurface: "StoreSetupPage",
       },
-    ]);
+      defaultProducts
+    );
+
+    setProducts(next);
   };
 
   const scanStore = () => {
@@ -489,22 +512,30 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
         preferredChannels: Array.from(new Set([...prev.preferredChannels, ...result.suggestedChannels])),
       }));
 
-      setProducts((prev) => {
-        const existingNames = new Set(prev.map((product) => product.name).filter(Boolean));
-        const discovered = result.detectedProducts
-          .filter((name) => !existingNames.has(name))
-          .map((name, index) => ({
-            id: Date.now() + index,
-            name,
-            url: `${form.storeUrl.replace(/\/$/, "")}/products/${encodeURIComponent(name)}`,
-            price: "",
-            margin: "",
-            description: "منتج مكتشف من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في حملة.",
-            flags: ["مناسب للهدايا", "يصلح للفيديو"],
-            source: "store_scan",
-          }));
-        return discovered.length ? [...prev, ...discovered] : prev;
-      });
+      const currentProducts = readProductCatalog(defaultProducts);
+      const existingNames = new Set(currentProducts.map((product) => product.name).filter(Boolean));
+      let nextProducts = currentProducts;
+
+      result.detectedProducts
+        .filter((name) => !existingNames.has(name))
+        .forEach((name, index) => {
+          nextProducts = upsertProduct(
+            {
+              id: Date.now() + index,
+              name,
+              url: `${form.storeUrl.replace(/\/$/, "")}/products/${encodeURIComponent(name)}`,
+              price: "",
+              margin: "",
+              description: "منتج مكتشف من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في حملة.",
+              flags: ["مناسب للهدايا", "يصلح للفيديو"],
+              source: "store_scan",
+              sourceSurface: "StoreSetupPage",
+            },
+            defaultProducts
+          );
+        });
+
+      setProducts(nextProducts);
 
       setStoreSource({
         status: "scan_completed",
@@ -703,7 +734,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                   <div className="product-form-actions"><Button onClick={saveProductDraft}>{editingProductId ? "حفظ التعديل" : "إضافة إلى الجدول"}</Button><Button variant="secondary" onClick={resetProductDraft}>تفريغ النموذج</Button></div>
                 </div>
                 <div className="product-table-card">
-                  <div className="product-table-headline"><div><h3>جدول المنتجات</h3><p>كل المنتجات اليدوية أو المقترحة تظهر هنا ويمكن تعديلها أو حذفها.</p></div><Badge tone="neutral">{products.length} منتج</Badge></div>
+                  <div className="product-table-headline"><div><h3>جدول المنتجات</h3><p>كل المنتجات اليدوية أو المقترحة تظهر هنا وفي كتالوج المنتجات من نفس المصدر.</p></div><Badge tone="neutral">{products.length} منتج</Badge></div>
                   <div className="product-table">
                     <div className="product-table-header"><span>المنتج</span><span>السعر</span><span>المصدر</span><span>الخصائص</span><span>إجراء</span></div>
                     {products.map((product, index) => (
