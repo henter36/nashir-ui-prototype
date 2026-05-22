@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -22,6 +22,12 @@ import {
   Wand2,
   XCircle,
 } from "lucide-react";
+import {
+  deletePrompt as deletePromptFromStore,
+  duplicatePrompt,
+  readPromptRegistry,
+  upsertPrompt,
+} from "../utils/promptTemplateStore.js";
 
 const INITIAL_PROMPTS = [
   {
@@ -244,7 +250,7 @@ function getGovernanceScore(prompt) {
 
 export default function PromptGovernancePage() {
   const [activeTab, setActiveTab] = useState("registry");
-  const [promptList, setPromptList] = useState(INITIAL_PROMPTS);
+  const [promptList, setPromptList] = useState(() => readPromptRegistry(INITIAL_PROMPTS));
   const [selectedId, setSelectedId] = useState(INITIAL_PROMPTS[0].id);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -257,9 +263,26 @@ export default function PromptGovernancePage() {
   const selectedFindings = selected ? getGovernanceFindings(selected) : [];
   const selectedScore = selected ? getGovernanceScore(selected) : 0;
 
+  useEffect(() => {
+    const reloadPrompts = () => {
+      setPromptList(readPromptRegistry(INITIAL_PROMPTS));
+    };
+
+    window.addEventListener("focus", reloadPrompts);
+    window.addEventListener("storage", reloadPrompts);
+    window.addEventListener("nashir-prompt-governance-updated", reloadPrompts);
+
+    return () => {
+      window.removeEventListener("focus", reloadPrompts);
+      window.removeEventListener("storage", reloadPrompts);
+      window.removeEventListener("nashir-prompt-governance-updated", reloadPrompts);
+    };
+  }, []);
+
   const updatePrompt = (patch) => {
     if (!selected) return;
-    setPromptList((prev) => prev.map((prompt) => (prompt.id === selected.id ? { ...prompt, ...patch, updatedAt: "الآن" } : prompt)));
+    const next = upsertPrompt({ ...selected, ...patch }, INITIAL_PROMPTS);
+    setPromptList(next);
   };
 
   const createPrompt = () => {
@@ -284,25 +307,17 @@ export default function PromptGovernancePage() {
       usage: [],
     };
 
-    setPromptList((prev) => [newPrompt, ...prev]);
+    const next = upsertPrompt(newPrompt, INITIAL_PROMPTS);
+    setPromptList(next);
     setSelectedId(newPrompt.id);
     setActiveTab("registry");
   };
 
-  const duplicatePrompt = () => {
+  const duplicateSelectedPrompt = () => {
     if (!selected) return;
-    const cloned = {
-      ...selected,
-      id: `pg-${Date.now()}`,
-      name: `${selected.name} - نسخة مراجعة`,
-      version: `${selected.version}-copy`,
-      status: "draft",
-      updatedAt: "الآن",
-      usage: [],
-    };
-
-    setPromptList((prev) => [cloned, ...prev]);
-    setSelectedId(cloned.id);
+    const result = duplicatePrompt(selected, INITIAL_PROMPTS);
+    setPromptList(result.items);
+    setSelectedId(result.item.id);
   };
 
   const archivePrompt = () => {
@@ -312,7 +327,7 @@ export default function PromptGovernancePage() {
 
   const deletePrompt = () => {
     if (!selected || promptList.length <= 1) return;
-    const nextList = promptList.filter((prompt) => prompt.id !== selected.id);
+    const nextList = deletePromptFromStore(selected.promptId || selected.id, INITIAL_PROMPTS);
     setPromptList(nextList);
     setSelectedId(nextList[0]?.id || "");
   };
@@ -510,7 +525,7 @@ export default function PromptGovernancePage() {
               </div>
 
               <div className="detail-actions">
-                <button type="button" className="secondary-action" onClick={duplicatePrompt}>
+                <button type="button" className="secondary-action" onClick={duplicateSelectedPrompt}>
                   <Copy size={15} />
                   نسخ
                 </button>

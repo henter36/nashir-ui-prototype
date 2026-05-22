@@ -1,5 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Copy, Gift, Search, Share2, Sparkles, Store, Wand2 } from "lucide-react";
+import {
+  createTemplateFromText,
+  deleteTemplate,
+  readTemplateRegistry,
+  upsertTemplate,
+} from "../utils/promptTemplateStore.js";
 
 const templates = [
   { id: 1, title: "إطلاق منتج جديد", occasion: "Launch", type: "جاهز", channel: "Instagram", content: "اكتشف منتجنا الجديد الآن — تجربة مختلفة لفترة محدودة." },
@@ -9,17 +15,50 @@ const templates = [
 ];
 
 export default function TemplateEnginePage() {
+  void deleteTemplate;
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(templates[0].id);
+  const [templateList, setTemplateList] = useState(() => readTemplateRegistry(templates));
+  const [selectedId, setSelectedId] = useState(String(templates[0].id));
   const [customText, setCustomText] = useState("اكتب قالبًا مخصصًا لهذا المتجر...");
-  const selected = templates.find((x) => x.id === selectedId) || templates[0];
+  const selected = templateList.find((x) => x.id === selectedId) || templateList[0];
 
-  const filtered = useMemo(() => templates.filter((x) => `${x.title} ${x.occasion} ${x.channel}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  useEffect(() => {
+    const reloadTemplates = () => {
+      setTemplateList(readTemplateRegistry(templates));
+    };
+
+    window.addEventListener("focus", reloadTemplates);
+    window.addEventListener("storage", reloadTemplates);
+    window.addEventListener("nashir-template-engine-updated", reloadTemplates);
+
+    return () => {
+      window.removeEventListener("focus", reloadTemplates);
+      window.removeEventListener("storage", reloadTemplates);
+      window.removeEventListener("nashir-template-engine-updated", reloadTemplates);
+    };
+  }, []);
+
+  const filtered = useMemo(() => templateList.filter((x) => `${x.title} ${x.occasion} ${x.channel}`.toLowerCase().includes(query.toLowerCase())), [query, templateList]);
+
+  const createTemplate = () => {
+    const result = createTemplateFromText(customText, {}, templates);
+    setTemplateList(result.items);
+    setSelectedId(result.item.id);
+  };
+
+  const updateSelectedTemplateText = (value) => {
+    setCustomText(value);
+
+    if (!selected || selected.type !== "مخصص") return;
+
+    const next = upsertTemplate({ ...selected, content: value }, templates);
+    setTemplateList(next);
+  };
 
   return (
     <main className="page" dir="rtl">
       <style>{styles}</style>
-      <section className="hero"><div><div className="eyebrow"><Wand2 size={15}/> Template Engine</div><h1>محرك القوالب</h1><p>قوالب جاهزة حسب المناسبة، قوالب مخصصة للمتجر، ومشاركة القوالب بين الفريق.</p></div><button className="primary"><Sparkles size={16}/> إنشاء قالب</button></section>
+      <section className="hero"><div><div className="eyebrow"><Wand2 size={15}/> Template Engine</div><h1>محرك القوالب</h1><p>قوالب جاهزة حسب المناسبة، قوالب مخصصة للمتجر، ومشاركة القوالب بين الفريق.</p></div><button className="primary" onClick={createTemplate}><Sparkles size={16}/> إنشاء قالب</button></section>
       <section className="toolbar"><div className="search"><Search size={17}/><input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="ابحث في القوالب..." /></div><button>Launch</button><button>Seasonal</button><button>Custom</button></section>
       <section className="layout">
         <article className="card">
@@ -28,7 +67,7 @@ export default function TemplateEnginePage() {
         </article>
         <aside className="card detail">
           <div className="detail-icon"><Store size={24}/></div><h2>{selected.title}</h2><p>{selected.occasion} · {selected.channel}</p>
-          <textarea value={selected.type==="مخصص"?customText:selected.content} onChange={(e)=>setCustomText(e.target.value)} />
+          <textarea value={selected.type==="مخصص"?customText:selected.content} onChange={(e)=>updateSelectedTemplateText(e.target.value)} />
           <div className="actions"><button><Copy size={16}/> نسخ</button><button><Share2 size={16}/> مشاركة</button></div>
           <div className="warning">مشاركة القوالب هنا تجريبية. لاحقًا تحتاج صلاحيات وأثر تدقيق.</div>
         </aside>

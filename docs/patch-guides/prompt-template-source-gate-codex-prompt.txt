@@ -1,0 +1,100 @@
+You are working on the React/Vite prototype repo:
+henter36/nashir-ui-prototype
+
+Local path:
+~/workspace/nashir-ui-prototype
+
+Task classification:
+UI-safe source-of-truth patch for prompts/templates.
+
+Goal:
+Apply the Prompt + Template Source Gate across:
+- src/pages/PromptGovernancePage.jsx
+- src/pages/TemplateEnginePage.jsx
+
+Do not redesign screens.
+Do not delete UI sections.
+Do not change routing.
+Do not touch App.jsx or Sidebar.jsx.
+Do not edit ContentStudioPage.jsx in this first patch unless build requires a tiny safe import adjustment.
+
+Internal stores:
+- nashir_mock_prompt_governance
+- nashir_mock_template_engine
+
+Create:
+- src/utils/promptTemplateStore.js
+
+Use the helper provided in the handoff. It must export:
+- readPromptRegistry
+- writePromptRegistry
+- upsertPrompt
+- deletePrompt
+- duplicatePrompt
+- readTemplateRegistry
+- writeTemplateRegistry
+- upsertTemplate
+- deleteTemplate
+- createTemplateFromText
+- getPromptStatusLabel
+- getTemplateStatusLabel
+- getApprovalLabel
+- getReviewLabel
+- getRiskLabel
+- getActivePrompts
+- getApprovedTemplates
+
+UI-safe rule:
+Do not expose these terms in user-facing JSX text:
+- مصدر الحقيقة
+- مصدر مشترك
+- الشاشة المالكة
+- promptId
+- templateId
+- sourceSurface
+- PromptGovernancePage
+- TemplateEnginePage
+- ContentStudioPage as ownership wording
+
+These may exist only as code identifiers/imports/internal metadata.
+
+PromptGovernancePage.jsx:
+- Import useEffect if missing.
+- Import readPromptRegistry, upsertPrompt, duplicatePrompt, deletePrompt as deletePromptFromStore.
+- Replace local promptList initialization with readPromptRegistry(INITIAL_PROMPTS).
+- Add focus/storage/nashir-prompt-governance-updated listener.
+- updatePrompt must call upsertPrompt and setPromptList(next).
+- createPrompt must save through upsertPrompt.
+- duplicatePrompt must use helper duplicatePrompt.
+- deletePrompt must use deletePromptFromStore.
+- Preserve all current UI layout and labels unless they expose forbidden internal ownership terms.
+
+TemplateEnginePage.jsx:
+- Import useEffect if missing.
+- Import readTemplateRegistry, upsertTemplate, createTemplateFromText, deleteTemplate.
+- Add templateList state from readTemplateRegistry(templates).
+- Replace filtering over templates with templateList.
+- Add focus/storage/nashir-template-engine-updated listener.
+- Wire existing save/create actions to createTemplateFromText or upsertTemplate.
+- Preserve all current UI layout and labels unless they expose forbidden internal ownership terms.
+
+Verification:
+Run:
+npm run build
+
+Then run:
+grep -RIn \
+  "مصدر الحقيقة\|مصدر مشترك\|الشاشة المالكة\|promptId\|templateId\|sourceSurface\|PromptGovernancePage\|TemplateEnginePage\|ContentStudioPage" \
+  src/pages src/components
+
+Interpret grep:
+- Code identifiers/imports/component function names are acceptable.
+- Visible JSX strings containing those concepts are not acceptable and must be rewritten to operational wording.
+
+Show:
+- changed files
+- build result
+- grep result summary
+- git diff --name-only
+
+Do not commit unless explicitly asked.
