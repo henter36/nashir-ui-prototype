@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -26,6 +26,15 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
+import {
+  deriveCostRowsFromRoutes,
+  readCostRows,
+  readModelRegistry,
+  readModelRoutes,
+  upsertModel,
+  upsertModelRoute,
+  writeCostRows,
+} from "../utils/modelCostStore.js";
 
 const MODEL_REGISTRY_SEED = [
   {
@@ -445,8 +454,8 @@ function getWorkflowUsageLabel(taskType) {
 }
 
 export default function ModelRoutingPage() {
-  const [models, setModels] = useState(MODEL_REGISTRY_SEED);
-  const [routes, setRoutes] = useState(ROUTES_SEED);
+  const [models, setModels] = useState(() => readModelRegistry(MODEL_REGISTRY_SEED));
+  const [routes, setRoutes] = useState(() => readModelRoutes(ROUTES_SEED));
   const [activeTab, setActiveTab] = useState("routes");
   const [selectedRouteId, setSelectedRouteId] = useState(ROUTES_SEED[0].id);
   const [testTask, setTestTask] = useState("store_reading");
@@ -454,6 +463,25 @@ export default function ModelRoutingPage() {
   const [testLog, setTestLog] = useState([]);
 
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) || routes[0];
+
+  useEffect(() => {
+    const reloadRouting = () => {
+      setModels(readModelRegistry(MODEL_REGISTRY_SEED));
+      setRoutes(readModelRoutes(ROUTES_SEED));
+    };
+
+    window.addEventListener("focus", reloadRouting);
+    window.addEventListener("storage", reloadRouting);
+    window.addEventListener("nashir-model-registry-updated", reloadRouting);
+    window.addEventListener("nashir-model-routing-updated", reloadRouting);
+
+    return () => {
+      window.removeEventListener("focus", reloadRouting);
+      window.removeEventListener("storage", reloadRouting);
+      window.removeEventListener("nashir-model-registry-updated", reloadRouting);
+      window.removeEventListener("nashir-model-routing-updated", reloadRouting);
+    };
+  }, []);
 
   const stats = useMemo(
     () => ({
@@ -465,65 +493,84 @@ export default function ModelRoutingPage() {
     [models, routes]
   );
 
+  const syncRouteCosts = (nextRoutes, nextModels = models) => {
+    const currentRows = readCostRows([]);
+    const derivedRows = deriveCostRowsFromRoutes(nextRoutes, currentRows, nextModels);
+    writeCostRows(derivedRows);
+  };
+
   const updateRoute = (routeId, patch) => {
-    setRoutes((prev) =>
-      prev.map((route) =>
-        route.id === routeId
-          ? {
-              ...route,
-              ...patch,
-            }
-          : route
-      )
-    );
+    const route = routes.find((item) => item.id === routeId);
+
+    if (!route) return;
+
+    const updatedRoute = {
+      ...route,
+      ...patch,
+    };
+    const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
+
+    setRoutes(next);
+    syncRouteCosts(next);
   };
 
   const updateRouteNested = (routeId, section, key, value) => {
-    setRoutes((prev) =>
-      prev.map((route) =>
-        route.id === routeId
-          ? {
-              ...route,
-              [section]: {
-                ...route[section],
-                [key]: value,
-              },
-            }
-          : route
-      )
-    );
+    const route = routes.find((item) => item.id === routeId);
+
+    if (!route) return;
+
+    const updatedRoute = {
+      ...route,
+      [section]: {
+        ...route[section],
+        [key]: value,
+      },
+    };
+    const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
+
+    setRoutes(next);
+    syncRouteCosts(next);
   };
 
   const updateModelStatus = (modelId, status) => {
-    setModels((prev) =>
-      prev.map((model) => (model.id === modelId ? { ...model, status } : model))
-    );
+    const model = models.find((item) => item.id === modelId);
+
+    if (!model) return;
+
+    const next = upsertModel({ ...model, status }, MODEL_REGISTRY_SEED);
+
+    setModels(next);
+    syncRouteCosts(routes, next);
   };
 
   const addFallback = (routeId, modelId) => {
-    setRoutes((prev) =>
-      prev.map((route) => {
-        if (route.id !== routeId) return route;
-        if (!modelId || route.fallbackModelIds.includes(modelId)) return route;
-        return {
-          ...route,
-          fallbackModelIds: [...route.fallbackModelIds, modelId],
-        };
-      })
-    );
+    const route = routes.find((item) => item.id === routeId);
+
+    if (!route || !modelId || route.fallbackModelIds.includes(modelId)) return;
+
+    const updatedRoute = {
+      ...route,
+      fallbackModelIds: [...route.fallbackModelIds, modelId],
+    };
+    const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
+
+    setRoutes(next);
+    syncRouteCosts(next);
   };
 
   const removeFallback = (routeId, modelId) => {
-    setRoutes((prev) =>
-      prev.map((route) =>
-        route.id === routeId
-          ? {
-              ...route,
-              fallbackModelIds: route.fallbackModelIds.filter((id) => id !== modelId),
-            }
-          : route
-      )
-    );
+    const route = routes.find((item) => item.id === routeId);
+
+    if (!route) return;
+
+    const updatedRoute = {
+      ...route,
+      fallbackModelIds: route.fallbackModelIds.filter((id) => id !== modelId),
+    };
+    const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
+
+    setRoutes(next);
+    syncRouteCosts(next);
   };
 
   const runTest = () => {
@@ -638,7 +685,7 @@ export default function ModelRoutingPage() {
                   </div>
                   <div>
                     <h3>{model.displayName}</h3>
-                    <p>{model.provider} · {model.modelIdentifier}</p>
+                    <p>{model.provider}</p>
                   </div>
                   <Status value={model.status} />
                 </div>
@@ -685,7 +732,7 @@ export default function ModelRoutingPage() {
             <div className="routes-table">
               <div className="table-head">
                 <span>المهمة</span>
-                <span>الشاشة</span>
+                <span>المجال</span>
                 <span>النموذج الأساسي</span>
                 <span>Fallback</span>
                 <span>الاستخدام</span>
@@ -857,7 +904,7 @@ export default function ModelRoutingPage() {
           <div className="card-header">
             <div>
               <h2>التكلفة والحدود</h2>
-              <p>ضبط التكلفة حسب المهمة وليس حسب الشاشة.</p>
+              <p>ضبط التكلفة حسب المهمة وليس حسب الصفحة.</p>
             </div>
           </div>
 

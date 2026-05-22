@@ -20,6 +20,7 @@ import {
   Sparkles,
   Store,
 } from "lucide-react";
+import { getModelRoutingSummary } from "../utils/modelCostStore.js";
 
 const INTEGRATION_CONNECTIONS_KEY = "nashir_mock_integration_connections";
 
@@ -228,12 +229,12 @@ function readSharedIntegrationConnections() {
                 ...value,
                 providerId: value.providerId || normalizedKey,
                 status: normalizeConnectionStatus(value),
-                updatedAt: value.updatedAt || parsed.updatedAt || "مصدر الربط المشترك",
+                updatedAt: value.updatedAt || parsed.updatedAt || "حالة محفوظة",
               }
             : {
                 providerId: normalizedKey,
                 status: normalizeConnectionStatus(value),
-                updatedAt: parsed.updatedAt || "مصدر الربط المشترك",
+                updatedAt: parsed.updatedAt || "حالة محفوظة",
               };
         return acc;
       }, {});
@@ -382,8 +383,8 @@ function buildWarnings({ channels, aiSettings, governance, outputSettings, works
     warnings.push({
       id: "shared_connections_not_reflected",
       tone: "amber",
-      title: "مصدر الربط المشترك لا يظهر في القنوات",
-      message: "راجع مفاتيح القنوات في مصدر الربط حتى تطابق Provider IDs المعتمدة.",
+      title: "حالة الربط لا تظهر في القنوات",
+      message: "راجع مفاتيح القنوات حتى تطابق Provider IDs المعتمدة.",
     });
   }
 
@@ -521,6 +522,7 @@ export default function SettingsPage() {
   const [channels, setChannels] = useState(() =>
     buildDefaultChannels(readSharedIntegrationConnections())
   );
+  const [modelRoutingSummary, setModelRoutingSummary] = useState(() => getModelRoutingSummary());
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [auditLog, setAuditLog] = useState([
@@ -567,6 +569,26 @@ export default function SettingsPage() {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("nashir-integration-connections-updated", handleRefresh);
       document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshModelRoutingSummary = () => {
+      setModelRoutingSummary(getModelRoutingSummary());
+    };
+
+    window.addEventListener("focus", refreshModelRoutingSummary);
+    window.addEventListener("storage", refreshModelRoutingSummary);
+    window.addEventListener("nashir-model-registry-updated", refreshModelRoutingSummary);
+    window.addEventListener("nashir-model-routing-updated", refreshModelRoutingSummary);
+    window.addEventListener("nashir-cost-monitor-updated", refreshModelRoutingSummary);
+
+    return () => {
+      window.removeEventListener("focus", refreshModelRoutingSummary);
+      window.removeEventListener("storage", refreshModelRoutingSummary);
+      window.removeEventListener("nashir-model-registry-updated", refreshModelRoutingSummary);
+      window.removeEventListener("nashir-model-routing-updated", refreshModelRoutingSummary);
+      window.removeEventListener("nashir-cost-monitor-updated", refreshModelRoutingSummary);
     };
   }, []);
 
@@ -751,7 +773,7 @@ export default function SettingsPage() {
     setAuditLog((prev) => [
       {
         id: `audit-${Date.now()}`,
-        event: "إعادة الإعدادات إلى القيم الافتراضية مع إبقاء مصدر الربط المشترك",
+        event: "إعادة الإعدادات إلى القيم الافتراضية مع إبقاء حالة الربط المحفوظة",
         actor: "مدير البروتوتايب",
         time: "الآن",
         severity: "warning",
@@ -775,8 +797,8 @@ export default function SettingsPage() {
 
           <p>
             هذه الصفحة تضبط مساحة العمل، القنوات، مزودي الذكاء الاصطناعي، حدود
-            التكلفة، وسياسات المراجعة. حالة ربط القنوات تأتي من مصدر واحد مشترك
-            يستخدمه إعداد المتجر والإعدادات.
+            التكلفة، وسياسات المراجعة. حالة ربط القنوات محفوظة محليًا وتظهر في
+            إعداد المتجر والإعدادات.
           </p>
 
           <div className="hero-actions">
@@ -848,14 +870,14 @@ export default function SettingsPage() {
               <section className="metrics-grid">
                 <Metric title="القنوات المفعلة" value={enabledChannelsCount} note={`من أصل ${channels.length}`} />
                 <Metric title="مرتبط OAuth Mock" value={connectedOAuthCount} note={`${pendingOAuthCount} بانتظار OAuth`} />
-                <Metric title="من مصدر الربط" value={reflectedConnectionCount} note={`${sharedConnectionCount} سجل محفوظ`} />
+                <Metric title="حالة ربط محفوظة" value={reflectedConnectionCount} note={`${sharedConnectionCount} سجل محفوظ`} />
                 <Metric title="حالة التغييرات" value={dirty ? "غير محفوظة" : "محفوظة"} note="داخل الواجهة فقط" />
               </section>
 
               <SettingsCard
                 icon={Globe2}
                 title="حالة ربط القنوات المشتركة"
-                description={`تقرأ هذه البطاقة من المصدر المشترك: ${INTEGRATION_CONNECTIONS_KEY}`}
+                description="تقرأ هذه البطاقة حالة OAuth Mock المحفوظة محليًا."
               >
                 <SharedConnectionSummary channels={channels} sharedConnectionCount={sharedConnectionCount} />
               </SettingsCard>
@@ -880,6 +902,8 @@ export default function SettingsPage() {
                   <SummaryRow label="النشر التلقائي" value={governance.blockAutoPublish ? "ممنوع" : "غير مضبوط"} />
                   <SummaryRow label="مراجعة الادعاءات" value={governance.requireClaimsReview ? "مفعلة" : "غير مفعلة"} />
                   <SummaryRow label="اللغة والنبرة" value={`${outputSettings.defaultLanguage} · ${outputSettings.defaultTone}`} />
+                  <SummaryRow label="مسارات الذكاء الاصطناعي" value={modelRoutingSummary.routes || "غير محدد"} />
+                  <SummaryRow label="استهلاك التكلفة" value={`${modelRoutingSummary.usage || 0}%`} />
                 </div>
               </SettingsCard>
             </>
@@ -928,11 +952,10 @@ export default function SettingsPage() {
               <div className="source-note">
                 <Store size={18} />
                 <div>
-                  <strong>مصدر حقيقة واحد</strong>
+                  <strong>حالة ربط واحدة</strong>
                   <span>
-                    إعداد المتجر والإعدادات يقرآن ويكتبان في نفس مصدر الربط:
-                    <code> {INTEGRATION_CONNECTIONS_KEY} </code>
-                    . لا توجد مزامنة يدوية ولا سجل قناة منفصل.
+                    إعداد المتجر والإعدادات يعرضان نفس حالة الربط المحفوظة
+                    محليًا. لا توجد مزامنة يدوية ولا سجل قناة منفصل.
                   </span>
                 </div>
               </div>
@@ -969,7 +992,7 @@ export default function SettingsPage() {
                       <div className="connection-badges">
                         <ConnectionBadge status={channel.status} />
                         {channel.fromSharedConnection && (
-                          <span className="shared-badge">مصدر الربط المشترك</span>
+                          <span className="shared-badge">حالة محفوظة</span>
                         )}
                       </div>
 
@@ -1289,7 +1312,7 @@ export default function SettingsPage() {
 
           <SettingsCard
             icon={Globe2}
-            title="مصدر الربط المشترك"
+            title="حالة ربط القنوات"
             description="قراءة مختصرة لحالة OAuth Mock في البروتوتايب."
           >
             <div className="summary-list">
@@ -1297,20 +1320,22 @@ export default function SettingsPage() {
               <SummaryRow label="ظاهرة في الإعدادات" value={reflectedConnectionCount} />
               <SummaryRow label="مرتبطة" value={connectedOAuthCount} />
               <SummaryRow label="بانتظار OAuth" value={pendingOAuthCount} />
-              <SummaryRow label="مفتاح التخزين" value={INTEGRATION_CONNECTIONS_KEY} />
             </div>
           </SettingsCard>
 
           <SettingsCard
             icon={DollarSign}
             title="التكلفة"
-            description="لا توجد قراءة تكلفة فعلية هنا."
+            description="ملخص عالي المستوى من إعدادات التوجيه ومراقبة التكلفة."
           >
             <div className="summary-list">
               <SummaryRow label="الحد الشهري" value={`$${aiSettings.maxMonthlyBudget}`} />
               <SummaryRow label="مزود النصوص" value={aiSettings.textProvider} />
               <SummaryRow label="مزود الصور" value={aiSettings.imageProvider} />
               <SummaryRow label="مزود الفيديو" value={aiSettings.videoProvider} />
+              <SummaryRow label="النماذج النشطة" value={modelRoutingSummary.activeModels || 0} />
+              <SummaryRow label="مسارات المراجعة" value={modelRoutingSummary.reviewRoutes || 0} />
+              <SummaryRow label="توقع التكلفة" value={`${modelRoutingSummary.forecastUsage || 0}%`} />
             </div>
           </SettingsCard>
         </aside>

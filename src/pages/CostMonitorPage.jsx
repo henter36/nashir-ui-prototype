@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -17,6 +17,17 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import {
+  deriveCostRowsFromRoutes,
+  deriveCostStatus,
+  getCostUsage,
+  getForecastUsage as getStoredForecastUsage,
+  readCostRows,
+  readModelRegistry,
+  readModelRoutes,
+  upsertCostRow,
+  writeCostRows,
+} from "../utils/modelCostStore.js";
 
 const initialRows = [
   {
@@ -124,11 +135,11 @@ const policyMap = {
 const periods = ["هذا الشهر", "آخر 7 أيام", "اليوم", "تجريبي"];
 
 function getUsage(row) {
-  return row.cap > 0 ? Math.round((row.cost / row.cap) * 100) : 0;
+  return getCostUsage(row);
 }
 
 function getForecastUsage(row) {
-  return row.cap > 0 ? Math.round((row.forecast / row.cap) * 100) : 0;
+  return getStoredForecastUsage(row);
 }
 
 function getRowWarnings(row) {
@@ -147,7 +158,7 @@ function getRowWarnings(row) {
 }
 
 export default function CostMonitorPage() {
-  const [rows, setRows] = useState(initialRows);
+  const [rows, setRows] = useState(() => readCostRows(initialRows));
   const [period, setPeriod] = useState("هذا الشهر");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -181,6 +192,38 @@ export default function CostMonitorPage() {
   }, [rows, query, statusFilter]);
 
   const selected = rows.find((row) => row.task === selectedTask) || rows[0];
+
+  useEffect(() => {
+    const reloadCosts = () => {
+      setRows(readCostRows(initialRows));
+    };
+    const reloadFromRouting = () => {
+      const routes = readModelRoutes([]);
+      const models = readModelRegistry([]);
+      const storedRows = readCostRows(initialRows);
+
+      if (!routes.length) {
+        setRows(storedRows);
+        return;
+      }
+
+      const next = deriveCostRowsFromRoutes(routes, storedRows, models);
+      writeCostRows(next);
+      setRows(readCostRows(initialRows));
+    };
+
+    window.addEventListener("focus", reloadCosts);
+    window.addEventListener("storage", reloadCosts);
+    window.addEventListener("nashir-cost-monitor-updated", reloadCosts);
+    window.addEventListener("nashir-model-routing-updated", reloadFromRouting);
+
+    return () => {
+      window.removeEventListener("focus", reloadCosts);
+      window.removeEventListener("storage", reloadCosts);
+      window.removeEventListener("nashir-cost-monitor-updated", reloadCosts);
+      window.removeEventListener("nashir-model-routing-updated", reloadFromRouting);
+    };
+  }, []);
 
   const totals = useMemo(() => {
     const total = rows.reduce((sum, row) => sum + row.cost, 0);
@@ -218,48 +261,44 @@ export default function CostMonitorPage() {
   }, [rows, totals]);
 
   const updateSelected = (key, value) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.task === selected.task
-          ? {
-              ...row,
-              [key]: value,
-              status:
-                key === "cost" || key === "cap" || key === "forecast"
-                  ? deriveStatus({ ...row, [key]: value })
-                  : row.status,
-            }
-          : row
-      )
-    );
+    const updatedRow = {
+      ...selected,
+      [key]: value,
+    };
+
+    if (key === "cost" || key === "cap" || key === "forecast" || key === "avgRunCost" || key === "approvalAbove") {
+      updatedRow.status = deriveCostStatus(updatedRow);
+    }
+
+    const next = upsertCostRow(updatedRow, initialRows);
+    setRows(next);
   };
 
   const deriveStatus = (row) => {
-    const usage = row.cap > 0 ? (Number(row.cost) / Number(row.cap)) * 100 : 0;
-    const forecastUsage = row.cap > 0 ? (Number(row.forecast) / Number(row.cap)) * 100 : 0;
-
-    if (usage >= 80 || forecastUsage > 100 || Number(row.avgRunCost) > Number(row.approvalAbove)) {
-      return "risk";
-    }
-
-    if (usage >= 55 || forecastUsage >= 80) return "watch";
-    return "ok";
+    return deriveCostStatus(row);
   };
 
   const refreshCosts = () => {
-    setRows((prev) =>
-      prev.map((row) => ({
+    const nextRows = rows.map((row) => {
+      const updatedRow = {
         ...row,
         cost: Number((row.cost + row.avgRunCost * 0.15).toFixed(2)),
         forecast: Number((row.forecast + row.avgRunCost * 0.4).toFixed(2)),
+        last: "الآن",
+      };
+
+      return {
+        ...updatedRow,
         status: deriveStatus({
           ...row,
           cost: Number((row.cost + row.avgRunCost * 0.15).toFixed(2)),
           forecast: Number((row.forecast + row.avgRunCost * 0.4).toFixed(2)),
         }),
-        last: "الآن",
-      }))
-    );
+      };
+    });
+
+    writeCostRows(nextRows);
+    setRows(readCostRows(initialRows));
 
     addAudit("تم تحديث التكلفة محليًا كمحاكاة", "Cost Monitor");
   };
@@ -277,13 +316,27 @@ export default function CostMonitorPage() {
   };
 
   const blockSelected = () => {
-    updateSelected("status", "blocked");
-    updateSelected("autoThrottle", true);
+    const next = upsertCostRow(
+      {
+        ...selected,
+        status: "blocked",
+        autoThrottle: true,
+      },
+      initialRows
+    );
+    setRows(next);
     addAudit(`تم إيقاف ${selected.task} محليًا`, "System Admin");
   };
 
   const approveSelected = () => {
-    updateSelected("status", "ok");
+    const next = upsertCostRow(
+      {
+        ...selected,
+        status: "ok",
+      },
+      initialRows
+    );
+    setRows(next);
     addAudit(`تم اعتماد استمرار ${selected.task} ضمن الحد الحالي`, "Reviewer");
   };
 
@@ -467,7 +520,7 @@ export default function CostMonitorPage() {
           <div className="detail-grid">
             <Info label="Task Key" value={selected.task} />
             <Info label="Workflow Route" value={selected.route} />
-            <Info label="Owner Surface" value={selected.owner} />
+            <Info label="المجال التشغيلي" value={selected.owner} />
             <Info label="Policy" value={policyMap[selected.policy]} />
             <Info label="آخر تحديث" value={selected.last} />
             <Info label="متوسط تكلفة التشغيل" value={`$${selected.avgRunCost}`} />
