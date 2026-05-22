@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -15,6 +15,13 @@ import {
   Users,
   Wand2,
 } from "lucide-react";
+import {
+  deriveMetricsFromCampaigns,
+  formatCompactNumber,
+  readCampaignMetrics,
+  readCampaigns,
+  refreshDashboardSummary,
+} from "../utils/campaignAnalyticsStore.js";
 
 const campaigns = [
   {
@@ -128,19 +135,43 @@ function formatNumber(value) {
 }
 
 export default function AnalyticsPage() {
+  const [metricList, setMetricList] = useState(() => readCampaignMetrics(campaigns));
   const [range, setRange] = useState("7d");
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaigns[0].id);
   const [exported, setExported] = useState(false);
 
+  useEffect(() => {
+    const reloadMetrics = () => {
+      const currentCampaigns = readCampaigns();
+      const fallbackMetrics = currentCampaigns.length ? deriveMetricsFromCampaigns(currentCampaigns) : campaigns;
+      const nextMetrics = readCampaignMetrics(fallbackMetrics);
+
+      setMetricList(nextMetrics);
+      refreshDashboardSummary(currentCampaigns, nextMetrics);
+    };
+
+    window.addEventListener("focus", reloadMetrics);
+    window.addEventListener("storage", reloadMetrics);
+    window.addEventListener("nashir-campaigns-updated", reloadMetrics);
+    window.addEventListener("nashir-campaign-metrics-updated", reloadMetrics);
+
+    return () => {
+      window.removeEventListener("focus", reloadMetrics);
+      window.removeEventListener("storage", reloadMetrics);
+      window.removeEventListener("nashir-campaigns-updated", reloadMetrics);
+      window.removeEventListener("nashir-campaign-metrics-updated", reloadMetrics);
+    };
+  }, []);
+
   const selectedCampaign =
-    campaigns.find((campaign) => campaign.id === selectedCampaignId) || campaigns[0];
+    metricList.find((campaign) => campaign.id === selectedCampaignId) || metricList[0];
 
   const totals = useMemo(() => {
-    const spend = campaigns.reduce((sum, campaign) => sum + campaign.spend, 0);
-    const revenue = campaigns.reduce((sum, campaign) => sum + campaign.revenue, 0);
-    const reach = campaigns.reduce((sum, campaign) => sum + campaign.reach, 0);
-    const conversions = campaigns.reduce((sum, campaign) => sum + campaign.conversions, 0);
-    const clicks = campaigns.reduce((sum, campaign) => sum + campaign.clicks, 0);
+    const spend = metricList.reduce((sum, campaign) => sum + campaign.spend, 0);
+    const revenue = metricList.reduce((sum, campaign) => sum + campaign.revenue, 0);
+    const reach = metricList.reduce((sum, campaign) => sum + campaign.reach, 0);
+    const conversions = metricList.reduce((sum, campaign) => sum + campaign.conversions, 0);
+    const clicks = metricList.reduce((sum, campaign) => sum + campaign.clicks, 0);
     const roi = spend ? revenue / spend : 0;
     const cpa = conversions ? spend / conversions : 0;
     const ctr = reach ? (clicks / reach) * 100 : 0;
@@ -155,7 +186,9 @@ export default function AnalyticsPage() {
       cpa,
       ctr,
     };
-  }, []);
+  }, [metricList]);
+
+  if (!selectedCampaign) return null;
 
   const exportReport = () => {
     setExported(true);
@@ -217,7 +250,7 @@ export default function AnalyticsPage() {
         />
         <MetricCard
           title="الوصول"
-          value={formatNumber(totals.reach)}
+          value={formatCompactNumber(totals.reach)}
           subtitle="إجمالي الوصول"
           icon={Users}
           tone="blue"
@@ -331,7 +364,7 @@ export default function AnalyticsPage() {
               <span>الاتجاه</span>
             </div>
 
-            {campaigns.map((campaign) => (
+            {metricList.map((campaign) => (
               <button
                 key={campaign.id}
                 type="button"

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -17,6 +17,11 @@ import {
   Sparkles,
   Store,
 } from "lucide-react";
+import {
+  formatCompactNumber,
+  getDashboardSnapshot,
+  refreshDashboardSummary,
+} from "../utils/campaignAnalyticsStore.js";
 
 const periodLabels = ["اليوم", "آخر 7 أيام", "هذا الشهر"];
 
@@ -123,6 +128,28 @@ export default function DashboardPage({
   onOpenMultiPlatform = () => {},
 }) {
   const [period, setPeriod] = useState("آخر 7 أيام");
+  const [dashboardSnapshot, setDashboardSnapshot] = useState(() => getDashboardSnapshot());
+
+  useEffect(() => {
+    const reloadDashboard = () => {
+      refreshDashboardSummary();
+      setDashboardSnapshot(getDashboardSnapshot());
+    };
+
+    window.addEventListener("focus", reloadDashboard);
+    window.addEventListener("storage", reloadDashboard);
+    window.addEventListener("nashir-campaigns-updated", reloadDashboard);
+    window.addEventListener("nashir-campaign-metrics-updated", reloadDashboard);
+    window.addEventListener("nashir-dashboard-summary-updated", reloadDashboard);
+
+    return () => {
+      window.removeEventListener("focus", reloadDashboard);
+      window.removeEventListener("storage", reloadDashboard);
+      window.removeEventListener("nashir-campaigns-updated", reloadDashboard);
+      window.removeEventListener("nashir-campaign-metrics-updated", reloadDashboard);
+      window.removeEventListener("nashir-dashboard-summary-updated", reloadDashboard);
+    };
+  }, []);
 
   const quickActions = useMemo(
     () => [
@@ -171,6 +198,41 @@ export default function DashboardPage({
       icon: Layers,
       tone: "blue",
       onClick: onOpenMultiPlatform,
+    },
+  ];
+
+  const summary = dashboardSnapshot.summary;
+  const recentCampaigns = dashboardSnapshot.recentCampaigns.length
+    ? dashboardSnapshot.recentCampaigns
+    : campaigns;
+  const dashboardKpis = [
+    {
+      title: "الحملات النشطة",
+      value: String(summary.activeCampaigns),
+      subtitle: `${summary.reviewCampaigns} تحتاج متابعة`,
+      tone: "green",
+      icon: Megaphone,
+    },
+    {
+      title: "محتوى ينتظر اعتمادًا",
+      value: String(summary.reviewCampaigns),
+      subtitle: "راجع قبل الجدولة",
+      tone: "amber",
+      icon: AlertTriangle,
+    },
+    {
+      title: "أصول غير مؤكدة",
+      value: "9",
+      subtitle: "حقوق استخدام ناقصة",
+      tone: "blue",
+      icon: FolderOpen,
+    },
+    {
+      title: "جاهزية التشغيل",
+      value: `${summary.avgReadiness}%`,
+      subtitle: "المتجر جيد ويحتاج استكمالًا",
+      tone: "green",
+      icon: Store,
     },
   ];
 
@@ -234,7 +296,7 @@ export default function DashboardPage({
       </section>
 
       <section className="kpi-grid">
-        {kpis.map((item) => {
+        {dashboardKpis.map((item) => {
           const Icon = item.icon;
           return (
             <article key={item.title} className={`kpi-card ${item.tone}`}>
@@ -289,15 +351,20 @@ export default function DashboardPage({
           />
 
           <div className="readiness-summary">
-            <div className="ring">82%</div>
+            <div className="ring">{summary.avgReadiness}%</div>
             <div>
-              <strong>جيد، لكن غير مكتمل</strong>
+              <strong>{summary.avgReadiness >= 70 ? "جيد، لكن غير مكتمل" : "يحتاج استكمال"}</strong>
               <span>المنتجات والمصادر جاهزة مبدئيًا، والأصول تحتاج مراجعة حقوق.</span>
             </div>
           </div>
 
           <div className="compact-list">
-            {readiness.map(([label, value, tone]) => (
+            {[
+              ["إعداد المتجر", `${summary.avgReadiness}%`, summary.avgReadiness >= 70 ? "green" : "amber"],
+              ["كتالوج المنتجات", "4 عناصر", "green"],
+              ["مصادر البيانات", "2 مفحوصة", "green"],
+              ["الأصول", "9 تحتاج مراجعة", "amber"],
+            ].map(([label, value, tone]) => (
               <InfoRow key={label} label={label} value={value} tone={tone} />
             ))}
           </div>
@@ -323,9 +390,9 @@ export default function DashboardPage({
           />
 
           <div className="campaign-table">
-            {campaigns.map((campaign) => (
+            {recentCampaigns.map((campaign) => (
               <button
-                key={campaign.name}
+                key={campaign.id || campaign.name}
                 type="button"
                 className="campaign-row"
                 onClick={onOpenCampaigns}
@@ -340,7 +407,7 @@ export default function DashboardPage({
                   </div>
                 </div>
 
-                <Status tone={campaign.tone}>{campaign.status}</Status>
+                <Status tone={campaign.tone}>{formatCampaignStatus(campaign.status)}</Status>
 
                 <div className="readiness-cell">
                   <i>
@@ -349,8 +416,8 @@ export default function DashboardPage({
                   <small>{campaign.readiness}%</small>
                 </div>
 
-                <span className="channel-pill">{campaign.channel}</span>
-                <small className="muted">{campaign.updated}</small>
+                <span className="channel-pill">{campaign.channel || campaign.channels?.[0] || "عام"}</span>
+                <small className="muted">{campaign.updatedAt || campaign.updated}</small>
               </button>
             ))}
           </div>
@@ -407,10 +474,10 @@ export default function DashboardPage({
           />
 
           <div className="box-grid compact-metrics">
-            <Mini title="الوصول" value="38K" />
-            <Mini title="التحويلات" value="124" />
-            <Mini title="أفضل قناة" value="Instagram" />
-            <Mini title="ROI تقديري" value="2.4x" />
+            <Mini title="الوصول" value={formatCompactNumber(summary.reach)} />
+            <Mini title="التحويلات" value={formatCompactNumber(summary.conversions)} />
+            <Mini title="أفضل قناة" value={summary.topChannel} />
+            <Mini title="ROI تقديري" value={`${summary.roi}x`} />
           </div>
 
           <div className="activity-list">
@@ -461,6 +528,17 @@ function InfoRow({ label, value, tone }) {
 
 function Status({ tone, children }) {
   return <span className={`status ${tone}`}>{children}</span>;
+}
+
+function formatCampaignStatus(status) {
+  const map = {
+    active: "نشطة",
+    review: "تحتاج مراجعة",
+    draft: "مسودة",
+    approved: "معتمدة",
+  };
+
+  return map[status] || status;
 }
 
 function Mini({ title, value }) {

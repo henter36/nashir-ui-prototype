@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -12,6 +12,12 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import {
+  deriveMetricsFromCampaigns,
+  readCampaigns,
+  refreshDashboardSummary,
+  writeCampaignMetrics,
+} from "../utils/campaignAnalyticsStore.js";
 
 const CAMPAIGNS = [
   {
@@ -131,34 +137,60 @@ const TABS = [
 ];
 
 export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
+  const [campaignList, setCampaignList] = useState(() => readCampaigns(CAMPAIGNS));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(CAMPAIGNS[0].id);
   const [activeTab, setActiveTab] = useState("overview");
 
+  useEffect(() => {
+    const reloadCampaigns = () => {
+      const nextCampaigns = readCampaigns(CAMPAIGNS);
+      const nextMetrics = deriveMetricsFromCampaigns(nextCampaigns);
+
+      setCampaignList(nextCampaigns);
+      writeCampaignMetrics(nextMetrics);
+      refreshDashboardSummary(nextCampaigns, nextMetrics);
+    };
+
+    window.addEventListener("focus", reloadCampaigns);
+    window.addEventListener("storage", reloadCampaigns);
+    window.addEventListener("nashir-campaigns-updated", reloadCampaigns);
+    window.addEventListener("nashir-campaign-metrics-updated", reloadCampaigns);
+
+    return () => {
+      window.removeEventListener("focus", reloadCampaigns);
+      window.removeEventListener("storage", reloadCampaigns);
+      window.removeEventListener("nashir-campaigns-updated", reloadCampaigns);
+      window.removeEventListener("nashir-campaign-metrics-updated", reloadCampaigns);
+    };
+  }, []);
+
   const filteredCampaigns = useMemo(() => {
-    return CAMPAIGNS.filter((campaign) => {
+    return campaignList.filter((campaign) => {
       const searchText = `${campaign.name} ${campaign.product} ${campaign.goal} ${campaign.owner}`.toLowerCase();
       const matchesQuery = searchText.includes(query.toLowerCase());
       const matchesFilter = filter === "all" || campaign.status === filter;
       return matchesQuery && matchesFilter;
     });
-  }, [query, filter]);
+  }, [campaignList, query, filter]);
 
   const selectedCampaign =
-    CAMPAIGNS.find((campaign) => campaign.id === selectedId) || CAMPAIGNS[0];
+    campaignList.find((campaign) => campaign.id === selectedId) || campaignList[0];
 
   const stats = useMemo(
     () => ({
-      total: CAMPAIGNS.length,
-      active: CAMPAIGNS.filter((item) => item.status === "active").length,
-      review: CAMPAIGNS.filter((item) => item.status === "review").length,
-      avgReadiness: Math.round(
-        CAMPAIGNS.reduce((sum, item) => sum + item.readiness, 0) / CAMPAIGNS.length
-      ),
+      total: campaignList.length,
+      active: campaignList.filter((item) => item.status === "active").length,
+      review: campaignList.filter((item) => item.status === "review").length,
+      avgReadiness: campaignList.length
+        ? Math.round(campaignList.reduce((sum, item) => sum + item.readiness, 0) / campaignList.length)
+        : 0,
     }),
-    []
+    [campaignList]
   );
+
+  if (!selectedCampaign) return null;
 
   return (
     <main className="campaigns-unified-page" dir="rtl">
@@ -226,7 +258,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
 
           <div className="campaign-list">
             {filteredCampaigns.map((campaign) => {
-              const status = STATUS_MAP[campaign.status];
+              const status = STATUS_MAP[campaign.status] || STATUS_MAP.draft;
 
               return (
                 <button
@@ -323,7 +355,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
                 <h3>ملخص الحملة</h3>
 
                 <div className="summary-grid">
-                  <Info label="الحالة" value={STATUS_MAP[selectedCampaign.status].label} />
+                  <Info label="الحالة" value={(STATUS_MAP[selectedCampaign.status] || STATUS_MAP.draft).label} />
                   <Info label="المرحلة" value={selectedCampaign.stage} />
                   <Info label="الهدف" value={selectedCampaign.goal} />
                   <Info label="الميزانية" value={selectedCampaign.budget} />
