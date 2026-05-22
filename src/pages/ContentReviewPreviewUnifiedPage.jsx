@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -21,6 +21,13 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
+import { readCampaigns } from "../utils/campaignAnalyticsStore.js";
+import { readCampaignContent } from "../utils/campaignContentStore.js";
+import {
+  refreshReviewItemsFromSources,
+  updateReviewContent,
+  updateReviewStatus,
+} from "../utils/reviewPreviewStore.js";
 
 const CAMPAIGNS = [
   {
@@ -175,19 +182,54 @@ const RISK_META = {
 const PLATFORMS = ["Instagram", "TikTok", "Snapchat", "WhatsApp", "Email"];
 
 export default function ContentReviewPreviewPage() {
+  const [campaignList, setCampaignList] = useState(() => readCampaigns(CAMPAIGNS));
+  const [contentItems, setContentItems] = useState(() =>
+    refreshReviewItemsFromSources({
+      contentSeed: CONTENT_ITEMS,
+      campaignSeed: CAMPAIGNS,
+      reviewSeed: CONTENT_ITEMS,
+    })
+  );
   const [selectedCampaignId, setSelectedCampaignId] = useState("all");
   const [selectedContentId, setSelectedContentId] = useState(CONTENT_ITEMS[0].id);
   const [query, setQuery] = useState("");
   const [platform, setPlatform] = useState("Instagram");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [contentItems, setContentItems] = useState(CONTENT_ITEMS);
   const [editorText, setEditorText] = useState(CONTENT_ITEMS[0].content);
   const [reviewNote, setReviewNote] = useState("");
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    const reloadReviewState = () => {
+      setCampaignList(readCampaigns(CAMPAIGNS));
+      readCampaignContent(CONTENT_ITEMS);
+      setContentItems(
+        refreshReviewItemsFromSources({
+          contentSeed: CONTENT_ITEMS,
+          campaignSeed: CAMPAIGNS,
+          reviewSeed: CONTENT_ITEMS,
+        })
+      );
+    };
+
+    window.addEventListener("focus", reloadReviewState);
+    window.addEventListener("storage", reloadReviewState);
+    window.addEventListener("nashir-campaigns-updated", reloadReviewState);
+    window.addEventListener("nashir-campaign-content-updated", reloadReviewState);
+    window.addEventListener("nashir-review-preview-updated", reloadReviewState);
+
+    return () => {
+      window.removeEventListener("focus", reloadReviewState);
+      window.removeEventListener("storage", reloadReviewState);
+      window.removeEventListener("nashir-campaigns-updated", reloadReviewState);
+      window.removeEventListener("nashir-campaign-content-updated", reloadReviewState);
+      window.removeEventListener("nashir-review-preview-updated", reloadReviewState);
+    };
+  }, []);
+
   const filteredContent = useMemo(() => {
     return contentItems.filter((item) => {
-      const campaign = CAMPAIGNS.find((c) => c.id === item.campaignId);
+      const campaign = campaignList.find((c) => c.id === item.campaignId);
       const text = `${item.title} ${item.type} ${item.channel} ${campaign?.name || ""} ${campaign?.product || ""}`
         .toLowerCase();
 
@@ -198,14 +240,14 @@ export default function ContentReviewPreviewPage() {
 
       return matchesCampaign && matchesStatus && matchesSearch;
     });
-  }, [contentItems, query, selectedCampaignId, statusFilter]);
+  }, [campaignList, contentItems, query, selectedCampaignId, statusFilter]);
 
   const selectedContent =
     contentItems.find((item) => item.id === selectedContentId) || contentItems[0];
 
   const selectedCampaign =
-    CAMPAIGNS.find((campaign) => campaign.id === selectedContent.campaignId) ||
-    CAMPAIGNS[0];
+    campaignList.find((campaign) => campaign.id === selectedContent.campaignId) ||
+    campaignList[0];
 
   const stats = useMemo(() => {
     const scope =
@@ -230,31 +272,13 @@ export default function ContentReviewPreviewPage() {
   };
 
   const updateStatus = (status) => {
-    setContentItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedContent.id
-          ? {
-              ...item,
-              status,
-              content: editorText,
-            }
-          : item
-      )
-    );
+    const next = updateReviewStatus(selectedContent.id, status, editorText, CONTENT_ITEMS);
+    setContentItems(next);
   };
 
   const saveEdit = () => {
-    setContentItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedContent.id
-          ? {
-              ...item,
-              content: editorText,
-              status: item.status === "approved" ? "review" : item.status,
-            }
-          : item
-      )
-    );
+    const next = updateReviewContent(selectedContent.id, editorText, CONTENT_ITEMS);
+    setContentItems(next);
   };
 
   const copyText = async () => {
@@ -311,7 +335,7 @@ export default function ContentReviewPreviewPage() {
             }}
           >
             <option value="all">كل الحملات</option>
-            {CAMPAIGNS.map((campaign) => (
+            {campaignList.map((campaign) => (
               <option key={campaign.id} value={campaign.id}>
                 {campaign.name}
               </option>
@@ -374,7 +398,7 @@ export default function ContentReviewPreviewPage() {
             {filteredContent.map((item) => {
               const Icon = item.icon;
               const status = STATUS_META[item.status];
-              const campaign = CAMPAIGNS.find((c) => c.id === item.campaignId);
+              const campaign = campaignList.find((c) => c.id === item.campaignId);
 
               return (
                 <button
