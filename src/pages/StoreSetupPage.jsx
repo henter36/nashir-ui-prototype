@@ -25,7 +25,7 @@ const steps = [
   [1, "بيانات المتجر", "البيانات الأساسية والهوية التشغيلية."],
   [2, "المنتجات", "جدول المنتجات والخدمات المستخدمة في الحملات."],
   [3, "الجمهور", "الجمهور الافتراضي الذي ترثه الحملات."],
-  [4, "القنوات", "القنوات المفضلة دون ربط فعلي."],
+  [4, "القنوات", "ربط OAuth مختصر يقرأ من نفس مصدر الإعدادات."],
   [5, "السياسات", "القيود والموافقات قبل التوليد."],
   [6, "الجاهزية", "ملخص النواقص وقرار الانتقال للحملة."],
 ];
@@ -103,11 +103,102 @@ const statusLabels = {
 
 const channelConnectionLabels = {
   disconnected: ["غير مرتبط", "slate"],
-  pending: ["بانتظار الموافقة", "amber"],
-  connected: ["مرتبط تجريبيًا", "green"],
+  pending_oauth: ["بانتظار موافقة OAuth", "amber"],
+  connected: ["مرتبط", "green"],
+  failed: ["فشل الربط", "red"],
 };
 
-const settingsSyncKey = "nashir_store_channel_connections";
+const integrationConnectionsKey = "nashir_mock_integration_connections";
+
+const oauthProviderMeta = {
+  Instagram: {
+    id: "instagram",
+    authUrl: "https://www.instagram.com/accounts/login/",
+    scopes: ["profile", "content_read", "insights_later"],
+  },
+  TikTok: {
+    id: "tiktok",
+    authUrl: "https://www.tiktok.com/login",
+    scopes: ["profile", "video_read", "content_planning"],
+  },
+  Snapchat: {
+    id: "snapchat",
+    authUrl: "https://accounts.snapchat.com/",
+    scopes: ["profile", "ads_later"],
+  },
+  "WhatsApp Business": {
+    id: "whatsapp",
+    authUrl: "https://business.facebook.com/",
+    scopes: ["business_profile", "message_templates_later"],
+  },
+  Email: {
+    id: "email",
+    authUrl: "https://accounts.google.com/",
+    scopes: ["drafts_later", "sender_profile"],
+  },
+  YouTube: {
+    id: "youtube",
+    authUrl: "https://accounts.google.com/",
+    scopes: ["channel_profile", "video_planning"],
+  },
+  "Google Ads": {
+    id: "google_ads",
+    authUrl: "https://accounts.google.com/",
+    scopes: ["ads_profile_later", "reporting_later"],
+  },
+  "Meta Ads": {
+    id: "meta_ads",
+    authUrl: "https://business.facebook.com/",
+    scopes: ["ads_profile_later", "reporting_later"],
+  },
+  Salla: {
+    id: "salla",
+    authUrl: "https://s.salla.sa/",
+    scopes: ["store_profile", "products_read_later"],
+  },
+};
+
+function normalizeProviderKey(channel) {
+  return (oauthProviderMeta[channel]?.id || String(channel))
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+}
+
+function readSharedIntegrationConnections() {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(integrationConnectionsKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed?.connections && typeof parsed.connections === "object"
+      ? parsed.connections
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSharedIntegrationConnections(nextConnections, preferredChannels = []) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      integrationConnectionsKey,
+      JSON.stringify({
+        version: 1,
+        source: "nashir_ui_prototype_shared_oauth_mock",
+        updatedAt: new Date().toISOString(),
+        preferredChannels,
+        connections: nextConnections,
+      })
+    );
+
+    window.dispatchEvent(new Event("nashir-integration-connections-updated"));
+  } catch {
+    // Prototype-only: ignore storage errors.
+  }
+}
 
 export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   const [step, setStep] = useState(1);
@@ -129,14 +220,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     confidence: 35,
     message: "رابط المتجر مُدخل يدويًا ولم يتم فحصه بعد.",
   });
-  const [channelConnections, setChannelConnections] = useState(() => {
-    try {
-      const savedConnections = window.localStorage.getItem(settingsSyncKey);
-      return savedConnections ? JSON.parse(savedConnections) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [channelConnections, setChannelConnections] = useState(() => readSharedIntegrationConnections());
   const [collectedData, setCollectedData] = useState({
     detectedPlatform: "",
     detectedCategories: [],
@@ -190,32 +274,68 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     return issues;
   }, [form, products, storeSource.status]);
 
-  const connectedChannelsCount = form.preferredChannels.filter(
-    (channel) => channelConnections[channel] === "connected" || channelConnections[channel] === "pending"
-  ).length;
+  const connectedChannelsCount = form.preferredChannels.filter((channel) => {
+    const key = normalizeProviderKey(channel);
+    const status = channelConnections[key]?.status || "disconnected";
+    return status === "connected" || status === "pending_oauth";
+  }).length;
 
-  const syncChannelConnectionsToSettings = (nextConnections) => {
-    try {
-      window.localStorage.setItem(
-        settingsSyncKey,
-        JSON.stringify({
+  const setChannelOAuthState = (channel, status, extra = {}) => {
+    const key = normalizeProviderKey(channel);
+    const provider = oauthProviderMeta[channel] || {
+      id: key,
+      authUrl: "about:blank",
+      scopes: ["profile_later"],
+    };
+
+    setChannelConnections((prev) => {
+      const next = {
+        ...prev,
+        [key]: {
+          providerId: provider.id,
+          providerName: channel,
+          status,
+          authorizationUrl: provider.authUrl,
+          requestedScopes: provider.scopes,
+          accountName: extra.accountName || prev[key]?.accountName || "",
           updatedAt: new Date().toISOString(),
-          preferredChannels: form.preferredChannels,
-          connections: nextConnections,
-        })
-      );
-    } catch {
-      // Prototype-only: ignore storage errors.
+          sourceSurface: "StoreSetupPage",
+          ...extra,
+        },
+      };
+
+      writeSharedIntegrationConnections(next, form.preferredChannels);
+      return next;
+    });
+
+    setSaved(false);
+  };
+
+  const startOAuthConnection = (channel) => {
+    const provider = oauthProviderMeta[channel];
+    setChannelOAuthState(channel, "pending_oauth", {
+      lastAction: "oauth_started",
+    });
+
+    if (provider?.authUrl && provider.authUrl !== "about:blank") {
+      window.open(provider.authUrl, "_blank", "noopener,noreferrer");
     }
   };
 
-  const updateChannelConnection = (channel, status) => {
-    setChannelConnections((prev) => {
-      const next = { ...prev, [channel]: status };
-      syncChannelConnectionsToSettings(next);
-      return next;
+  const mockOAuthSuccess = (channel) => {
+    const key = normalizeProviderKey(channel);
+    const safeName = String(channel).replace(/\s+Business/i, "");
+    setChannelOAuthState(channel, "connected", {
+      lastAction: "oauth_callback_mocked",
+      accountName: channelConnections[key]?.accountName || `@${safeName.toLowerCase().replace(/\s+/g, "_")}_account`,
     });
-    setSaved(false);
+  };
+
+  const disconnectOAuth = (channel) => {
+    setChannelOAuthState(channel, "disconnected", {
+      lastAction: "oauth_disconnected",
+      accountName: "",
+    });
   };
 
   const update = (key, value) => {
@@ -633,37 +753,40 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
             <Card>
               <SectionHeader
                 icon={Globe2}
-                title="الخطوة 4: القنوات والربط المختصر"
-                description="تحديد القنوات المفضلة وحالة ربطها المختصرة، مع حفظ الحالة محليًا لتقرأها شاشة الإعدادات لاحقًا."
+                title="الخطوة 4: القنوات والربط OAuth"
+                description="اختصار لبدء ربط القنوات. نفس حالة الربط تظهر في الإعدادات لأنها تقرأ من نفس مصدر الاتصالات."
               />
               <Notice>
-                الربط هنا محاكاة حالة فقط وليس OAuth حقيقيًا. التفاصيل التقنية والمفاتيح والتكاملات العميقة تبقى خارج إعداد المتجر وتدار من مصادر البيانات أو الإعدادات.
+                هذا OAuth Mock داخل البروتوتايب: زر الربط يفتح صفحة حساب/موافقة المنصة كتصور للتجربة، لكن التنفيذ الحقيقي لاحقًا يجب أن يبدأ من Backend آمن يحفظ Tokens مشفرة. لا يوجد client_secret أو access_token داخل React.
               </Notice>
               <MultiChoice title="القنوات المفضلة للحملات" options={channelOptions} selected={form.preferredChannels} setSelected={(value) => update("preferredChannels", value)} />
 
               <div className="settings-sync-card">
                 <Link2 size={18} />
                 <div>
-                  <strong>انعكاس على شاشة الإعدادات</strong>
-                  <span>يتم حفظ حالة ربط القنوات محليًا في <code>{settingsSyncKey}</code> حتى تعرضها شاشة الإعدادات عند تعديلها لقراءة هذا المصدر.</span>
+                  <strong>مصدر ربط واحد</strong>
+                  <span>إعداد المتجر والإعدادات يقرآن نفس مصدر الربط المؤقت <code>{integrationConnectionsKey}</code>. لا توجد مزامنة يدوية ولا نسختان للحالة.</span>
                 </div>
                 <Badge tone={connectedChannelsCount ? "green" : "neutral"}>{connectedChannelsCount} قناة مرتبطة/بانتظار</Badge>
               </div>
 
               <div className="channel-grid">
                 {form.preferredChannels.map((channel) => {
-                  const connectionStatus = channelConnections[channel] || "disconnected";
+                  const key = normalizeProviderKey(channel);
+                  const connection = channelConnections[key] || {};
+                  const connectionStatus = connection.status || "disconnected";
                   return (
                     <div key={channel} className="channel-card">
                       <Globe2 size={20} />
                       <div>
                         <strong>{channel}</strong>
-                        <span>قناة مفضلة للحملات مع حالة ربط مختصرة.</span>
+                        <span>زر الربط يبدأ مسار OAuth Mock ويظهر نفس السجل في الإعدادات.</span>
                         <ChannelConnectionStatus status={connectionStatus} />
+                        {connection.accountName ? <small className="channel-account">{connection.accountName}</small> : null}
                         <div className="channel-actions">
-                          <button type="button" onClick={() => updateChannelConnection(channel, "pending")}>بدء الربط</button>
-                          <button type="button" onClick={() => updateChannelConnection(channel, "connected")}>محاكاة نجاح</button>
-                          <button type="button" onClick={() => updateChannelConnection(channel, "disconnected")}>قطع الربط</button>
+                          <button type="button" onClick={() => startOAuthConnection(channel)}>ربط OAuth</button>
+                          <button type="button" onClick={() => mockOAuthSuccess(channel)}>محاكاة إتمام الموافقة</button>
+                          <button type="button" onClick={() => disconnectOAuth(channel)}>قطع الربط</button>
                         </div>
                       </div>
                     </div>
@@ -781,7 +904,7 @@ function SmartBox({ step }) {
     1: ["أبقِ بيانات المتجر مختصرة؛ لا تحولها إلى صفحة Branding كاملة.", "فحص المتجر يولّد اقتراحات فقط، ولا يعتمدها دون مراجعة."],
     2: ["المنتجات هنا هي مصدر الحقيقة للحملات القادمة.", "لا تجعل هامش الربح إلزاميًا في V1."],
     3: ["الجمهور الافتراضي يجب أن يكون خفيفًا وقابلًا لإعادة الاستخدام.", "تجنب الحقول التخمينية مثل الدخل والاهتمامات العامة."],
-    4: ["القنوات هنا تفضيلات مع حالة ربط مختصرة فقط.", "انعكاس الإعدادات يتم عبر حالة محلية، أما OAuth الحقيقي فمؤجل."],
+    4: ["القنوات هنا تختصر بدء OAuth، وليست مكان إدارة الأسرار.", "الإعدادات وإعداد المتجر يقرآن نفس مصدر الربط؛ لا مزامنة يدوية."],
     5: ["السياسات تحمي النظام من ادعاءات أو نشر غير آمن.", "أي عنصر بحاجة مراجعة يجب أن يمنع النشر التلقائي لاحقًا."],
     6: ["لا تنتقل إلى الحملة إذا كانت المنتجات أو السياسات ناقصة.", "ابدأ بحملة منتج واحد قبل التوسع."],
   };
