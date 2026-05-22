@@ -462,7 +462,11 @@ export default function ModelRoutingPage() {
   const [testInput, setTestInput] = useState("https://store.example.com");
   const [testLog, setTestLog] = useState([]);
 
-  const selectedRoute = routes.find((route) => route.id === selectedRouteId) || routes[0];
+  const visibleRoutes = routes.length ? routes : ROUTES_SEED;
+  const selectedRoute =
+    visibleRoutes.find((route) => route.id === selectedRouteId) ||
+    visibleRoutes[0] ||
+    ROUTES_SEED[0];
 
   useEffect(() => {
     const reloadRouting = () => {
@@ -487,10 +491,10 @@ export default function ModelRoutingPage() {
     () => ({
       models: models.length,
       activeModels: models.filter((model) => model.status === "active").length,
-      routes: routes.length,
-      highCostRoutes: routes.filter((route) => Number(route.cost.maxCostPerRun) >= 1).length,
+      routes: visibleRoutes.length,
+      highCostRoutes: visibleRoutes.filter((route) => Number(route.cost?.maxCostPerRun || 0) >= 1).length,
     }),
-    [models, routes]
+    [models, routes, visibleRoutes]
   );
 
   const syncRouteCosts = (nextRoutes, nextModels = models) => {
@@ -740,7 +744,7 @@ export default function ModelRoutingPage() {
                 <span>التكلفة</span>
               </div>
 
-              {routes.map((route) => {
+              {visibleRoutes.map((route) => {
                 const task = findTask(route.taskType);
                 return (
                   <button
@@ -767,14 +771,14 @@ export default function ModelRoutingPage() {
 
           <aside className="card route-editor">
             <h2>تعديل مسار المهمة</h2>
-            <p>{findTask(selectedRoute.taskType)?.[1]}</p>
+            <p>{findTask(selectedRoute?.taskType)?.[1] || "مسار غير محدد"}</p>
 
             <label className="field">
               <span>النموذج الأساسي</span>
               <select
-                value={selectedRoute.primaryModelId}
+                value={selectedRoute?.primaryModelId || ""}
                 onChange={(event) =>
-                  updateRoute(selectedRoute.id, { primaryModelId: event.target.value })
+                  selectedRoute && updateRoute(selectedRoute.id, { primaryModelId: event.target.value })
                 }
               >
                 {models.map((model) => (
@@ -785,13 +789,13 @@ export default function ModelRoutingPage() {
 
             <div className="fallback-box">
               <strong>النماذج البديلة</strong>
-              {selectedRoute.fallbackModelIds.map((modelId) => (
+              {(selectedRoute?.fallbackModelIds || []).map((modelId) => (
                 <div key={modelId} className="fallback-row">
                   <span>{modelName(models, modelId)}</span>
-                  <button type="button" onClick={() => removeFallback(selectedRoute.id, modelId)}>حذف</button>
+                  <button type="button" onClick={() => selectedRoute && removeFallback(selectedRoute.id, modelId)}>حذف</button>
                 </div>
               ))}
-              <select onChange={(event) => addFallback(selectedRoute.id, event.target.value)} value="">
+              <select onChange={(event) => selectedRoute && addFallback(selectedRoute.id, event.target.value)} value="">
                 <option value="">إضافة fallback</option>
                 {models.map((model) => (
                   <option key={model.id} value={model.id}>{model.displayName}</option>
