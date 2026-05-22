@@ -134,7 +134,7 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-export default function AnalyticsPage() {
+export default function AnalyticsUnifiedPage() {
   const [metricList, setMetricList] = useState(() => readCampaignMetrics(campaigns));
   const [range, setRange] = useState("7d");
   const [selectedCampaignId, setSelectedCampaignId] = useState(campaigns[0].id);
