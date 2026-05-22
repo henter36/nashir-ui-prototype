@@ -20,7 +20,11 @@ export default function TemplateEnginePage() {
   const [templateList, setTemplateList] = useState(() => readTemplateRegistry(templates));
   const [selectedId, setSelectedId] = useState(String(templates[0].id));
   const [customText, setCustomText] = useState("اكتب قالبًا مخصصًا لهذا المتجر...");
-  const selected = templateList.find((x) => x.id === selectedId) || templateList[0];
+  const visibleTemplates = templateList.length ? templateList : templates;
+  const selected =
+    visibleTemplates.find((x) => String(x.id) === String(selectedId)) ||
+    visibleTemplates[0] ||
+    templates[0];
 
   useEffect(() => {
     const reloadTemplates = () => {
@@ -38,12 +42,12 @@ export default function TemplateEnginePage() {
     };
   }, []);
 
-  const filtered = useMemo(() => templateList.filter((x) => `${x.title} ${x.occasion} ${x.channel}`.toLowerCase().includes(query.toLowerCase())), [query, templateList]);
+  const filtered = useMemo(() => visibleTemplates.filter((x) => `${x.title} ${x.occasion} ${x.channel}`.toLowerCase().includes(query.toLowerCase())), [query, visibleTemplates]);
 
   const createTemplate = () => {
     const result = createTemplateFromText(customText, {}, templates);
     setTemplateList(result.items);
-    setSelectedId(result.item.id);
+    setSelectedId(String(result.item.id));
   };
 
   const updateSelectedTemplateText = (value) => {
@@ -63,11 +67,11 @@ export default function TemplateEnginePage() {
       <section className="layout">
         <article className="card">
           <h2>القوالب</h2>
-          <div className="template-grid">{filtered.map((t)=><button key={t.id} onClick={()=>setSelectedId(t.id)} className={selectedId===t.id?"selected":""}><div><Gift size={20}/></div><strong>{t.title}</strong><span>{t.type} · {t.channel}</span></button>)}</div>
+          <div className="template-grid">{filtered.map((t)=><button key={t.id} onClick={()=>setSelectedId(String(t.id))} className={String(selectedId)===String(t.id)?"selected":""}><div><Gift size={20}/></div><strong>{t.title}</strong><span>{t.type} · {t.channel}</span></button>)}</div>
         </article>
         <aside className="card detail">
-          <div className="detail-icon"><Store size={24}/></div><h2>{selected.title}</h2><p>{selected.occasion} · {selected.channel}</p>
-          <textarea value={selected.type==="مخصص"?customText:selected.content} onChange={(e)=>updateSelectedTemplateText(e.target.value)} />
+          <div className="detail-icon"><Store size={24}/></div><h2>{selected?.title || "قالب غير محدد"}</h2><p>{selected?.occasion || "Custom"} · {selected?.channel || "عام"}</p>
+          <textarea value={selected?.type==="مخصص"?customText:(selected?.content || "")} onChange={(e)=>updateSelectedTemplateText(e.target.value)} />
           <div className="actions"><button><Copy size={16}/> نسخ</button><button><Share2 size={16}/> مشاركة</button></div>
           <div className="warning">مشاركة القوالب هنا تجريبية. لاحقًا تحتاج صلاحيات وأثر تدقيق.</div>
         </aside>
