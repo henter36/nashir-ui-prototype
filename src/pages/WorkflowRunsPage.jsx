@@ -335,7 +335,7 @@ const VISIBILITY = [
 ];
 
 const NEXT_WORKFLOWS = [
-  ["", "لا يفتح Workflow آخر"],
+  ["", "لا يفتح مسارًا آخر"],
   ["store_intelligence", "Store Intelligence"],
   ["campaign_generation", "Campaign Generation"],
   ["content_generation", "Content Generation"],
@@ -347,11 +347,11 @@ const NEXT_WORKFLOWS = [
 ];
 
 const TABS = [
-  ["builder", "Workflow Builder"],
-  ["map", "Data Flow Map"],
-  ["contracts", "Output Contracts"],
-  ["runs", "Runs Monitor"],
-  ["test", "Test Run"],
+  ["builder", "مصمم مسارات التشغيل"],
+  ["map", "خريطة تدفق البيانات"],
+  ["contracts", "ضوابط المخرجات"],
+  ["runs", "مراقبة التشغيلات"],
+  ["test", "اختبار المسار"],
 ];
 
 
@@ -578,24 +578,25 @@ function getModelRouteWarnings(step, route) {
   }
 
   if (!route.fallback.length) warnings.push("لا توجد سلسلة Fallback معرفة لهذا المعالج.");
-  if (!route.humanReviewRequired) warnings.push("المسار لا يفرض مراجعة بشرية.");
-  if (!route.blockAutoPublish) warnings.push("المسار لا يمنع النشر التلقائي.");
-  if (Number(route.maxCostPerRun) >= 1) warnings.push("مسار عالي التكلفة ويحتاج مراقبة قبل التشغيل الحقيقي.");
-  if (step.visibility === "customer_visible" && !step.reviewRequired) warnings.push("المخرج ظاهر للعميل بدون Review Gate في خطوة الـ Workflow.");
+  if (!route.humanReviewRequired) warnings.push("أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.");
+  if (!route.blockAutoPublish) warnings.push("يجب منع النشر التلقائي دون مراجعة.");
+  if (Number(route.maxCostPerRun) >= 1) warnings.push("المسارات عالية التكلفة تحتاج اعتمادًا قبل التشغيل.");
+  if (step.visibility === "customer_visible" && !step.reviewRequired) warnings.push("أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.");
 
   return warnings;
 }
 
 function cloneTemplate(template) {
+  const source = template || WORKFLOW_TEMPLATES[0];
   return {
-    workflowType: template.id,
-    name: template.name,
-    description: template.description,
-    triggerScreen: template.triggerScreen,
-    triggerAction: template.triggerAction,
-    inputSources: [...template.inputSources],
-    outputsTo: [...template.outputsTo],
-    steps: template.steps.map((step) => ({ ...step, inputFrom: [...step.inputFrom] })),
+    workflowType: source.id,
+    name: source.name,
+    description: source.description,
+    triggerScreen: source.triggerScreen,
+    triggerAction: source.triggerAction,
+    inputSources: [...source.inputSources],
+    outputsTo: [...source.outputsTo],
+    steps: source.steps.map((step) => ({ ...step, inputFrom: [...step.inputFrom] })),
     policies: {
       requireHumanReview: true,
       blockAutoPublish: true,
@@ -705,15 +706,15 @@ export default function WorkflowRunsPage() {
       const issues = [];
 
       if (step.visibility === "customer_visible" && !step.reviewRequired) {
-        issues.push(`${step.name}: مخرج ظاهر للعميل بدون مراجعة`);
+        issues.push(`${step.name}: أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.`);
       }
 
       if (step.feedsNextWorkflow && !step.reviewRequired) {
-        issues.push(`${step.name}: يفتح Workflow آخر بدون Review Gate`);
+        issues.push(`${step.name}: يفتح مسارًا آخر دون مراجعة`);
       }
 
       if (step.destination === "publishing_queue" && !step.reviewRequired) {
-        issues.push(`${step.name}: مخرج إلى جدولة النشر بدون مراجعة`);
+        issues.push(`${step.name}: وجهات النشر تحتاج مراجعة قبل الاستخدام.`);
       }
 
       return issues;
@@ -777,8 +778,8 @@ export default function WorkflowRunsPage() {
         workflow: workflowDraft.name,
         status: result.status,
         message: blockedReasons.length
-          ? `Dry Run blocked: ${blockedReasons.length} سبب`
-          : "Dry Run passed successfully",
+          ? `تم حظر الاختبار: ${blockedReasons.length} سبب`
+          : "نجح الاختبار",
         time: "الآن",
       },
       ...prev,
@@ -801,33 +802,33 @@ export default function WorkflowRunsPage() {
   const retrySelectedRun = () => {
     if (selectedRun.status === "waiting_for_review") {
       addRunAction(
-        "تعذر إعادة التشغيل",
+        "تعذر إعادة تشغيل المسار",
         "التشغيل يحتاج مراجعة بشرية أولًا قبل أي Retry.",
         "amber"
       );
       return;
     }
 
-    addRunAction("تمت محاكاة إعادة التشغيل", selectedRun.id, "green");
+    addRunAction("إعادة تشغيل المسار", selectedRun.title, "green");
   };
 
   const cancelSelectedRun = () => {
     if (selectedRun.status === "completed") {
-      addRunAction("لا يمكن الإلغاء", "التشغيل مكتمل بالفعل.", "amber");
+      addRunAction("لا يمكن إلغاء التشغيل", "التشغيل مكتمل بالفعل.", "amber");
       return;
     }
 
-    addRunAction("تمت محاكاة إلغاء التشغيل", selectedRun.id, "red");
+    addRunAction("إلغاء التشغيل", selectedRun.title, "red");
   };
 
   const sendSelectedRunToReview = () => {
-    addRunAction("تم إرسال التشغيل للمراجعة", selectedRun.id, "amber");
+    addRunAction("إرسال التشغيل للمراجعة", selectedRun.title, "amber");
   };
 
   const copySelectedRunId = async () => {
     try {
-      await navigator.clipboard.writeText(selectedRun.id);
-      addRunAction("تم نسخ Run ID", selectedRun.id, "green");
+      await navigator.clipboard.writeText(selectedRun.title);
+      addRunAction("تم نسخ اسم التشغيل", selectedRun.title, "green");
     } catch {
       addRunAction("تعذر النسخ", "المتصفح لم يسمح بالنسخ.", "amber");
     }
@@ -839,18 +840,18 @@ export default function WorkflowRunsPage() {
 
       <section className="page-title">
         <div>
-          <div className="eyebrow"><Workflow size={15} /> Workflow Orchestration</div>
+          <div className="eyebrow"><Workflow size={15} /> تشغيل المسارات</div>
           <h1>مصمم مسارات البيانات بين الأدوات والنماذج</h1>
           <p>
-            هنا يتم تحديد مصدر البيانات، من يعالجها، ما المخرج، أين يذهب، وهل
-            يدخل في Workflow آخر. هذه صفحة مدير نظام فقط.
+            هذه الصفحة توثق شكل تشغيل المسارات المطلوب عند التنفيذ. الأزرار والحالات تمثل
+            السلوك المستهدف للنظام، ولا تتصل حاليًا بمحرك تشغيل فعلي في هذا النموذج الأولي.
           </p>
         </div>
 
         <div className="title-actions">
           <button type="button" className="secondary-button">
             <Save size={16} />
-            حفظ محلي
+            حفظ إعدادات المسار
           </button>
           <button type="button" className="primary-button" onClick={runLocalTest}>
             <PlayCircle size={16} />
@@ -861,11 +862,11 @@ export default function WorkflowRunsPage() {
 
       <section className="governance-alert">
         <ShieldCheck size={20} />
-        <div>
-          <strong>لا يظهر هذا للمستخدم النهائي</strong>
-          <p>
+          <div>
+            <strong>لا يظهر هذا للمستخدم النهائي</strong>
+            <p>
             المستخدم يرى أفعالًا مثل فحص المتجر أو توليد فيديو. أما أسماء
-            النماذج، المطالبات الداخلية، ومسارات البيانات فتظهر هنا فقط.
+            النماذج، المطالبات الداخلية، ومسارات البيانات فتظهر هنا كمتطلبات تشغيل عند التنفيذ.
           </p>
         </div>
       </section>
@@ -886,7 +887,8 @@ export default function WorkflowRunsPage() {
       {activeTab === "builder" && (
         <section className="builder-layout">
           <aside className="template-card">
-            <h2>Workflow Templates</h2>
+          <h2>مصمم مسارات التشغيل</h2>
+            <p className="section-purpose">يعرض طريقة تكوين المسار والخطوات المطلوبة لتنفيذه لاحقًا.</p>
             <div className="template-list">
               {WORKFLOW_TEMPLATES.map((template) => (
                 <button
@@ -914,21 +916,21 @@ export default function WorkflowRunsPage() {
             </div>
 
             <div className="workflow-meta">
-              <Info label="Trigger Screen" value={workflowDraft.triggerScreen} />
-              <Info label="Trigger Action" value={workflowDraft.triggerAction} />
-              <Info label="Inputs" value={workflowDraft.inputSources.join("، ")} />
-              <Info label="Outputs To" value={workflowDraft.outputsTo.join("، ")} />
+              <Info label="نقطة البدء" value={workflowDraft.triggerScreen} />
+              <Info label="إجراء البدء" value={workflowDraft.triggerAction} />
+              <Info label="المدخلات" value={workflowDraft.inputSources.join("، ")} />
+              <Info label="وجهات المخرجات" value={workflowDraft.outputsTo.join("، ")} />
             </div>
 
             <div className="steps-table">
               <div className="table-head">
                 <span>#</span>
-                <span>Step</span>
-                <span>Input From</span>
-                <span>Processor Type</span>
-                <span>Processor</span>
-                <span>Output Key</span>
-                <span>Destination</span>
+                <span>الخطوة</span>
+                <span>المدخل</span>
+                <span>نوع المعالجة</span>
+                <span>المعالج</span>
+                <span>المخرج</span>
+                <span>الوجهة</span>
               </div>
 
               {workflowDraft.steps.map((step, index) => (
@@ -972,16 +974,16 @@ export default function WorkflowRunsPage() {
     <article className="map-card">
       <div className="card-header">
         <div>
-          <h2>Data Flow Map</h2>
-          <p>خريطة تدفق البيانات من المصادر إلى المعالجة ثم المخرجات والوجهات.</p>
+          <h2>خريطة تدفق البيانات</h2>
+          <p>توضح انتقال البيانات من المصدر إلى المعالجة ثم المخرجات والوجهات.</p>
         </div>
       </div>
 
       <div className="flow-lanes">
-        <div className="lane-title">Inputs</div>
-        <div className="lane-title">Processor</div>
-        <div className="lane-title">Output</div>
-        <div className="lane-title">Destination</div>
+        <div className="lane-title">المدخل</div>
+        <div className="lane-title">المعالجة</div>
+        <div className="lane-title">المخرج</div>
+        <div className="lane-title">الوجهة</div>
       </div>
 
       <div className="flow-map-enhanced">
@@ -1001,7 +1003,7 @@ export default function WorkflowRunsPage() {
               <div className="flow-index">{index + 1}</div>
 
               <div className="flow-cell inputs">
-                <strong>Input</strong>
+                <strong>المدخل</strong>
                 <div className="flow-tags">
                   {step.inputFrom.map((input) => (
                     <span key={input}>{input}</span>
@@ -1012,7 +1014,7 @@ export default function WorkflowRunsPage() {
               <div className="flow-arrow">←</div>
 
               <div className="flow-cell processor">
-                <strong>{step.name}</strong>
+                <strong>المعالجة: {step.name}</strong>
                 <span>{processorLabel}</span>
                 <small>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</small>
                 <ModelRoutingSummary step={step} compact />
@@ -1021,28 +1023,28 @@ export default function WorkflowRunsPage() {
               <div className="flow-arrow">←</div>
 
               <div className={`flow-cell output ${step.visibility}`}>
-                <strong>{step.outputKey}</strong>
+                <strong>المخرج: {step.outputKey}</strong>
                 <span>{step.outputType}</span>
-                <small>{visibilityLabel}</small>
+                <small>مستوى الظهور: {visibilityLabel}</small>
               </div>
 
               <div className="flow-arrow">←</div>
 
               <div className="flow-cell destination">
-                <strong>{step.destination}</strong>
+                <strong>الوجهة: {step.destination}</strong>
                 <span>
                   {step.feedsNextWorkflow
                     ? `يفتح: ${step.nextWorkflowType}`
-                    : "لا يفتح Workflow آخر"}
+                    : "لا يفتح مسارًا آخر"}
                 </span>
-                <small>{step.reviewRequired ? "مراجعة مطلوبة" : "لا توجد مراجعة"}</small>
+                <small>هل يحتاج مراجعة؟ {step.reviewRequired ? "نعم" : "لا"}</small>
               </div>
 
               {hasGovernanceWarning ? (
                 <div className="flow-warning">
                   <CircleAlert size={16} />
                   <span>
-                    تحذير: هذا التدفق يحتاج مراجعة قبل السماح بالمخرجات أو فتح Workflow لاحق.
+                    تحذير: هذا التدفق يحتاج مراجعة قبل السماح بالمخرجات أو فتح مسار لاحق.
                   </span>
                 </div>
               ) : null}
@@ -1053,13 +1055,13 @@ export default function WorkflowRunsPage() {
     </article>
 
     <aside className="map-side-card">
-      <h3>Governance Legend</h3>
+      <h3>دليل قواعد الظهور</h3>
 
       <div className="legend-list">
         <div>
           <span className="dot customer" />
           <strong>ظاهر للعميل</strong>
-          <small>يجب أن يمر بالمراجعة.</small>
+          <small>أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.</small>
         </div>
 
         <div>
@@ -1084,8 +1086,8 @@ export default function WorkflowRunsPage() {
       <div className="map-policy-note">
         <CircleAlert size={17} />
         <p>
-          أي مخرج customer_visible أو أي تدفق يفتح Workflow آخر يجب أن يمر عبر
-          Review Gate قبل استخدامه في النشر أو التوليد التالي.
+         أي مخرج ظاهر للعميل أو أي تدفق يفتح مسارًا آخر يجب أن يمر عبر
+          مراجعة قبل استخدامه في النشر أو التوليد التالي.
         </p>
       </div>
     </aside>
@@ -1097,17 +1099,17 @@ export default function WorkflowRunsPage() {
           <article className="contracts-overview-card">
             <div className="card-header">
               <div>
-                <h2>Output Contracts</h2>
-                <p>تعريف صارم لمخرجات كل خطوة: نوع المخرج، وجهته، من يحق له استهلاكه، وحالة الحساسية والمراجعة.</p>
+                <h2>ضوابط المخرجات</h2>
+                <p>تحدد قواعد الظهور والمراجعة قبل استخدام المخرجات أو نشرها.</p>
               </div>
               <span className="contracts-count">{workflowDraft.steps.length} عقود</span>
             </div>
 
             <div className="contracts-kpi-grid">
-              <ContractKpi title="Customer-visible" value={workflowDraft.steps.filter((step) => step.visibility === "customer_visible").length} />
-              <ContractKpi title="Review required" value={workflowDraft.steps.filter((step) => step.reviewRequired).length} />
-              <ContractKpi title="Feeds workflow" value={workflowDraft.steps.filter((step) => step.feedsNextWorkflow).length} />
-              <ContractKpi title="Sensitive outputs" value={workflowDraft.steps.filter((step) => isSensitiveOutput(step)).length} />
+              <ContractKpi title="ظاهر للعميل" value={workflowDraft.steps.filter((step) => step.visibility === "customer_visible").length} />
+              <ContractKpi title="يحتاج مراجعة" value={workflowDraft.steps.filter((step) => step.reviewRequired).length} />
+              <ContractKpi title="يفتح مسارًا آخر" value={workflowDraft.steps.filter((step) => step.feedsNextWorkflow).length} />
+              <ContractKpi title="داخلي فقط أو حساس" value={workflowDraft.steps.filter((step) => isSensitiveOutput(step)).length} />
             </div>
           </article>
 
@@ -1131,16 +1133,16 @@ export default function WorkflowRunsPage() {
                   </div>
 
                   <div className="contract-info-grid">
-                    <Info label="Output Type" value={step.outputType} />
-                    <Info label="Destination" value={step.destination} />
-                    <Info label="Review Required" value={step.reviewRequired ? "نعم" : "لا"} />
-                    <Info label="Feeds Next Workflow" value={step.feedsNextWorkflow ? step.nextWorkflowType : "لا"} />
-                    <Info label="Sensitive" value={sensitive ? "نعم" : "لا"} />
-                    <Info label="Retention" value={getRetentionPolicy(step)} />
+                    <Info label="نوع المخرج" value={step.outputType} />
+                    <Info label="وجهة المخرج" value={step.destination} />
+                    <Info label="مراجعة قبل النشر" value={step.reviewRequired ? "نعم" : "لا"} />
+                    <Info label="يفتح مسارًا آخر" value={step.feedsNextWorkflow ? step.nextWorkflowType : "لا"} />
+                    <Info label="داخلي فقط" value={sensitive ? "نعم" : "لا"} />
+                    <Info label="مدة الاحتفاظ" value={getRetentionPolicy(step)} />
                   </div>
 
                   <div className="schema-preview">
-                    <strong>Schema Preview</strong>
+                    <strong>قواعد الظهور</strong>
                     <div className="schema-fields">
                       {schema.required.map((field) => (
                         <span key={field}>{field}</span>
@@ -1149,7 +1151,7 @@ export default function WorkflowRunsPage() {
                   </div>
 
                   <div className="allowed-consumers">
-                    <strong>Allowed Consumers</strong>
+                    <strong>وجهة المخرج</strong>
                     <div>
                       {allowedConsumers.map((consumer) => (
                         <span key={consumer}>{consumer}</span>
@@ -1159,7 +1161,7 @@ export default function WorkflowRunsPage() {
 
                   {riskFlags.length ? (
                     <div className="contract-risk-box">
-                      <strong>تحذيرات العقد</strong>
+                      <strong>ضوابط مطلوبة</strong>
                       {riskFlags.map((risk) => (
                         <p key={risk}>{risk}</p>
                       ))}
@@ -1182,8 +1184,8 @@ export default function WorkflowRunsPage() {
           <article className="runs-card">
             <div className="card-header">
               <div>
-                <h2>تشغيلات فعلية / تجريبية</h2>
-                <p>اختر تشغيلًا لعرض التفاصيل، الخطوات، المدخلات، المخرجات، والتحذيرات.</p>
+                <h2>مراقبة التشغيلات</h2>
+                <p>تعرض حالات التشغيل والأخطاء والمراجعات المطلوبة كما يجب أن تظهر عند التنفيذ.</p>
               </div>
               <span className="runs-count">{RUNS.length} تشغيلات</span>
             </div>
@@ -1199,7 +1201,7 @@ export default function WorkflowRunsPage() {
                   <div>
                     <strong>{run.title}</strong>
                     <span>{run.workflowType} · {run.createdAt}</span>
-                    <small>{run.id} · {run.modelUsed}</small>
+                    <small>{run.modelUsed}</small>
                   </div>
                   <Status value={run.status} />
                 </button>
@@ -1211,55 +1213,57 @@ export default function WorkflowRunsPage() {
             <div className="card-header">
               <div>
                 <h2>{selectedRun.title}</h2>
-                <p>{selectedRun.id}</p>
+                <p>حالة التشغيل: {STATUS_META[selectedRun.status]?.[0] || selectedRun.status}</p>
               </div>
               <Status value={selectedRun.status} />
             </div>
 
             <div className="run-info-grid">
-              <Info label="Workflow Type" value={selectedRun.workflowType} />
-              <Info label="Current Step" value={selectedRun.currentStep} />
-              <Info label="Model Used" value={selectedRun.modelUsed} />
-              <Info label="Source" value={selectedRun.source} />
-              <Info label="Duration" value={selectedRun.duration} />
-              <Info label="Cost Estimate" value={`$${selectedRun.cost}`} />
-              <Info label="Owner" value={selectedRun.owner} />
-              <Info label="Created At" value={selectedRun.createdAt} />
+              <Info label="نوع المسار" value={selectedRun.workflowType} />
+              <Info label="الخطوة الحالية" value={selectedRun.currentStep} />
+              <Info label="المعالج المستخدم" value={selectedRun.modelUsed} />
+              <Info label="مصدر الطلب" value={selectedRun.source} />
+              <Info label="مدة التشغيل" value={selectedRun.duration} />
+              <Info label="تقدير التكلفة" value={`$${selectedRun.cost}`} />
+              <Info label="المسؤول" value={selectedRun.owner} />
+              <Info label="آخر تشغيل" value={selectedRun.createdAt} />
+              <Info label="سبب التعطل" value={selectedRun.error || (selectedRun.status === "waiting_for_review" ? "يحتاج مراجعة" : "—")} />
+              <Info label="جاهز للاستكمال" value={selectedRun.status === "waiting_for_review" ? "بعد المراجعة" : "حسب الحالة"} />
             </div>
 
             <div className="run-actions">
               <button type="button" onClick={retrySelectedRun}>
                 <RefreshCw size={15} />
-                إعادة التشغيل
+                إعادة تشغيل المسار
               </button>
               <button type="button" onClick={cancelSelectedRun}>
                 <XCircle size={15} />
-                إلغاء
+                إلغاء التشغيل
               </button>
               <button type="button" onClick={sendSelectedRunToReview}>
                 <ShieldCheck size={15} />
-                إرسال للمراجعة
+                إرسال التشغيل للمراجعة
               </button>
               <button type="button" onClick={copySelectedRunId}>
                 <FileSearch size={15} />
-                نسخ Run ID
+                نسخ اسم التشغيل
               </button>
             </div>
 
             <div className="safe-preview-grid">
               <div className="safe-preview">
-                <strong>Input Preview</strong>
+                <strong>ملخص المدخل</strong>
                 <p>{selectedRun.inputSummary}</p>
               </div>
               <div className="safe-preview">
-                <strong>Output Preview</strong>
+                <strong>ملخص المخرج</strong>
                 <p>{selectedRun.outputSummary}</p>
               </div>
             </div>
 
             {selectedRun.error ? (
               <div className="run-error">
-                <strong>Error</strong>
+                <strong>سبب التعطل</strong>
                 <code>{selectedRun.error}</code>
               </div>
             ) : null}
@@ -1281,7 +1285,7 @@ export default function WorkflowRunsPage() {
                   <div className="run-dot" />
                   <div>
                     <strong>{label}</strong>
-                    <span>{id} · {duration}</span>
+                    <span>{duration}</span>
                   </div>
                   <Status value={status} />
                 </div>
@@ -1290,7 +1294,7 @@ export default function WorkflowRunsPage() {
           </article>
 
           <article className="run-warnings-card">
-            <h2>Warnings / Actions</h2>
+            <h2>التحذيرات والإجراءات</h2>
 
             <div className="warnings-list">
               {selectedRun.warnings?.length ? (
@@ -1329,15 +1333,15 @@ export default function WorkflowRunsPage() {
           <article className="test-card">
             <div className="card-header">
               <div>
-                <h2>Test Input Panel</h2>
+                <h2>اختبار المسار</h2>
                 <p>
-                  اختبار محلي للمسار بدون استدعاء نماذج أو أدوات. الوضع الافتراضي Dry Run فقط.
+                  يوضح كيف سيتم فحص المسار قبل التشغيل الفعلي.
                 </p>
               </div>
             </div>
 
             <label className="field">
-              <span>Source Screen</span>
+              <span>مصدر الاختبار</span>
               <select
                 value={testInput.sourceScreen}
                 onChange={(event) =>
@@ -1357,7 +1361,7 @@ export default function WorkflowRunsPage() {
             </label>
 
             <label className="field">
-              <span>Sample Payload</span>
+              <span>عينة المدخلات</span>
               <textarea
                 value={testInput.samplePayload}
                 onChange={(event) =>
@@ -1370,20 +1374,20 @@ export default function WorkflowRunsPage() {
             </label>
 
             <div className="dry-run-mode">
-              <strong>Mode</strong>
-              <span>Dry Run فقط — لا يوجد تشغيل فعلي للأدوات أو النماذج.</span>
+              <strong>المتطلبات قبل التشغيل</strong>
+              <span>يجب التحقق من المدخلات، ضوابط المخرجات، والتكلفة قبل الانتقال للتنفيذ.</span>
             </div>
 
             <button type="button" className="primary-button" onClick={runLocalTest}>
               <PlayCircle size={16} />
-              تشغيل Dry Run
+              اختبار المسار
             </button>
           </article>
 
           <article className="test-card">
             <div className="card-header">
               <div>
-                <h2>Validation Results</h2>
+                <h2>نتيجة الاختبار</h2>
                 <p>نتيجة التحقق من المدخلات والسياسات قبل التشغيل.</p>
               </div>
             </div>
@@ -1398,8 +1402,8 @@ export default function WorkflowRunsPage() {
               >
                 <strong>
                   {dryRunResult.status === "passed"
-                    ? "Dry Run Passed"
-                    : "Dry Run Blocked"}
+                    ? "نجح الاختبار"
+                    : "تم حظر الاختبار"}
                 </strong>
 
                 <span>
@@ -1409,6 +1413,7 @@ export default function WorkflowRunsPage() {
 
                 {dryRunResult.blockedReasons.length ? (
                   <div className="blocked-list">
+                    <strong>أسباب الحظر</strong>
                     {dryRunResult.blockedReasons.map((reason) => (
                       <div key={reason}>
                         <CircleAlert size={16} />
@@ -1417,7 +1422,7 @@ export default function WorkflowRunsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p>لا توجد أسباب حظر. يمكن الانتقال لتشغيل حقيقي لاحقًا بصلاحيات Admin.</p>
+                  <p>لا توجد أسباب حظر. يمكن الانتقال للتشغيل لاحقًا بعد توفر الصلاحيات المطلوبة.</p>
                 )}
               </div>
             ) : (
@@ -1426,19 +1431,19 @@ export default function WorkflowRunsPage() {
           </article>
 
           <article className="test-card wide-test-card">
-            <h2>Step-by-step Simulation</h2>
+            <h2>تسلسل فحص الخطوات</h2>
 
             {dryRunResult ? (
               <div className="simulation-table">
                 <div className="simulation-head">
                   <span>#</span>
-                  <span>Step</span>
-                  <span>Processor</span>
-                  <span>Model Route</span>
-                  <span>Input</span>
-                  <span>Output</span>
-                  <span>Destination</span>
-                  <span>Status</span>
+                  <span>الخطوة</span>
+                  <span>المعالج</span>
+                  <span>مسار النموذج</span>
+                  <span>المدخل</span>
+                  <span>المخرج</span>
+                  <span>الوجهة</span>
+                  <span>الحالة</span>
                 </div>
 
                 {dryRunResult.simulatedSteps.map((step) => (
@@ -1457,12 +1462,12 @@ export default function WorkflowRunsPage() {
                 ))}
               </div>
             ) : (
-              <p className="empty">شغّل Dry Run لرؤية محاكاة الخطوات.</p>
+              <p className="empty">شغّل اختبار المسار لرؤية فحص الخطوات.</p>
             )}
           </article>
 
           <article className="test-card wide-test-card">
-            <h2>Expected Outputs</h2>
+            <h2>المخرجات المتوقعة</h2>
 
             {dryRunResult ? (
               <div className="expected-grid">
@@ -1471,7 +1476,7 @@ export default function WorkflowRunsPage() {
                     <strong>{output.outputKey}</strong>
                     <span>{output.outputType}</span>
                     <small>{output.destination}</small>
-                    <em>{output.visibility}</em>
+                    <em>{VISIBILITY.find(([id]) => id === output.visibility)?.[1] || output.visibility}</em>
                   </div>
                 ))}
               </div>
@@ -1514,7 +1519,7 @@ function ModelRoutingSummary({ step, compact = false }) {
       <div className={`model-route-summary missing ${compact ? "compact" : ""}`}>
         <div className="model-route-title">
           <CircleAlert size={15} />
-          <strong>Model Routing Summary</strong>
+          <strong>ملخص توجيه النموذج</strong>
         </div>
         <p>لا يوجد مسار توجيه مطابق لهذا المعالج. يجب ربطه من شاشة توجيه النماذج قبل أي تنفيذ حقيقي.</p>
       </div>
@@ -1525,14 +1530,14 @@ function ModelRoutingSummary({ step, compact = false }) {
     <div className={`model-route-summary ${warnings.length ? "has-warning" : "safe"} ${compact ? "compact" : ""}`}>
       <div className="model-route-title">
         <GitBranch size={15} />
-        <strong>Model Routing Summary</strong>
+        <strong>ملخص توجيه النموذج</strong>
       </div>
 
       <div className="model-route-lines">
-        <span>Primary: <b>{route.primaryModel}</b></span>
-        <span>Fallback: <b>{route.fallback.length ? route.fallback.join(" → ") : "لا يوجد"}</b></span>
-        <span>Max cost: <b>${route.maxCostPerRun}</b></span>
-        <span>Review: <b>{route.humanReviewRequired ? "Required" : "Not required"}</b></span>
+        <span>المسار الأساسي: <b>{route.primaryModel}</b></span>
+        <span>المسار البديل: <b>{route.fallback.length ? route.fallback.join(" → ") : "لا يوجد"}</b></span>
+        <span>حد التكلفة: <b>${route.maxCostPerRun}</b></span>
+        <span>المراجعة: <b>{route.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"}</b></span>
       </div>
 
       {warnings.length ? (
@@ -1552,17 +1557,12 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete }) {
   return (
     <div className="step-editor">
       <label className="field">
-        <span>Step Name</span>
+        <span>اسم الخطوة</span>
         <input value={step.name} onChange={(e) => onChange(index, "name", e.target.value)} />
       </label>
 
-      <label className="field">
-        <span>Step ID</span>
-        <input value={step.id} onChange={(e) => onChange(index, "id", e.target.value)} />
-      </label>
-
       <div className="input-source-box">
-        <strong>Input From</strong>
+        <strong>المدخلات</strong>
         <div>
           {INPUT_SOURCES.map((source) => (
             <button
@@ -1578,14 +1578,14 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete }) {
       </div>
 
       <SelectField
-        label="Processor Type"
+        label="نوع المعالجة"
         value={step.processorType}
         options={PROCESSOR_TYPES}
         onChange={(value) => onChange(index, "processorType", value)}
       />
 
       <SelectField
-        label="Processor / Model Route"
+        label="المعالج / مسار النموذج"
         value={step.processor}
         options={PROCESSORS}
         onChange={(value) => onChange(index, "processor", value)}
@@ -1594,46 +1594,46 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete }) {
       <ModelRoutingSummary step={step} />
 
       <label className="field">
-        <span>Output Key</span>
+        <span>المخرج</span>
         <input value={step.outputKey} onChange={(e) => onChange(index, "outputKey", e.target.value)} />
       </label>
 
       <SelectField
-        label="Output Type"
+        label="نوع المخرج"
         value={step.outputType}
         options={OUTPUT_TYPES.map((x) => [x, x])}
         onChange={(value) => onChange(index, "outputType", value)}
       />
 
       <SelectField
-        label="Destination"
+        label="وجهة المخرج"
         value={step.destination}
         options={DESTINATIONS.map((x) => [x, x])}
         onChange={(value) => onChange(index, "destination", value)}
       />
 
       <SelectField
-        label="Visibility"
+        label="مستوى الظهور"
         value={step.visibility}
         options={VISIBILITY}
         onChange={(value) => onChange(index, "visibility", value)}
       />
 
       <Toggle
-        label="Review Required"
+        label="يحتاج مراجعة"
         checked={step.reviewRequired}
         onChange={(value) => onChange(index, "reviewRequired", value)}
       />
 
       <Toggle
-        label="Feeds Next Workflow"
+        label="يفتح مسارًا آخر"
         checked={step.feedsNextWorkflow}
         onChange={(value) => onChange(index, "feedsNextWorkflow", value)}
       />
 
       {step.feedsNextWorkflow ? (
         <SelectField
-          label="Next Workflow"
+          label="المسار التالي"
           value={step.nextWorkflowType}
           options={NEXT_WORKFLOWS}
           onChange={(value) => onChange(index, "nextWorkflowType", value)}
@@ -1737,11 +1737,11 @@ function getContractRiskFlags(step) {
   const risks = [];
 
   if (step.visibility === "customer_visible" && !step.reviewRequired) {
-    risks.push("مخرج ظاهر للعميل بدون مراجعة بشرية — غير مسموح في V1.");
+    risks.push("أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.");
   }
 
   if (step.feedsNextWorkflow && !step.reviewRequired) {
-    risks.push("المخرج يفتح Workflow آخر بدون بوابة مراجعة.");
+    risks.push("المخرج يفتح مسارًا آخر دون مراجعة.");
   }
 
   if (step.outputType === "generated_asset" && step.destination !== "asset_library") {
@@ -1753,7 +1753,7 @@ function getContractRiskFlags(step) {
   }
 
   if (step.destination === "publishing_queue" && !step.reviewRequired) {
-    risks.push("أي مخرج يذهب لجدولة النشر يجب أن يتطلب مراجعة.");
+    risks.push("يجب منع النشر التلقائي دون مراجعة.");
   }
 
   return risks;
@@ -2456,7 +2456,7 @@ const styles = `
 }
 
 
-/* Conservative Workflow Runs additions */
+/* إضافات مراقبة التشغيلات */
 .enhanced-runs-layout {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr) 380px;
@@ -2650,7 +2650,7 @@ const styles = `
   background: #fef2f2;
 }
 
-/* Output Contracts enhancement */
+/* تعزيز ضوابط المخرجات */
 
 .contracts-enhanced-layout {
   display: grid;
@@ -2853,7 +2853,7 @@ const styles = `
   }
 }
 
-/* Test Run enhancement */
+/* تعزيز اختبار المسار */
 
 .enhanced-test-layout {
   display: grid;
