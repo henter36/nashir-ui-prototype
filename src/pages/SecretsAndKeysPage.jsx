@@ -325,9 +325,9 @@ const PROVIDER_PRESETS = {
 
 const AUTH_TYPES = [
   ["bearer_token", "Bearer Token"],
-  ["api_key_header", "API Key Header"],
+  ["api_key_header", "ترويسة مفتاح"],
   ["oauth", "OAuth"],
-  ["custom_headers", "Custom Headers"],
+  ["custom_headers", "ترويسات مخصصة"],
 ];
 
 const PROVIDER_TYPES = [
@@ -353,7 +353,6 @@ function createProviderFromPreset(type, override = {}) {
     headerName: preset.headerName,
     tokenPrefix: preset.tokenPrefix,
     secretName: preset.secretName,
-    apiKeyPreview: "",
     baseUrl: preset.baseUrl,
     apiVersion: preset.apiVersion || "",
     organizationId: preset.organizationId || "",
@@ -393,7 +392,6 @@ const initialProviders = [
     id: "openai-main",
     displayName: "OpenAI - Production",
     status: "connected",
-    apiKeyPreview: "••••••••A9x2",
     metadata: {
       createdAt: "2026-05-01",
       updatedAt: "اليوم",
@@ -405,13 +403,11 @@ const initialProviders = [
   createProviderFromPreset("anthropic", {
     id: "anthropic-review",
     status: "missing_required_fields",
-    apiKeyPreview: "",
   }),
   createProviderFromPreset("replicate", {
     id: "replicate-images",
     displayName: "Replicate - Image/Video",
     status: "pending_test",
-    apiKeyPreview: "••••••••K41p",
   }),
 ];
 
@@ -423,6 +419,139 @@ const statusMap = {
   failed: ["فشل", "red"],
   disabled: ["معطل", "slate"],
 };
+
+function getReadinessLabel(status) {
+  const labels = {
+    ready: "جاهز",
+    warning: "يحتاج ضبط",
+    blocked: "محظور",
+  };
+
+  return labels[status] || "يحتاج ضبط";
+}
+
+function getRequiredFieldLabel(field) {
+  const labels = {
+    secretName: "مرجع السر",
+    baseUrl: "العنوان الأساسي",
+    textModel: "نموذج النصوص",
+    imageModel: "نموذج الصور",
+    videoModel: "نموذج الفيديو",
+    embeddingModel: "نموذج التضمين",
+    webhookSecretName: "سر Webhook",
+    apiVersion: "إصدار الواجهة",
+    googleCloudProject: "مشروع Google Cloud",
+  };
+
+  return labels[field] || field;
+}
+
+function getConfiguredModels(provider = {}) {
+  return [
+    provider.textModel,
+    provider.imageModel,
+    provider.videoModel,
+    provider.embeddingModel,
+    provider.fallbackModel,
+  ].filter(Boolean);
+}
+
+function buildProviderReadiness(provider) {
+  const checks = [];
+  const warnings = [];
+  const blockedReasons = [];
+
+  if (!provider) {
+    return {
+      status: "blocked",
+      score: 0,
+      checks: [],
+      warnings: [],
+      blockedReasons: ["لا يوجد مزود محدد."],
+    };
+  }
+
+  const capabilities = provider.capabilities || {};
+  const governance = provider.governance || {};
+  const webhooks = provider.webhooks || {};
+  const requiredFields = Array.isArray(provider.requiredFields) ? provider.requiredFields : [];
+  const enabledCapabilities = Object.entries(capabilities).filter(([, enabled]) => Boolean(enabled));
+
+  checks.push("المزود موجود.");
+
+  if (provider.providerType) checks.push("نوع المزود محدد.");
+  else blockedReasons.push("نوع المزود غير محدد.");
+
+  if (provider.authType) checks.push("طريقة المصادقة محددة.");
+  else blockedReasons.push("طريقة المصادقة غير محددة.");
+
+  if (requiredFields.includes("secretName") || provider.authType) {
+    if (String(provider.secretName || "").trim()) checks.push("مرجع السر محدد.");
+    else blockedReasons.push("مرجع السر مطلوب.");
+  }
+
+  if (requiredFields.includes("baseUrl")) {
+    if (String(provider.baseUrl || "").trim()) checks.push("العنوان الأساسي محدد.");
+    else blockedReasons.push("العنوان الأساسي مطلوب.");
+  } else if (!String(provider.baseUrl || "").trim()) {
+    warnings.push("العنوان الأساسي غير محدد.");
+  }
+
+  const modelRequirements = [
+    ["textModel", "textGeneration", "نموذج النصوص"],
+    ["imageModel", "imageGeneration", "نموذج الصور"],
+    ["videoModel", "videoGeneration", "نموذج الفيديو"],
+    ["embeddingModel", "embeddings", "نموذج التضمين"],
+  ];
+
+  modelRequirements.forEach(([field, capability, label]) => {
+    const required = requiredFields.includes(field) || capabilities[capability];
+    if (!required) return;
+    if (String(provider[field] || "").trim()) checks.push(`${label} مهيأ.`);
+    else blockedReasons.push(`${label} مطلوب عند تفعيل القدرة المرتبطة.`);
+  });
+
+  if (webhooks.enabled || requiredFields.includes("webhookSecretName")) {
+    if (String(webhooks.secretName || "").trim()) checks.push("سر Webhook محدد.");
+    else blockedReasons.push("سر Webhook مطلوب عند تفعيل Webhook.");
+  }
+
+  if (enabledCapabilities.length) checks.push("يوجد على الأقل قدرة مفعلة.");
+  else blockedReasons.push("لا توجد قدرات مفعلة للمزود.");
+
+  if (governance.autoPublishAllowed) {
+    blockedReasons.push("النشر التلقائي غير آمن لهذا المزود.");
+  } else {
+    checks.push("النشر التلقائي غير مفعل.");
+  }
+
+  if (provider.metadata?.lastTestedAt) {
+    checks.push("آخر اختبار موجود.");
+  } else {
+    warnings.push("لم يتم تسجيل آخر اختبار بعد.");
+  }
+
+  if (provider.status === "disabled") {
+    blockedReasons.push("المزود معطل.");
+  } else if (provider.status === "failed") {
+    blockedReasons.push("آخر اختبار للمزود فشل.");
+  } else if (provider.status === "pending_test" || provider.status === "draft") {
+    warnings.push("المزود يحتاج اختبارًا أو استكمال ضبط.");
+  } else if (provider.status === "missing_required_fields") {
+    warnings.push("هناك حقول مطلوبة تحتاج استكمالًا.");
+  }
+
+  const score = Math.max(0, 100 - blockedReasons.length * 35 - warnings.length * 8);
+  const status = blockedReasons.length ? "blocked" : warnings.length ? "warning" : "ready";
+
+  return {
+    status,
+    score,
+    checks,
+    warnings,
+    blockedReasons,
+  };
+}
 
 export default function SecretsAndKeysPage() {
   const [providers, setProviders] = useState(initialProviders);
@@ -521,7 +650,6 @@ export default function SecretsAndKeysPage() {
       id: `${provider.providerType}-${Date.now()}`,
       displayName: `${provider.displayName} نسخة`,
       status: "draft",
-      apiKeyPreview: "",
       metadata: {
         createdAt: "اليوم",
         updatedAt: "الآن",
@@ -537,19 +665,20 @@ export default function SecretsAndKeysPage() {
 
   const validateProvider = (provider) => {
     const missing = [];
+    const requiredFields = Array.isArray(provider?.requiredFields) ? provider.requiredFields : [];
 
-    provider.requiredFields.forEach((field) => {
+    requiredFields.forEach((field) => {
       if (field === "webhookSecretName") {
-        if (!provider.webhooks.secretName) missing.push("webhook_secret_name");
+        if (!provider.webhooks?.secretName) missing.push(getRequiredFieldLabel(field));
         return;
       }
 
       if (!String(provider[field] || "").trim()) {
-        missing.push(field);
+        missing.push(getRequiredFieldLabel(field));
       }
     });
 
-    if (provider.governance.autoPublishAllowed) {
+    if (provider.governance?.autoPublishAllowed) {
       missing.push("auto_publish_must_remain_disabled");
     }
 
@@ -557,16 +686,17 @@ export default function SecretsAndKeysPage() {
   };
 
   const testConnection = (provider = selectedProvider) => {
+    const readiness = buildProviderReadiness(provider);
     const missing = validateProvider(provider);
 
-    if (missing.length) {
+    if (readiness.status === "blocked" || missing.length) {
       updateProvider(provider.id, { status: "failed" });
       setTestLog((prev) => [
         {
           id: Date.now(),
           provider: provider.displayName,
           status: "failed",
-          message: `فشل الاختبار. الحقول/الشروط الناقصة: ${missing.join(", ")}`,
+          message: `محظور: ${readiness.blockedReasons[0] || missing.join("، ")}`,
           time: "الآن",
         },
         ...prev,
@@ -587,9 +717,10 @@ export default function SecretsAndKeysPage() {
       {
         id: Date.now(),
         provider: provider.displayName,
-        status: "success",
-        message:
-          "تم اختبار الاتصال كمحاكاة. الاختبار الحقيقي يجب أن يتم من Backend باستخدام secret_name.",
+        status: readiness.status === "warning" ? "warning" : "success",
+        message: readiness.status === "warning"
+          ? `يحتاج ضبط: ${readiness.warnings[0] || "راجع إعدادات المزود."}`
+          : "جاهز: تم فحص الإعدادات محليًا دون تنفيذ اتصال حقيقي.",
         time: "الآن",
       },
       ...prev,
@@ -599,7 +730,6 @@ export default function SecretsAndKeysPage() {
   const rotateKey = (provider) => {
     updateProvider(provider.id, {
       status: "pending_test",
-      apiKeyPreview: "••••••••NEW",
       metadata: {
         ...provider.metadata,
         lastRotationAt: "الآن",
@@ -612,7 +742,7 @@ export default function SecretsAndKeysPage() {
         id: Date.now(),
         provider: provider.displayName,
         status: "warning",
-        message: "تم تدوير المفتاح كمحاكاة. يجب اختبار الاتصال بعد التدوير.",
+        message: "تم تحديث مرجع السر كمحاكاة. يجب اختبار المزود بعد التحديث.",
         time: "الآن",
       },
       ...prev,
@@ -625,7 +755,7 @@ export default function SecretsAndKeysPage() {
         id: Date.now(),
         provider: "System",
         status: "success",
-        message: "تم حفظ إعدادات الجدول محليًا فقط. لا توجد أسرار حقيقية محفوظة.",
+        message: "تم حفظ إعدادات الجدول في النموذج الأولي. لا توجد قيم مفاتيح محفوظة.",
         time: "الآن",
       },
       ...prev,
@@ -633,7 +763,7 @@ export default function SecretsAndKeysPage() {
   };
 
   return (
-    <main className="secrets-table-page" dir="rtl">
+    <main className="secrets-unified-page" dir="rtl">
       <style>{styles}</style>
 
       <section className="page-title">
@@ -644,7 +774,7 @@ export default function SecretsAndKeysPage() {
           </div>
           <h1>إدارة مزودي الذكاء الاصطناعي بنموذج موحّد</h1>
           <p>
-            جدول موحد لكل المزودين مع Provider Presets. نفس النموذج يُستخدم
+            جدول موحد لكل المزودين مع إعدادات جاهزة. نفس النموذج يُستخدم
             للجميع، وتظهر الحقول المطلوبة حسب نوع المزود.
           </p>
         </div>
@@ -666,9 +796,8 @@ export default function SecretsAndKeysPage() {
         <div>
           <strong>قاعدة أمان إلزامية</strong>
           <p>
-            الواجهة لا تحفظ API keys حقيقية. الحقل الأساسي هو Secret Name الذي
-            يشير لاحقًا إلى Backend/KMS/Secret Manager. أي اختبار أو تدوير هنا
-            محاكاة فقط.
+            هذه الشاشة تحفظ أسماء مراجع الأسرار فقط، ولا تحفظ أو تعرض قيم المفاتيح.
+            أي اختبار أو تدوير هنا محلي داخل النموذج الأولي.
           </p>
         </div>
       </section>
@@ -699,7 +828,7 @@ export default function SecretsAndKeysPage() {
 
           <button type="button" className="secondary-button" onClick={addProvider}>
             <Plus size={16} />
-            إضافة من Preset
+            إضافة من إعداد جاهز
           </button>
         </div>
       </section>
@@ -720,13 +849,14 @@ export default function SecretsAndKeysPage() {
 
           <div className="providers-table">
             <div className="table-head">
-              <span>Provider</span>
-              <span>Type</span>
-              <span>Status</span>
-              <span>Default Model</span>
-              <span>Budget</span>
-              <span>Capabilities</span>
-              <span>Actions</span>
+              <span>المزود</span>
+              <span>النوع</span>
+              <span>الحالة</span>
+              <span>النموذج</span>
+              <span>الميزانية</span>
+              <span>القدرات</span>
+              <span>جاهزية المزود</span>
+              <span>الإجراءات</span>
             </div>
 
             {filteredProviders.map((provider) => (
@@ -761,34 +891,34 @@ export default function SecretsAndKeysPage() {
 
             <div className="form-grid">
               <SelectField
-                label="Provider preset"
+                label="نوع المزود"
                 value={selectedProvider.providerType}
                 options={PROVIDER_TYPES}
                 onChange={changeProviderType}
               />
 
               <Field
-                label="Display name"
+                label="اسم العرض"
                 value={selectedProvider.displayName}
                 onChange={(value) => updateSelected("displayName", value)}
                 required
               />
 
               <SelectField
-                label="Auth type"
+                label="طريقة المصادقة"
                 value={selectedProvider.authType}
                 options={AUTH_TYPES}
                 onChange={(value) => updateSelected("authType", value)}
               />
 
               <Field
-                label="Header name"
+                label="اسم الترويسة"
                 value={selectedProvider.headerName}
                 onChange={(value) => updateSelected("headerName", value)}
               />
 
               <SelectField
-                label="Token prefix"
+                label="بادئة المصادقة"
                 value={selectedProvider.tokenPrefix}
                 options={[
                   ["Bearer", "Bearer"],
@@ -799,32 +929,25 @@ export default function SecretsAndKeysPage() {
               />
 
               <Field
-                label="Secret name"
+                label="اسم مرجع السر"
                 value={selectedProvider.secretName}
                 onChange={(value) => updateSelected("secretName", value)}
                 required
-                helper="اسم السر في Backend/KMS وليس المفتاح نفسه."
+                helper="اسم مرجع السر فقط، وليس قيمة المفتاح."
               />
 
               <Field
-                label="API key preview"
-                value={selectedProvider.apiKeyPreview}
-                onChange={(value) => updateSelected("apiKeyPreview", value)}
-                helper="مثال: ••••••••A9x2 فقط للعرض بعد الحفظ."
-              />
-
-              <Field
-                label="Base URL"
+                label="العنوان الأساسي"
                 value={selectedProvider.baseUrl}
                 onChange={(value) => updateSelected("baseUrl", value)}
-                required={selectedProvider.requiredFields.includes("baseUrl")}
+                required={(selectedProvider.requiredFields || []).includes("baseUrl")}
               />
 
               <Field
-                label="API version"
+                label="إصدار الواجهة"
                 value={selectedProvider.apiVersion}
                 onChange={(value) => updateSelected("apiVersion", value)}
-                required={selectedProvider.requiredFields.includes("apiVersion")}
+                required={(selectedProvider.requiredFields || []).includes("apiVersion")}
               />
 
               {selectedProvider.providerType === "openai" ? (
@@ -859,83 +982,87 @@ export default function SecretsAndKeysPage() {
               ) : null}
 
               <Field
-                label="Text model"
+                label="نموذج النصوص"
                 value={selectedProvider.textModel}
                 onChange={(value) => updateSelected("textModel", value)}
-                required={selectedProvider.requiredFields.includes("textModel")}
+                required={(selectedProvider.requiredFields || []).includes("textModel")}
               />
 
               <Field
-                label="Image model"
+                label="نموذج الصور"
                 value={selectedProvider.imageModel}
                 onChange={(value) => updateSelected("imageModel", value)}
               />
 
               <Field
-                label="Video model"
+                label="نموذج الفيديو"
                 value={selectedProvider.videoModel}
                 onChange={(value) => updateSelected("videoModel", value)}
-                required={selectedProvider.requiredFields.includes("videoModel")}
+                required={(selectedProvider.requiredFields || []).includes("videoModel")}
               />
 
               <Field
-                label="Embedding model"
+                label="نموذج التضمين"
                 value={selectedProvider.embeddingModel}
                 onChange={(value) => updateSelected("embeddingModel", value)}
               />
 
               <Field
-                label="Fallback model"
+                label="النموذج البديل"
                 value={selectedProvider.fallbackModel}
                 onChange={(value) => updateSelected("fallbackModel", value)}
               />
 
               <Field
-                label="Monthly soft limit"
+                label="الحد الشهري المرن"
                 value={selectedProvider.limits.monthlySoftLimit}
                 onChange={(value) => updateNested("limits", "monthlySoftLimit", value)}
               />
 
               <Field
-                label="Monthly hard limit"
+                label="الحد الشهري الصارم"
                 value={selectedProvider.limits.monthlyHardLimit}
                 onChange={(value) => updateNested("limits", "monthlyHardLimit", value)}
               />
 
               <Field
-                label="RPM limit"
+                label="حد الطلبات في الدقيقة"
                 value={selectedProvider.limits.rpm}
                 onChange={(value) => updateNested("limits", "rpm", value)}
               />
 
               <Field
-                label="TPM limit"
+                label="حد الرموز في الدقيقة"
                 value={selectedProvider.limits.tpm}
                 onChange={(value) => updateNested("limits", "tpm", value)}
               />
 
               <Field
-                label="Max job duration seconds"
+                label="أقصى مدة تشغيل بالثواني"
                 value={selectedProvider.limits.maxJobDurationSeconds}
                 onChange={(value) => updateNested("limits", "maxJobDurationSeconds", value)}
               />
 
               <TextArea
-                label="Custom headers / metadata"
+                label="بيانات تعريف إضافية"
                 value={selectedProvider.customHeaders}
                 onChange={(value) => updateSelected("customHeaders", value)}
                 wide
               />
             </div>
 
-            <Section title="Capabilities">
+            <ProviderReadinessPanel provider={selectedProvider} />
+
+            <RoutingImpactPanel />
+
+            <Section title="القدرات">
               <ToggleGrid
                 source={selectedProvider.capabilities}
                 onChange={(key, value) => updateNested("capabilities", key, value)}
               />
             </Section>
 
-            <Section title="Governance">
+            <Section title="الحوكمة">
               <ToggleGrid
                 source={selectedProvider.governance}
                 onChange={(key, value) => updateNested("governance", key, value)}
@@ -943,21 +1070,21 @@ export default function SecretsAndKeysPage() {
               />
             </Section>
 
-            <Section title="Webhooks">
+            <Section title="Webhook">
               <div className="form-grid">
                 <Toggle
-                  label="Enabled"
+                  label="مفعل"
                   checked={selectedProvider.webhooks.enabled}
                   onChange={(value) => updateNested("webhooks", "enabled", value)}
                 />
                 <Field
-                  label="Webhook secret name"
+                  label="سر Webhook"
                   value={selectedProvider.webhooks.secretName}
                   onChange={(value) => updateNested("webhooks", "secretName", value)}
-                  required={selectedProvider.requiredFields.includes("webhookSecretName")}
+                  required={(selectedProvider.requiredFields || []).includes("webhookSecretName")}
                 />
                 <Field
-                  label="Callback URL"
+                  label="رابط الاستدعاء"
                   value={selectedProvider.webhooks.callbackUrl}
                   onChange={(value) => updateNested("webhooks", "callbackUrl", value)}
                 />
@@ -971,7 +1098,7 @@ export default function SecretsAndKeysPage() {
               </button>
               <button type="button" className="secondary-button" onClick={() => rotateKey(selectedProvider)}>
                 <RefreshCw size={16} />
-                تدوير المفتاح
+                تحديث مرجع السر
               </button>
               <button type="button" className="primary-button" onClick={() => testConnection(selectedProvider)}>
                 <TestTube2 size={16} />
@@ -989,7 +1116,7 @@ export default function SecretsAndKeysPage() {
           </div>
           <h3>قواعد الحوكمة المطبقة</h3>
           <Checklist ok label="نموذج موحد لكل المزودين" />
-          <Checklist ok label="Secret Name بدل المفتاح الخام" />
+          <Checklist ok label="مرجع السر بدل قيمة المفتاح" />
           <Checklist ok label="النشر التلقائي مغلق افتراضيًا" />
           <Checklist ok label="مراجعة بشرية مفعلة" />
           <Checklist ok label="حدود تكلفة واستخدام" />
@@ -1001,10 +1128,10 @@ export default function SecretsAndKeysPage() {
           </div>
           <h3>ممنوعات أمان</h3>
           <ul>
-            <li>لا تحفظ المفتاح الخام في React أو LocalStorage.</li>
+            <li>لا تحفظ قيمة المفتاح داخل الواجهة.</li>
             <li>لا ترسل المفتاح مباشرة من المتصفح إلى المزود.</li>
             <li>لا تعرض المفتاح الحقيقي بعد حفظه.</li>
-            <li>لا تفعّل النشر التلقائي بدون Backend وصلاحيات.</li>
+            <li>لا تفعّل النشر التلقائي بدون صلاحيات وحوكمة تشغيل.</li>
           </ul>
         </article>
 
@@ -1039,7 +1166,8 @@ function ProviderRow({
   onDelete,
 }) {
   const [statusText, statusTone] = statusMap[provider.status] || statusMap.draft;
-  const capabilities = Object.entries(provider.capabilities)
+  const readiness = buildProviderReadiness(provider);
+  const capabilities = Object.entries(provider.capabilities || {})
     .filter(([, enabled]) => enabled)
     .map(([key]) => capabilityLabel(key));
 
@@ -1077,6 +1205,8 @@ function ProviderRow({
         {capabilities.length > 3 ? <small>+{capabilities.length - 3}</small> : null}
       </div>
 
+      <ReadinessBadge status={readiness.status} />
+
       <div className="row-actions">
         <button type="button" onClick={onSelect}>تعديل</button>
         <button type="button" onClick={onTest}>اختبار</button>
@@ -1084,6 +1214,85 @@ function ProviderRow({
         <button type="button" onClick={onDuplicate}>نسخ</button>
         <button type="button" className="danger" onClick={onDelete}>حذف</button>
       </div>
+    </div>
+  );
+}
+
+function ReadinessBadge({ status }) {
+  return <span className={`readiness-badge ${status}`}>{getReadinessLabel(status)}</span>;
+}
+
+function ProviderReadinessPanel({ provider }) {
+  const readiness = buildProviderReadiness(provider);
+  const configuredModels = getConfiguredModels(provider);
+  const capabilities = Object.entries(provider.capabilities || {}).filter(([, enabled]) => enabled);
+  const lastTest = provider.metadata?.lastTestedAt || "لم يتم الاختبار";
+
+  return (
+    <section className={`provider-readiness-panel ${readiness.status}`}>
+      <div className="readiness-head">
+        <div>
+          <strong>جاهزية المزود</strong>
+          <span>حالة الجاهزية: {getReadinessLabel(readiness.status)} · الدرجة: {readiness.score}%</span>
+        </div>
+        <ReadinessBadge status={readiness.status} />
+      </div>
+
+      <div className="readiness-grid">
+        <Info label="نوع المزود" value={provider.providerType} />
+        <Info label="طريقة المصادقة" value={provider.authType} />
+        <Info label="مرجع السر" value={provider.secretName || "غير محدد"} />
+        <Info label="العنوان الأساسي" value={provider.baseUrl || "غير محدد"} />
+        <Info label="النماذج المهيأة" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
+        <Info label="القدرات" value={capabilities.length ? `${capabilities.length}` : "غير مفعلة"} />
+        <Info label="Webhook" value={provider.webhooks?.enabled ? "مفعل" : "غير مفعل"} />
+        <Info label="سر Webhook" value={provider.webhooks?.secretName ? "محدد" : "غير محدد"} />
+        <Info label="آخر اختبار" value={lastTest} />
+        <Info label="أثره على توجيه النماذج" value="يؤثر على جاهزية المسار قبل التشغيل" />
+      </div>
+
+      {readiness.blockedReasons.length ? (
+        <div className="readiness-notes blocked-notes">
+          <strong>أسباب الحظر</strong>
+          {readiness.blockedReasons.map((reason) => (
+            <span key={reason}>{reason}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {readiness.warnings.length ? (
+        <div className="readiness-notes warning-notes">
+          <strong>تحذيرات</strong>
+          {readiness.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="readiness-notes check-notes">
+        {readiness.checks.slice(0, 5).map((check) => (
+          <span key={check}>{check}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RoutingImpactPanel() {
+  return (
+    <section className="routing-impact-panel">
+      <h3>الأثر على توجيه النماذج</h3>
+      <p>إذا كان المزود غير جاهز، فإن المسارات التي تعتمد على نماذجه تحتاج ضبطًا قبل التشغيل.</p>
+      <p>جاهزية المزود تكمل جاهزية المسار والتكلفة والمطالبة.</p>
+    </section>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="info-cell">
+      <span>{label}</span>
+      <strong>{value || "—"}</strong>
     </div>
   );
 }
@@ -1188,7 +1397,23 @@ function Toggle({ label, checked, onChange, danger }) {
 }
 
 function formatKey(key) {
-  return key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
+  const labels = {
+    textGeneration: "توليد النصوص",
+    imageGeneration: "توليد الصور",
+    videoGeneration: "توليد الفيديو",
+    embeddings: "التضمين",
+    vision: "الرؤية",
+    audio: "الصوت",
+    functionCalling: "استدعاء الأدوات",
+    structuredOutput: "مخرجات منظمة",
+    humanReviewRequired: "مراجعة بشرية",
+    autoPublishAllowed: "السماح بالنشر التلقائي",
+    allowSensitiveContentGeneration: "السماح بالمحتوى الحساس",
+    logAllRequests: "تسجيل الطلبات",
+    redactInputs: "إخفاء المدخلات الحساسة",
+  };
+
+  return labels[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase());
 }
 
 function Checklist({ ok, label }) {
@@ -1474,7 +1699,7 @@ const styles = `
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) 90px 105px 150px 85px 160px 260px;
+  grid-template-columns: minmax(210px, 1.1fr) 85px 95px 135px 75px 145px 105px 240px;
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
@@ -1571,6 +1796,34 @@ const styles = `
 .status-badge.red {
   color: #991b1b;
   background: #fef2f2;
+}
+
+.readiness-badge {
+  width: fit-content;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.readiness-badge.ready {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.readiness-badge.warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.readiness-badge.blocked {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .capability-pills {
@@ -1744,6 +1997,113 @@ const styles = `
   gap: 9px;
 }
 
+.provider-readiness-panel,
+.routing-impact-panel {
+  border: 1px solid #d9ead7;
+  background: #fbfdf9;
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 16px;
+}
+
+.provider-readiness-panel.warning {
+  border-color: #fde68a;
+  background: #fffaf0;
+}
+
+.provider-readiness-panel.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.readiness-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.readiness-head strong,
+.routing-impact-panel h3 {
+  display: block;
+  margin: 0;
+  color: #1f241d;
+  font-size: 15px;
+}
+
+.readiness-head span,
+.routing-impact-panel p {
+  display: block;
+  margin: 4px 0 0;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.info-cell {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.info-cell span {
+  display: block;
+  color: #6f746b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.info-cell strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.readiness-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.readiness-notes strong {
+  display: block;
+  color: #1f241d;
+  font-size: 12px;
+}
+
+.readiness-notes span {
+  border-radius: 12px;
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.blocked-notes span {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.warning-notes span {
+  color: #92400e;
+  background: #ffedd5;
+}
+
+.check-notes span {
+  color: #166534;
+  background: #ecfdf5;
+}
+
 .audit-grid {
   margin-top: 16px;
   display: grid;
@@ -1853,7 +2213,7 @@ const styles = `
 
   .table-head,
   .table-row {
-    min-width: 1240px;
+    min-width: 1340px;
   }
 }
 
@@ -1877,6 +2237,7 @@ const styles = `
 
   .stats-grid,
   .form-grid,
+  .readiness-grid,
   .toggle-grid {
     grid-template-columns: 1fr;
   }
