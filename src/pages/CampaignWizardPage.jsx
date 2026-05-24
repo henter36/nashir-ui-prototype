@@ -8,7 +8,6 @@ import {
   Megaphone,
   Plus,
   RefreshCw,
-  ShieldCheck,
   Sparkles,
   UploadCloud,
   Video,
@@ -27,6 +26,11 @@ import {
   upsertCampaign,
   writeCampaignMetrics,
 } from "../utils/campaignAnalyticsStore.js";
+
+import {
+  readAssetLibrary,
+  upsertAsset,
+} from "../utils/assetLibraryStore.js";
 
 const goals = [
   "زيادة المبيعات",
@@ -54,15 +58,21 @@ const occasions = [
   "أخرى",
 ];
 
-const audienceStages = [
-  "لا يعرف المنتج",
-  "يعرف المشكلة فقط",
-  "يعرفها ولم يشترِ",
-  "يقارن بين بدائل",
-  "عميل سابق",
-];
-
 const languageOptions = ["العربية", "الإنجليزية", "العربية والإنجليزية"];
+
+const ageGroupOptions = ["18–24", "25–34", "35–44", "45–54", "55+"];
+const genderOptions = ["الكل", "رجال", "نساء"];
+
+const ctaOptions = [
+  "اطلب الآن",
+  "تسوق الآن",
+  "احجز الآن",
+  "تواصل معنا",
+  "اكتشف المزيد",
+  "احصل على العرض",
+  "جرّب المنتج",
+  "أرسل رسالة واتساب",
+];
 
 const channelOptions = [
   "Instagram",
@@ -89,8 +99,27 @@ const outputOptions = [
   "WhatsApp",
 ];
 
-const proofOptions = ["تقييمات عملاء", "ضمان", "سياسة استرجاع", "جودة", "شحن سريع", "صور واقعية"];
-const objectionOptions = ["السعر مرتفع", "لا يعرف العلامة", "يحتاج ثقة", "يقارن ببدائل", "لا يعرف الفائدة"];
+const objectionOptions = [
+  "السعر مرتفع",
+  "غير متأكد من الجودة",
+  "يحتاج معرفة التفاصيل",
+  "يخاف من تأخر التوصيل",
+  "لا يعرف الفرق عن البدائل",
+  "يحتاج ضمان أو سياسة استرجاع",
+  "لا يوجد اعتراض محدد",
+];
+
+const proofOptions = [
+  "تقييمات العملاء",
+  "صور المنتج",
+  "فيديو استخدام المنتج",
+  "ضمان أو استرجاع",
+  "الأكثر مبيعًا",
+  "قبل وبعد",
+  "شهادات وتجارب",
+  "جودة المواد",
+  "لا يوجد إثبات محدد",
+];
 
 const initialProducts = [
   {
@@ -116,41 +145,89 @@ const initialProducts = [
   },
 ];
 
+const assetFallbackSeed = [
+  {
+    id: "wiz-asset-1",
+    name: "صورة عطر X الرئيسية",
+    type: "image",
+    linkedType: "product",
+    linkedName: "عطر X",
+    quality: "high",
+    rightsStatus: "allowed",
+    tags: ["منتج", "صورة"],
+  },
+  {
+    id: "wiz-asset-2",
+    name: "فيديو قصير للعرض",
+    type: "video",
+    linkedType: "product",
+    linkedName: "عطر X",
+    quality: "medium",
+    rightsStatus: "needs_check",
+    tags: ["فيديو", "إعلان"],
+  },
+  {
+    id: "wiz-asset-3",
+    name: "شعار المتجر",
+    type: "logo",
+    linkedType: "general",
+    linkedName: "عام",
+    quality: "high",
+    rightsStatus: "allowed",
+    tags: ["هوية"],
+  },
+];
+
 const steps = [
   [1, "أساسيات الحملة", "الهدف، المنتج، التاريخ، الميزانية، المناسبة."],
   [2, "الأصول المتاحة", "الأصول المحفوظة والجديدة وفحص الجودة."],
-  [3, "العرض والرسالة", "العرض، سبب الشراء الآن، الاعتراضات، الإثباتات."],
-  [4, "الجمهور والقنوات", "الجمهور، المرحلة، اللغة، والقنوات."],
-  [5, "المخرجات المطلوبة", "النصوص، الصور، الفيديو، المقاسات، النسخ."],
-  [6, "Brief + الجاهزية", "ملخص كامل ومخرجات عميل/نموذج قبل التوليد."],
+  [3, "العرض والجمهور والقنوات", "العرض، الجمهور، اللغة، والقنوات."],
+  [4, "المخرجات المطلوبة", "النصوص، الصور، الفيديو، المقاسات، النسخ."],
+  [5, "Brief + الجاهزية", "ملخص كامل ومخرجات عميل/نموذج قبل التوليد."],
 ];
 
 function toggleValue(list, value) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
-function makeCustomerText({ output, productName, goal, offer, style, videoDuration }) {
+function makeCustomerText({
+  output,
+  productName,
+  goal,
+  offer,
+  cta,
+  ageGroup,
+  gender,
+  objections,
+  proofs,
+  style,
+  videoDuration,
+}) {
+  const audienceContext = `${ageGroup || "الفئة غير محددة"} · ${gender || "الكل"}`;
+  const objectionContext = objections?.length ? objections.join("، ") : "لا يوجد اعتراض محدد";
+  const proofContext = proofs?.length ? proofs.join("، ") : "لا يوجد إثبات محدد";
+
   if (output.includes("فيديو") || output.includes("Reel")) {
-    return `سيناريو فيديو ${videoDuration} يعرّف بالمنتج "${productName}" ويربطه بهدف "${goal}" بأسلوب ${style}. سيظهر المنتج بوضوح، ثم يشرح الفائدة الرئيسية، ثم ينتهي بدعوة مباشرة لاتخاذ إجراء.`;
+    return `سيناريو فيديو ${videoDuration} يعرّف بالمنتج "${productName}" ويربطه بهدف "${goal}" لفئة ${audienceContext} بأسلوب ${style}. يعالج: ${objectionContext}. يستند إلى: ${proofContext}. ينتهي بدعوة "${cta}".`;
   }
 
   if (output.includes("صورة") || output.includes("Story") || output.includes("Carousel")) {
-    return `اتجاه بصري عام لمخرج ${output}: إبراز المنتج "${productName}" مع رسالة عرض واضحة "${offer}" وخلفية نظيفة تناسب الهوية. الهدف هو إنتاج تصور مفهوم للعميل دون كشف المطالبة الداخلية المستخدمة للتوليد.`;
+    return `اتجاه بصري عام لمخرج ${output}: إبراز المنتج "${productName}" مع عرض واضح "${offer}" ودعوة "${cta}" وخلفية نظيفة تناسب الهوية. الفئة: ${audienceContext}. الإثباتات: ${proofContext}.`;
   }
 
   if (output.includes("Email")) {
-    return `هيكل بريد تسويقي يفتتح بمشكلة أو مناسبة، ثم يعرض المنتج "${productName}" وفوائده، ثم يوضح العرض "${offer}" وينتهي بدعوة واضحة للشراء.`;
+    return `هيكل بريد تسويقي يفتتح باعتراض "${objectionContext}"، ثم يعرض المنتج "${productName}" وفوائده، ثم يوضح العرض "${offer}" وينتهي بدعوة "${cta}". الفئة: ${audienceContext}.`;
   }
 
   if (output.includes("WhatsApp")) {
-    return `رسالة قصيرة ومباشرة تناسب WhatsApp، تركز على المنتج "${productName}" والعرض "${offer}" مع CTA واضح دون إطالة.`;
+    return `صياغة قصيرة ومباشرة تناسب WhatsApp، تركز على المنتج "${productName}" والعرض "${offer}" مع دعوة "${cta}" دون إطالة.`;
   }
 
-  return `نص تسويقي عام لمخرج ${output} يركز على المنتج "${productName}" والهدف "${goal}" والعرض "${offer}" بنبرة واضحة وقابلة للمراجعة.`;
+  return `نص تسويقي عام لمخرج ${output} يركز على المنتج "${productName}" والهدف "${goal}" والعرض "${offer}" ودعوة "${cta}"، مع اعتراضات "${objectionContext}" وإثباتات "${proofContext}".`;
 }
 
-function makeInternalPrompt({ output, productName, goal, offer, style }) {
-  return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
+function makeInternalPrompt({ output, productName, goal, offer, cta, ageGroup, gender, objections, proofs, style }) {
+  return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | cta=${cta} | age=${ageGroup} | gender=${gender} | objections=${objections.join(",")} | proofs=${proofs.join(",")} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
 }
 
 export default function CampaignWizardPage() {
@@ -164,7 +241,7 @@ export default function CampaignWizardPage() {
   const [budget, setBudget] = useState("5,000 ريال");
 
   const [products, setProducts] = useState(() => readProductCatalog(initialProducts));
-  const [selectedProductId, setSelectedProductId] = useState("p-1");
+  const [selectedProductKey, setSelectedProductKey] = useState("p-1");
   const [showQuickProduct, setShowQuickProduct] = useState(false);
   const [quickProduct, setQuickProduct] = useState({
     name: "",
@@ -173,14 +250,25 @@ export default function CampaignWizardPage() {
     description: "",
   });
 
+  const [availableAssets, setAvailableAssets] = useState(() => {
+    const sharedAssets = readAssetLibrary([]);
+    return sharedAssets.length ? sharedAssets : assetFallbackSeed;
+  });
+  const [selectedAssetKeys, setSelectedAssetKeys] = useState([]);
+  const [assetDraft, setAssetDraft] = useState({
+    name: "",
+    type: "image",
+    url: "",
+  });
+  const [assetNotice, setAssetNotice] = useState("");
+
   const [offer, setOffer] = useState("خصم");
   const [cta, setCta] = useState("اطلب الآن");
-  const [message, setMessage] = useState("فرصة محدودة لتجربة عطر فاخر بسعر مباشر.");
-  const [objections, setObjections] = useState(["السعر مرتفع", "لا يعرف العلامة"]);
-  const [proofs, setProofs] = useState(["تقييمات عملاء", "ضمان", "سياسة استرجاع"]);
+  const [objections, setObjections] = useState(["السعر مرتفع", "غير متأكد من الجودة"]);
+  const [proofs, setProofs] = useState(["تقييمات العملاء", "ضمان أو استرجاع"]);
 
-  const [audienceStage, setAudienceStage] = useState("يعرفها ولم يشترِ");
-  const [audienceSummary, setAudienceSummary] = useState("نساء ورجال 25–44 في السعودية والخليج، مهتمون بالعطور والهدايا.");
+  const [ageGroup, setAgeGroup] = useState("25–34");
+  const [gender, setGender] = useState("الكل");
   const [language, setLanguage] = useState("العربية");
   const [channels, setChannels] = useState(["Instagram", "TikTok", "Email"]);
 
@@ -208,21 +296,55 @@ export default function CampaignWizardPage() {
     };
   }, []);
 
-  const selectedProduct = products.find((product) => product.id === selectedProductId) || products[0];
+  useEffect(() => {
+    const refreshAssets = () => {
+      const sharedAssets = readAssetLibrary([]);
+      setAvailableAssets(sharedAssets.length ? sharedAssets : assetFallbackSeed);
+    };
+
+    window.addEventListener("focus", refreshAssets);
+    window.addEventListener("storage", refreshAssets);
+    window.addEventListener("nashir-asset-library-updated", refreshAssets);
+
+    return () => {
+      window.removeEventListener("focus", refreshAssets);
+      window.removeEventListener("storage", refreshAssets);
+      window.removeEventListener("nashir-asset-library-updated", refreshAssets);
+    };
+  }, []);
+
+  const selectedProduct = products.find((product) => product.id === selectedProductKey) || products[0];
+
+  const sortedAssets = useMemo(() => {
+    const productName = selectedProduct?.name || "";
+
+    return [...availableAssets].sort((a, b) => {
+      const aLinked = a.linkedType === "product" && a.linkedName === productName;
+      const bLinked = b.linkedType === "product" && b.linkedName === productName;
+      if (aLinked === bLinked) return String(a.name).localeCompare(String(b.name), "ar");
+      return aLinked ? -1 : 1;
+    });
+  }, [availableAssets, selectedProduct?.name]);
+
+  const selectedAssets = useMemo(
+    () => availableAssets.filter((asset) => selectedAssetKeys.includes(asset.id)),
+    [availableAssets, selectedAssetKeys]
+  );
 
   const readiness = useMemo(() => {
     const checks = [
       campaignName,
       goal,
-      selectedProductId,
+      selectedProductKey,
       startDate,
       endDate,
       budget,
       offer,
       cta,
-      message,
-      audienceStage,
-      audienceSummary,
+      ageGroup,
+      gender,
+      objections.length,
+      proofs.length,
       language,
       channels.length,
       outputs.length,
@@ -233,20 +355,21 @@ export default function CampaignWizardPage() {
     const filled = checks.filter(Boolean).length;
     return Math.round((filled / checks.length) * 100);
   }, [
-    audienceStage,
-    audienceSummary,
+    ageGroup,
     budget,
     campaignName,
     channels.length,
     copies,
     cta,
     endDate,
+    gender,
     goal,
     language,
-    message,
+    objections.length,
     offer,
     outputs.length,
-    selectedProductId,
+    proofs.length,
+    selectedProductKey,
     startDate,
     style,
   ]);
@@ -255,14 +378,17 @@ export default function CampaignWizardPage() {
     ["اسم الحملة", campaignName],
     ["الهدف", goal],
     ["المنتج", selectedProduct?.name || "غير محدد"],
-    ["الجمهور", `${audienceSummary} · ${audienceStage}`],
+    ["الفئة العمرية", ageGroup],
+    ["الجنس", gender],
     ["القنوات", channels.join("، ")],
-    ["الرسالة الأساسية", message],
     ["العرض", offer],
+    ["دعوة الإجراء", cta],
+    ["الاعتراضات", objections.join("، ")],
+    ["الإثباتات", proofs.join("، ")],
     ["الميزانية", budget],
     ["التواريخ", `${startDate} → ${endDate}`],
     ["المخرجات", outputs.join("، ")],
-    ["الأصول", "3 صور، 1 فيديو، شعار، تقييمات عملاء"],
+    ["الأصول المتاحة", selectedAssets.length ? selectedAssets.map((asset) => asset.name).join("، ") : "لم يتم اختيار أصول"],
   ];
 
   const canGenerate = readiness >= 60;
@@ -280,9 +406,44 @@ export default function CampaignWizardPage() {
 
     const nextProducts = upsertProduct(product, initialProducts);
     setProducts(nextProducts);
-    setSelectedProductId(product.id);
+    setSelectedProductKey(product.id);
     setQuickProduct({ name: "", url: "", price: "", description: "" });
     setShowQuickProduct(false);
+  };
+
+  const toggleAssetSelection = (asset) => {
+    setSelectedAssetKeys((prev) => toggleValue(prev, asset.id));
+  };
+
+  const addWizardAsset = () => {
+    if (!selectedProduct) {
+      setAssetNotice("اختر المنتج أولًا حتى يتم ربط الأصل بالحملة بشكل صحيح.");
+      return;
+    }
+
+    if (!assetDraft.name.trim()) return;
+
+    const asset = {
+      id: `wiz-asset-${Date.now()}`,
+      name: assetDraft.name.trim(),
+      type: assetDraft.type,
+      url: assetDraft.url,
+      thumbnailUrl: "",
+      linkedType: "product",
+      linkedName: selectedProduct.name,
+      channel: channels[0] || "",
+      status: "review",
+      rightsStatus: "needs_check",
+      quality: "medium",
+      tags: ["حملة", selectedProduct.name],
+      notes: "أصل أضيف من معالج الحملة ويحتاج مراجعة قبل الاستخدام.",
+    };
+
+    const nextAssets = upsertAsset(asset, []);
+    setAvailableAssets(nextAssets);
+    setSelectedAssetKeys((prev) => Array.from(new Set([...prev, asset.id])));
+    setAssetDraft({ name: "", type: "image", url: "" });
+    setAssetNotice("تمت إضافة الأصل وربطه بالمنتج المحدد.");
   };
 
   const regenerateOutputText = (output) => {
@@ -291,6 +452,11 @@ export default function CampaignWizardPage() {
       productName: selectedProduct?.name || "المنتج",
       goal,
       offer,
+      cta,
+      ageGroup,
+      gender,
+      objections,
+      proofs,
       style,
       videoDuration,
     });
@@ -300,6 +466,11 @@ export default function CampaignWizardPage() {
       productName: selectedProduct?.name || "المنتج",
       goal,
       offer,
+      cta,
+      ageGroup,
+      gender,
+      objections,
+      proofs,
       style,
     });
 
@@ -321,7 +492,7 @@ export default function CampaignWizardPage() {
   };
 
   const next = () => {
-    if (step < 6) setStep((current) => current + 1);
+    if (step < 5) setStep((current) => current + 1);
   };
 
   const back = () => {
@@ -338,11 +509,16 @@ export default function CampaignWizardPage() {
         output,
         "مسودة",
         channels[0] || "عام",
-        generated?.customer || makeCustomerText({
+        generated?.customerText || makeCustomerText({
           output,
           productName: selectedProduct?.name || "المنتج",
           goal,
           offer,
+          cta,
+          ageGroup,
+          gender,
+          objections,
+          proofs,
           style,
           videoDuration,
         }),
@@ -361,6 +537,18 @@ export default function CampaignWizardPage() {
       budget,
       budgetValue: numericBudget,
       readiness,
+      offer,
+      cta,
+      ageGroup,
+      gender,
+      objections,
+      proofs,
+      selectedAssetCount: selectedAssets.length,
+      selectedAssets: selectedAssets.map((asset) => ({
+        name: asset.name,
+        type: asset.type,
+        linkedName: asset.linkedName,
+      })),
       channels,
       channel: channels[0] || "عام",
       outputs: campaignOutputs,
@@ -407,8 +595,8 @@ export default function CampaignWizardPage() {
                   <span>المنتج / المنتجات المستهدفة</span>
                   <div className="product-picker-row">
                     <select
-                      value={selectedProductId}
-                      onChange={(event) => setSelectedProductId(event.target.value)}
+                      value={selectedProductKey}
+                      onChange={(event) => setSelectedProductKey(event.target.value)}
                     >
                       {products.map((product) => (
                         <option key={product.id} value={product.id}>
@@ -493,23 +681,78 @@ export default function CampaignWizardPage() {
               />
 
               <Notice tone="neutral">
-                استخدم أصول المتجر المحفوظة أو أضف روابط/صور مرجعية. أي أصل غير مؤكد الحقوق يجب أن يمر على المراجعة.
+                اختر الأصول التي ستُستخدم في هذه الحملة. الأصول المرتبطة بالمنتج تظهر أولًا.
               </Notice>
 
-              <div className="upload-grid">
-                <UploadBox title="صور المنتج" />
-                <UploadBox title="فيديوهات المنتج" />
-                <UploadBox title="صور العملاء / تقييمات مصورة" />
-                <UploadBox title="ملفات الهوية الإضافية" />
-                <UploadBox title="PDF أو كتالوج" />
-                <UploadBox title="روابط منشورات سابقة ومنافسين" />
+              <div className="asset-step-header">
+                <Badge tone="blue">{selectedAssets.length} أصل مختار</Badge>
+                <span>المنتج الحالي: {selectedProduct?.name || "غير محدد"}</span>
+              </div>
+
+              <div className="asset-select-grid">
+                {sortedAssets.map((asset) => {
+                  const isSelected = selectedAssetKeys.includes(asset.id);
+                  const isLinked = asset.linkedType === "product" && asset.linkedName === selectedProduct?.name;
+
+                  return (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      className={`asset-select-card ${isSelected ? "selected" : ""}`}
+                      onClick={() => toggleAssetSelection(asset)}
+                    >
+                      <div className="asset-select-icon">
+                        {asset.type === "video" ? <Video size={22} /> : <ImageIcon size={22} />}
+                      </div>
+                      <strong>{asset.name}</strong>
+                      <span>{asset.linkedName || "عام"}</span>
+                      <div className="asset-select-actions">
+                        {isLinked ? <Badge tone="green">مرتبط بالمنتج</Badge> : null}
+                        <Badge tone={isSelected ? "green" : "neutral"}>
+                          {isSelected ? "مختار" : "اختيار الأصل"}
+                        </Badge>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="form-grid">
-                <TextArea label="أمثلة على نمط مطلوب" value="" onChange={() => undefined} placeholder="ضع أمثلة أو روابط مرجعية..." />
-                <TextArea label="تعليمات خاصة للتصميم" value="" onChange={() => undefined} placeholder="ما الذي يجب أن يظهر في التصميم؟" />
-                <TextArea label="عناصر ممنوعة في التصميم" value="" onChange={() => undefined} placeholder="ألوان، رموز، عبارات، أشخاص، ادعاءات..." />
+                <Field
+                  label="اسم الأصل"
+                  value={assetDraft.name}
+                  onChange={(value) => setAssetDraft((prev) => ({ ...prev, name: value }))}
+                  placeholder="مثال: صورة المنتج الرئيسية"
+                />
+                <label className="field">
+                  <span>نوع الأصل</span>
+                  <select
+                    value={assetDraft.type}
+                    onChange={(event) => setAssetDraft((prev) => ({ ...prev, type: event.target.value }))}
+                  >
+                    <option value="image">صورة</option>
+                    <option value="video">فيديو</option>
+                    <option value="logo">شعار</option>
+                    <option value="document">مستند</option>
+                    <option value="design">تصميم</option>
+                  </select>
+                </label>
+                <Field
+                  label="رابط الأصل"
+                  value={assetDraft.url}
+                  onChange={(value) => setAssetDraft((prev) => ({ ...prev, url: value }))}
+                  placeholder="https://example.com/asset"
+                />
+                <div className="field">
+                  <span>إضافة أصل</span>
+                  <button type="button" className="button primary" onClick={addWizardAsset}>
+                    <Plus size={16} />
+                    إضافة وربط بالمنتج
+                  </button>
+                </div>
               </div>
+
+              {assetNotice ? <Notice tone="amber">{assetNotice}</Notice> : null}
             </Card>
           )}
 
@@ -517,65 +760,51 @@ export default function CampaignWizardPage() {
             <Card>
               <SectionHeader
                 icon={Sparkles}
-                title="الخطوة 3: العرض والرسالة"
-                description="العرض وسبب الشراء الآن والاعتراضات والإثباتات."
+                title="الخطوة 3: العرض والجمهور والقنوات"
+                description="العرض ودعوة الإجراء والفئة والعمر والقنوات."
               />
 
               <div className="form-grid">
                 <ChoiceGroup
-                  title="نوع العرض"
+                  title="العرض"
                   options={["خصم", "شحن مجاني", "باقة", "هدية", "بدون عرض", "عرض مخصص"]}
                   selected={offer}
                   setSelected={setOffer}
                 />
 
-                <Field label="CTA" value={cta} onChange={setCta} />
-
-                <TextArea
-                  label="الرسالة الأساسية"
-                  value={message}
-                  onChange={setMessage}
-                  placeholder="ما الرسالة الرئيسية التي تريد إيصالها؟"
+                <ChoiceGroup
+                  title="دعوة الإجراء"
+                  options={ctaOptions}
+                  selected={cta}
+                  setSelected={setCta}
                 />
 
                 <MultiChoice
-                  title="اعتراضات متوقعة"
+                  title="الاعتراضات"
                   options={objectionOptions}
                   selected={objections}
                   setSelected={setObjections}
                 />
 
                 <MultiChoice
-                  title="إثباتات يمكن استخدامها"
+                  title="الإثباتات"
                   options={proofOptions}
                   selected={proofs}
                   setSelected={setProofs}
                 />
-              </div>
-            </Card>
-          )}
 
-          {step === 4 && (
-            <Card>
-              <SectionHeader
-                icon={ShieldCheck}
-                title="الخطوة 4: الجمهور والقنوات"
-                description="تم حذف وضع الجمهور. المطلوب الآن وصف الجمهور ومرحلة وعيه والقنوات."
-              />
-
-              <div className="form-grid">
-                <TextArea
-                  label="ملخص الجمهور المستهدف"
-                  value={audienceSummary}
-                  onChange={setAudienceSummary}
-                  placeholder="مثال: نساء 25-34 في الرياض وجدة مهتمات بالعطور والهدايا..."
+                <ChoiceGroup
+                  title="الفئة العمرية"
+                  options={ageGroupOptions}
+                  selected={ageGroup}
+                  setSelected={setAgeGroup}
                 />
 
                 <ChoiceGroup
-                  title="مرحلة وعي الجمهور"
-                  options={audienceStages}
-                  selected={audienceStage}
-                  setSelected={setAudienceStage}
+                  title="الجنس"
+                  options={genderOptions}
+                  selected={gender}
+                  setSelected={setGender}
                 />
 
                 <ChoiceGroup
@@ -595,11 +824,11 @@ export default function CampaignWizardPage() {
             </Card>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <Card>
               <SectionHeader
                 icon={FileText}
-                title="الخطوة 5: المخرجات المطلوبة"
+                title="الخطوة 4: المخرجات المطلوبة"
                 description="حدد أنواع المخرجات المطلوبة. سيتم توليد شرح عام للعميل ومطالبة داخلية للنموذج."
               />
 
@@ -633,12 +862,12 @@ export default function CampaignWizardPage() {
             </Card>
           )}
 
-          {step === 6 && (
+          {step === 5 && (
             <div className="readiness-layout">
               <Card>
                 <SectionHeader
                   icon={CheckCircle2}
-                  title="الخطوة 6: Brief + الجاهزية"
+                  title="الخطوة 5: Brief + الجاهزية"
                   description="ملخص الحملة مع مخرجات للعميل ومخرجات داخلية للنموذج."
                 />
 
@@ -687,6 +916,11 @@ export default function CampaignWizardPage() {
                         productName: selectedProduct?.name || "المنتج",
                         goal,
                         offer,
+                        cta,
+                        ageGroup,
+                        gender,
+                        objections,
+                        proofs,
                         style,
                         videoDuration,
                       }),
@@ -695,6 +929,11 @@ export default function CampaignWizardPage() {
                         productName: selectedProduct?.name || "المنتج",
                         goal,
                         offer,
+                        cta,
+                        ageGroup,
+                        gender,
+                        objections,
+                        proofs,
                         style,
                       }),
                       regeneratedAt: "مبدئي",
@@ -751,10 +990,10 @@ export default function CampaignWizardPage() {
 
           <Footer
             step={step}
-            total={6}
+            total={5}
             back={back}
             next={next}
-            nextLabel={step < 6 ? "التالي" : "إنهاء"}
+            nextLabel={step < 5 ? "التالي" : "إنهاء"}
           />
         </section>
 
@@ -934,18 +1173,14 @@ function SmartBox({ step, readiness, productName }) {
       "ضعف الأصول يرفع تكلفة التوليد والمراجعة.",
     ],
     3: [
-      "وضوح العرض يقلل الحاجة لإعادة التوليد.",
-      "الإثباتات تمنع وعودًا تسويقية غير مدعومة.",
+      "وضوح العرض ودعوة الإجراء يقلل الحاجة لإعادة التوليد.",
+      "حدد الجمهور والقنوات هنا قبل اختيار المخرجات.",
     ],
     4: [
-      "تم حذف وضع الجمهور؛ يكفي وصف الجمهور ومرحلة وعيه.",
-      "لا توسع القنوات قبل وضوح الرسالة والعرض.",
-    ],
-    5: [
       "اختيار صورة أو فيديو سيُنشئ شرحًا عامًا للعميل ومطالبة داخلية للنموذج.",
       "المطالبة الفعلية لا تظهر للعميل لأنها من أسرار المنصة.",
     ],
-    6: [
+    5: [
       "راجع المخرج الظاهر للعميل وليس المطالبة الداخلية.",
       "أعد توليد السيناريو إذا لم يكن مناسبًا قبل توليد الحملة.",
     ],
@@ -1067,9 +1302,21 @@ const styles = `
   border: 1px solid #bfdbfe;
 }
 
+.badge.green {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.badge.neutral {
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
 .step-tabs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -1309,6 +1556,76 @@ const styles = `
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.asset-step-header {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.asset-step-header span {
+  color: #6f746b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.asset-select-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.asset-select-card {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 18px;
+  padding: 13px;
+  text-align: right;
+  display: grid;
+  gap: 8px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.asset-select-card.selected {
+  border-color: #176b2c;
+  background: #fbfdf9;
+  box-shadow: 0 0 0 4px #eef7e9;
+}
+
+.asset-select-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #176b2c;
+  background: #eef7e9;
+}
+
+.asset-select-card strong {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.asset-select-card > span {
+  color: #6f746b;
+  font-size: 12px;
+}
+
+.asset-select-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .upload-box {
@@ -1678,6 +1995,7 @@ const styles = `
   }
 
   .upload-grid,
+  .asset-select-grid,
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1705,6 +2023,7 @@ const styles = `
   .form-grid,
   .form-grid.compact-grid,
   .upload-grid,
+  .asset-select-grid,
   .metrics-grid,
   .brief-grid {
     grid-template-columns: 1fr;
