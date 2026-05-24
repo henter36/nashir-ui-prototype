@@ -240,11 +240,6 @@ export default function DashboardPage({
     <main className="dashboard-grid-page" dir="rtl">
       <style>{styles}</style>
 
-      <section className="prototype-strip">
-        <ShieldCheck size={17} />
-        <span>البيانات المعروضة في هذه اللوحة تجريبية داخل Prototype ولا تمثل تشغيلًا حقيقيًا أو تكاملات فعلية.</span>
-      </section>
-
       <section className="hero">
         <div>
           <div className="kicker">
@@ -252,7 +247,7 @@ export default function DashboardPage({
             مركز قيادة ناشر
           </div>
           <h1>مرحبًا، أحمد 👋</h1>
-          <p>لوحة قيادة للرحلة الأساسية: إعداد المتجر، مصادر البيانات، الحملة، المحتوى، النشر، والتحليلات.</p>
+          <p>ملخص تنفيذي سريع للحملات، المحتوى، جاهزية النشر، والتنبيهات التي تحتاج قرارًا.</p>
         </div>
 
         <div className="hero-actions">
@@ -275,26 +270,6 @@ export default function DashboardPage({
         </div>
       </section>
 
-      <section className="quick-actions-card">
-        <CardHeader
-          title="اختصارات الرحلة الأساسية"
-          description="روابط مباشرة للمسار الذي يجب تثبيته قبل أي تنفيذ حقيقي."
-          icon={ShieldCheck}
-        />
-        <div className="quick-actions-grid">
-          {quickActions.map(([title, description, Icon, onClick]) => (
-            <button key={title} type="button" className="quick-action" onClick={onClick}>
-              <span className="quick-icon"><Icon size={18} /></span>
-              <span>
-                <strong>{title}</strong>
-                <small>{description}</small>
-              </span>
-              <ArrowLeft size={15} />
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section className="kpi-grid">
         {dashboardKpis.map((item) => {
           const Icon = item.icon;
@@ -313,74 +288,13 @@ export default function DashboardPage({
         })}
       </section>
 
-      <section className="top-row">
-        <article className="card next-action-card">
-          <CardHeader
-            title="الأولويات التالية"
-            description="ثلاث قرارات عملية بدل إجراء واحد قد لا يناسب كل حالة."
-            icon={ShieldCheck}
-          />
-
-          <div className="priority-list">
-            {priorities.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className={`priority-row ${item.tone}`}>
-                  <div className="action-icon">
-                    <Icon size={22} />
-                  </div>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.body}</p>
-                  </div>
-                  <button type="button" onClick={item.onClick}>
-                    {item.action}
-                    <ArrowLeft size={15} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-
-        <article className="card readiness-card">
-          <CardHeader
-            title="جاهزية التشغيل"
-            description="العناصر التي تغذي الحملات قبل التوليد أو النشر."
-            icon={Store}
-          />
-
-          <div className="readiness-summary">
-            <div className="ring">{summary.avgReadiness}%</div>
-            <div>
-              <strong>{summary.avgReadiness >= 70 ? "جيد، لكن غير مكتمل" : "يحتاج استكمال"}</strong>
-              <span>المنتجات والمصادر جاهزة مبدئيًا، والأصول تحتاج مراجعة حقوق.</span>
-            </div>
-          </div>
-
-          <div className="compact-list">
-            {[
-              ["إعداد المتجر", `${summary.avgReadiness}%`, summary.avgReadiness >= 70 ? "green" : "amber"],
-              ["كتالوج المنتجات", "4 عناصر", "green"],
-              ["مصادر البيانات", "2 مفحوصة", "green"],
-              ["الأصول", "9 تحتاج مراجعة", "amber"],
-            ].map(([label, value, tone]) => (
-              <InfoRow key={label} label={label} value={value} tone={tone} />
-            ))}
-          </div>
-
-          <div className="split-buttons">
-            <button type="button" className="secondary-button" onClick={onOpenStoreSetup}>إعداد المتجر</button>
-            <button type="button" className="secondary-button" onClick={onOpenDataSources}>مصادر البيانات</button>
-          </div>
-        </article>
-      </section>
+      <SectionTitle title="أداء الحملات" description="آخر الحملات التي تحتاج متابعة أو قرار." />
 
       <section className="middle-row">
         <article className="card campaigns-card">
           <CardHeader
             title="الحملات القريبة"
-            description="آخر الحملات التي تحتاج متابعة أو قرار."
+            description="حالة مختصرة للجاهزية والقناة والتحديث الأخير."
             icon={Megaphone}
             action={
               <button type="button" className="mini-button" onClick={onOpenCampaigns}>
@@ -424,11 +338,13 @@ export default function DashboardPage({
         </article>
       </section>
 
+      <SectionTitle title="المحتوى والنشر" description="جاهزية الأصول والقنوات قبل الانتقال إلى النشر والتحليلات." />
+
       <section className="bottom-row">
         <article className="card small-card">
           <CardHeader
             title="جاهزية الأصول"
-            description="تفصيل مختصر لما يؤثر على قرار النشر."
+            description="ما يؤثر على قرار استخدام الأصول."
             icon={FolderOpen}
           />
 
@@ -449,7 +365,7 @@ export default function DashboardPage({
         <article className="card small-card">
           <CardHeader
             title="النشر والقنوات"
-            description="المرحلة التي تسبق التحليلات بعد اعتماد المحتوى."
+            description="ما قبل الجدولة والتحقق متعدد القنوات."
             icon={Layers}
           />
 
@@ -469,7 +385,7 @@ export default function DashboardPage({
         <article className="card small-card">
           <CardHeader
             title="الأداء والنشاط"
-            description="مؤشرات سريعة لا تستبدل شاشة التحليلات."
+            description="مؤشرات سريعة قبل فتح التحليلات."
             icon={BarChart3}
           />
 
@@ -497,7 +413,103 @@ export default function DashboardPage({
           </button>
         </article>
       </section>
+
+      <SectionTitle title="التنبيهات والتوصيات" description="قرارات تشغيلية تحتاج مراجعة قبل توسيع الحملات." />
+
+      <section className="support-row">
+        <article className="card readiness-card">
+          <CardHeader
+            title="جاهزية التشغيل"
+            description="العناصر التي تغذي الحملات قبل التوليد أو النشر."
+            icon={Store}
+          />
+
+          <div className="readiness-summary">
+            <div className="ring">{summary.avgReadiness}%</div>
+            <div>
+              <strong>{summary.avgReadiness >= 70 ? "جيد، لكن غير مكتمل" : "يحتاج استكمال"}</strong>
+              <span>المنتجات والمصادر جاهزة مبدئيًا، والأصول تحتاج مراجعة حقوق.</span>
+            </div>
+          </div>
+
+          <div className="compact-list">
+            {[
+              ["إعداد المتجر", `${summary.avgReadiness}%`, summary.avgReadiness >= 70 ? "green" : "amber"],
+              ["كتالوج المنتجات", "4 عناصر", "green"],
+              ["مصادر البيانات", "2 مفحوصة", "green"],
+              ["الأصول", "9 تحتاج مراجعة", "amber"],
+            ].map(([label, value, tone]) => (
+              <InfoRow key={label} label={label} value={value} tone={tone} />
+            ))}
+          </div>
+
+          <div className="split-buttons">
+            <button type="button" className="secondary-button" onClick={onOpenStoreSetup}>إعداد المتجر</button>
+            <button type="button" className="secondary-button" onClick={onOpenDataSources}>مصادر البيانات</button>
+          </div>
+        </article>
+
+        <article className="card next-action-card">
+          <CardHeader
+            title="الأولويات التالية"
+            description="ثلاث قرارات عملية بدل إجراء واحد قد لا يناسب كل حالة."
+            icon={ShieldCheck}
+          />
+
+          <div className="priority-list">
+            {priorities.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className={`priority-row ${item.tone}`}>
+                  <div className="action-icon">
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.body}</p>
+                  </div>
+                  <button type="button" onClick={item.onClick}>
+                    {item.action}
+                    <ArrowLeft size={15} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+      </section>
+
+      <section className="quick-actions-card">
+        <CardHeader
+          title="اختصارات الرحلة الأساسية"
+          description="روابط مباشرة لأكثر الشاشات استخدامًا."
+          icon={ShieldCheck}
+        />
+        <div className="quick-actions-grid">
+          {quickActions.map(([title, description, Icon, onClick]) => (
+            <button key={title} type="button" className="quick-action" onClick={onClick}>
+              <span className="quick-icon"><Icon size={18} /></span>
+              <span>
+                <strong>{title}</strong>
+                <small>{description}</small>
+              </span>
+              <ArrowLeft size={15} />
+            </button>
+          ))}
+        </div>
+      </section>
     </main>
+  );
+}
+
+function SectionTitle({ title, description }) {
+  return (
+    <div className="section-title">
+      <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+    </div>
   );
 }
 
@@ -561,37 +573,23 @@ const styles = `
   font-family: Inter, "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
-.prototype-strip,
 .hero,
 .quick-actions-card,
 .kpi-card,
 .card {
   background: #ffffff;
   border: 1px solid #e4e7df;
-  border-radius: 22px;
-  box-shadow: 0 8px 24px rgba(24, 38, 18, 0.032);
-}
-
-.prototype-strip {
-  min-height: 44px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  color: #176b2c;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.7;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(24, 38, 18, 0.028);
 }
 
 .hero {
-  min-height: 126px;
-  padding: 20px;
+  min-height: 112px;
+  padding: 18px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .kicker {
@@ -611,9 +609,9 @@ const styles = `
 
 .hero h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 30px;
   line-height: 1.2;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 .hero p {
@@ -701,8 +699,8 @@ const styles = `
 }
 
 .quick-actions-card {
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: 15px;
+  margin-bottom: 12px;
 }
 
 .quick-actions-grid {
@@ -712,7 +710,7 @@ const styles = `
 }
 
 .quick-action {
-  min-height: 76px;
+  min-height: 68px;
   border: 1px solid #e4e7df;
   background: #f7f8f4;
   border-radius: 18px;
@@ -756,22 +754,22 @@ const styles = `
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .kpi-card {
-  height: 104px;
-  padding: 14px;
+  height: 88px;
+  padding: 12px;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
 }
 
 .kpi-icon {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 14px;
@@ -793,51 +791,69 @@ const styles = `
 
 .kpi-card strong {
   display: block;
-  margin-top: 5px;
-  font-size: 25px;
+  margin-top: 4px;
+  font-size: 22px;
   line-height: 1;
 }
 
 .kpi-card small {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   color: #6f746b;
   font-size: 11px;
   line-height: 1.35;
 }
 
-.top-row {
+.section-title {
+  margin: 14px 2px 8px;
+}
+
+.section-title h2 {
+  margin: 0;
+  color: #1f241d;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.section-title p {
+  margin: 4px 0 0;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.support-row {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
-  gap: 14px;
+  gap: 12px;
   align-items: stretch;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .middle-row,
-.bottom-row { margin-bottom: 14px; }
+.bottom-row { margin-bottom: 12px; }
 
 .bottom-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   align-items: stretch;
 }
 
-.card { padding: 16px; }
-.top-row .card { min-height: 300px; }
-.small-card { min-height: 310px; display: flex; flex-direction: column; }
+.card { padding: 15px; }
+.support-row .card { min-height: 270px; }
+.small-card { min-height: 268px; display: flex; flex-direction: column; }
 
 .card-header {
-  min-height: 58px;
+  min-height: 48px;
   display: flex;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 12px;
   align-items: flex-start;
 }
 
-.card-header h2 { margin: 0; color: #1f241d; font-size: 17px; line-height: 1.35; }
+.card-header h2 { margin: 0; color: #1f241d; font-size: 16px; line-height: 1.35; }
 .card-header p { margin: 5px 0 0; color: #6f746b; font-size: 12px; line-height: 1.7; }
 
 .header-icon {
@@ -854,7 +870,7 @@ const styles = `
 .priority-list { display: grid; gap: 10px; }
 
 .priority-row {
-  min-height: 92px;
+  min-height: 78px;
   border: 1px solid #e4e7df;
   background: #f7f8f4;
   border-radius: 18px;
@@ -900,7 +916,7 @@ const styles = `
 }
 
 .readiness-summary {
-  min-height: 96px;
+  min-height: 84px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -912,8 +928,8 @@ const styles = `
 }
 
 .ring {
-  width: 68px;
-  height: 68px;
+  width: 62px;
+  height: 62px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -947,7 +963,7 @@ const styles = `
 
 .campaign-row {
   width: 100%;
-  min-height: 64px;
+  min-height: 58px;
   display: grid;
   grid-template-columns: minmax(240px, 1.4fr) 130px 130px 115px 95px;
   gap: 10px;
@@ -965,7 +981,7 @@ const styles = `
 .campaign-row:hover { background: #fbfdf9; }
 
 .campaign-main { display: flex; gap: 10px; align-items: center; }
-.campaign-thumb { width: 40px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 13px; color: #176b2c; background: #eef7e9; }
+.campaign-thumb { width: 36px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; color: #176b2c; background: #eef7e9; }
 .campaign-main strong { display: block; color: #1f241d; font-size: 13px; }
 .campaign-main span, .muted { display: block; margin-top: 4px; color: #6f746b; font-size: 11px; }
 
@@ -992,7 +1008,7 @@ const styles = `
 
 .box-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 12px; }
 .compact-metrics { margin-bottom: 8px; }
-.metric-box { min-height: 72px; border: 1px solid #e4e7df; background: #f7f8f4; border-radius: 15px; padding: 11px; }
+.metric-box { min-height: 64px; border: 1px solid #e4e7df; background: #f7f8f4; border-radius: 15px; padding: 10px; }
 .metric-box strong { display: block; margin-top: 6px; color: #1f241d; font-size: 18px; }
 .metric-box.green strong { color: #166534; }
 .metric-box.amber strong { color: #92400e; }
@@ -1007,7 +1023,7 @@ const styles = `
 .activity-row span { display: block; margin-top: 3px; color: #6f746b; font-size: 11px; }
 
 @media (max-width: 1320px) {
-  .top-row,
+  .support-row,
   .bottom-row,
   .quick-actions-grid { grid-template-columns: 1fr; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
