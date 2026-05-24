@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,100 +16,162 @@ import {
   Video,
 } from "lucide-react";
 
+import {
+  getAssetQualityLabel,
+  getAssetRightsLabel,
+  getAssetStatusLabel,
+  getAssetTypeLabel,
+  readAssetLibrary,
+} from "../utils/assetLibraryStore.js";
+
 const assetsSeed = [
   {
     id: "ast-001",
     name: "صورة عطر أرابيان أود الرئيسية",
     type: "image",
-    product: "عطر أرابيان أود",
+    url: "https://store.example/assets/oud-main.jpg",
+    thumbnailUrl: "https://store.example/assets/oud-main-thumb.jpg",
+    linkedType: "product",
+    linkedName: "عطر أرابيان أود",
+    channel: "Instagram",
+    rightsStatus: "allowed",
+    quality: "high",
     usage: ["إطلاق مجموعة الصيف", "خصومات العيد"],
-    status: "approved",
+    status: "ready",
     size: "1.8MB",
     updatedAt: "منذ ساعتين",
     tags: ["منتج", "إعلان", "Instagram"],
+    notes: "صورة رئيسية مناسبة للإعلانات الثابتة.",
   },
   {
     id: "ast-002",
     name: "فيديو قصير لعرض المنتج",
     type: "video",
-    product: "عطر أرابيان أود",
+    url: "https://store.example/assets/oud-short.mp4",
+    thumbnailUrl: "https://store.example/assets/oud-short-thumb.jpg",
+    linkedType: "product",
+    linkedName: "عطر أرابيان أود",
+    channel: "TikTok",
+    rightsStatus: "needs_check",
+    quality: "medium",
     usage: ["إطلاق مجموعة الصيف"],
     status: "review",
     size: "18MB",
     updatedAt: "منذ 6 ساعات",
     tags: ["Reel", "TikTok", "Launch"],
+    notes: "يحتاج تأكيد حقوق الاستخدام قبل النشر.",
   },
   {
     id: "ast-003",
     name: "شعار المتجر PNG",
-    type: "image",
-    product: "Brand",
+    type: "logo",
+    url: "https://store.example/assets/logo.png",
+    thumbnailUrl: "https://store.example/assets/logo-thumb.png",
+    linkedType: "general",
+    linkedName: "Brand",
+    channel: "كل القنوات",
+    rightsStatus: "allowed",
+    quality: "high",
     usage: ["كل الحملات"],
-    status: "approved",
+    status: "ready",
     size: "240KB",
     updatedAt: "منذ يوم",
     tags: ["Logo", "Brand"],
+    notes: "شعار معتمد للاستخدام العام.",
   },
   {
     id: "ast-004",
     name: "وصف المنتج النصي",
-    type: "document",
-    product: "كريم مرطب نيفيا",
+    type: "text",
+    url: "https://store.example/assets/cream-copy.txt",
+    thumbnailUrl: "",
+    linkedType: "product",
+    linkedName: "كريم مرطب نيفيا",
+    channel: "Meta",
+    rightsStatus: "allowed",
+    quality: "medium",
     usage: ["عرض نهاية الأسبوع"],
-    status: "draft",
+    status: "review",
     size: "12KB",
     updatedAt: "منذ يومين",
     tags: ["Copy", "Product"],
+    notes: "نص قابل للمراجعة قبل استخدامه في الحملة.",
   },
 ];
 
 const typeMap = {
   image: { label: "صورة", icon: FileImage },
   video: { label: "فيديو", icon: Video },
-  document: { label: "نص/ملف", icon: FileText },
+  logo: { label: "شعار", icon: FileImage },
+  document: { label: "مستند", icon: FileText },
+  text: { label: "نص", icon: FileText },
+  design: { label: "تصميم", icon: FileImage },
 };
 
 const statusMap = {
-  approved: { label: "معتمد", className: "green" },
+  ready: { label: "جاهز", className: "green" },
   review: { label: "يحتاج مراجعة", className: "amber" },
-  draft: { label: "مسودة", className: "slate" },
+  rejected: { label: "مرفوض", className: "red" },
+  archived: { label: "مؤرشف", className: "slate" },
 };
 
 const filters = [
   ["all", "الكل"],
   ["image", "صور"],
   ["video", "فيديو"],
+  ["logo", "شعارات"],
   ["document", "نصوص/ملفات"],
+  ["text", "نصوص"],
+  ["design", "تصاميم"],
 ];
 
 export default function AssetLibraryPage() {
+  const [assets, setAssets] = useState(() => readAssetLibrary(assetsSeed));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
-  const [selectedId, setSelectedId] = useState(assetsSeed[0].id);
+  const [selectedId, setSelectedId] = useState(() => readAssetLibrary(assetsSeed)[0]?.id || assetsSeed[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const assets = useMemo(() => {
-    return assetsSeed.filter((asset) => {
-      const matchesQuery = `${asset.name} ${asset.product} ${asset.tags.join(" ")}`
+  useEffect(() => {
+    const refreshAssets = () => {
+      const next = readAssetLibrary(assetsSeed);
+      setAssets(next);
+      setSelectedId((current) => current || next[0]?.id || assetsSeed[0].id);
+    };
+
+    window.addEventListener("focus", refreshAssets);
+    window.addEventListener("storage", refreshAssets);
+    window.addEventListener("nashir-asset-library-updated", refreshAssets);
+
+    return () => {
+      window.removeEventListener("focus", refreshAssets);
+      window.removeEventListener("storage", refreshAssets);
+      window.removeEventListener("nashir-asset-library-updated", refreshAssets);
+    };
+  }, []);
+
+  const filteredAssets = useMemo(() => {
+    return assets.filter((asset) => {
+      const matchesQuery = `${asset.name} ${asset.linkedName} ${asset.channel} ${asset.tags.join(" ")}`
         .toLowerCase()
         .includes(query.toLowerCase());
       const matchesFilter = filter === "all" || asset.type === filter;
       return matchesQuery && matchesFilter;
     });
-  }, [query, filter]);
+  }, [assets, query, filter]);
 
-  const selectedAsset = assetsSeed.find((asset) => asset.id === selectedId) || assetsSeed[0];
+  const selectedAsset = assets.find((asset) => asset.id === selectedId) || assets[0] || assetsSeed[0];
 
   const stats = useMemo(() => {
     return {
-      total: assetsSeed.length,
-      images: assetsSeed.filter((item) => item.type === "image").length,
-      videos: assetsSeed.filter((item) => item.type === "video").length,
-      reusable: assetsSeed.filter((item) => item.status === "approved").length,
+      total: assets.length,
+      images: assets.filter((item) => item.type === "image").length,
+      videos: assets.filter((item) => item.type === "video").length,
+      reusable: assets.filter((item) => item.status === "ready").length,
     };
-  }, []);
+  }, [assets]);
 
-  const SelectedIcon = typeMap[selectedAsset.type].icon;
+  const SelectedIcon = typeMap[selectedAsset.type]?.icon || FileText;
 
   return (
     <main className="asset-library-page" dir="rtl">
@@ -145,8 +207,8 @@ export default function AssetLibraryPage() {
           <div className="upload-guidance">
             <AlertTriangle size={18} />
             <p>
-              قبل التخزين الحقيقي نحتاج Backend، صلاحيات، فحص نوع الملف، حد حجم،
-              وفحص أمني للملفات.
+              الرفع الفعلي غير مفعّل حاليًا. هذه الواجهة مخصصة لترتيب معلومات الأصل
+              قبل أي معالجة لاحقة.
             </p>
           </div>
         </section>
@@ -161,10 +223,10 @@ export default function AssetLibraryPage() {
 
       <section className="toolbar-card">
         <div className="search-box">
-          <Search size={17} />
+            <Search size={17} />
           <input
             value={query}
-            placeholder="ابحث باسم الأصل، المنتج، أو الوسوم..."
+            placeholder="ابحث باسم الأصل، الارتباط، أو الوسوم..."
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
@@ -195,13 +257,13 @@ export default function AssetLibraryPage() {
               <h2>الأصول</h2>
               <p>اختر أصلًا لرؤية تفاصيل استخدامه وربطه بالحملات.</p>
             </div>
-            <span>{assets.length} أصل</span>
+            <span>{filteredAssets.length} أصل</span>
           </div>
 
           <div className="asset-grid">
-            {assets.map((asset) => {
-              const Icon = typeMap[asset.type].icon;
-              const status = statusMap[asset.status];
+            {filteredAssets.map((asset) => {
+              const Icon = typeMap[asset.type]?.icon || FileText;
+              const status = statusMap[asset.status] || statusMap.review;
 
               return (
                 <button
@@ -216,11 +278,13 @@ export default function AssetLibraryPage() {
 
                   <div className="asset-body">
                     <strong>{asset.name}</strong>
-                    <span>{asset.product}</span>
+                    <span>{asset.linkedName}</span>
                   </div>
 
                   <div className="asset-meta">
-                    <span className={`status-pill ${status.className}`}>{status.label}</span>
+                    <span className={`status-pill ${status.className}`}>
+                      {getAssetStatusLabel(asset.status)}
+                    </span>
                     <small>{asset.size}</small>
                   </div>
                 </button>
@@ -235,9 +299,16 @@ export default function AssetLibraryPage() {
           </div>
 
           <h2>{selectedAsset.name}</h2>
-          <p>{typeMap[selectedAsset.type].label} · {selectedAsset.product}</p>
+          <p>{getAssetTypeLabel(selectedAsset.type)} · {selectedAsset.linkedName}</p>
 
-          <Info label="الحالة" value={statusMap[selectedAsset.status].label} />
+          <Info label="نوع الأصل" value={getAssetTypeLabel(selectedAsset.type)} />
+          <Info label="رابط الأصل" value={selectedAsset.url || "غير محدد"} />
+          <Info label="صورة مصغرة" value={selectedAsset.thumbnailUrl ? "متاحة" : "غير محددة"} />
+          <Info label="مرتبط بـ" value={selectedAsset.linkedName || "عام"} />
+          <Info label="الحالة" value={getAssetStatusLabel(selectedAsset.status)} />
+          <Info label="حالة الحقوق" value={getAssetRightsLabel(selectedAsset.rightsStatus)} />
+          <Info label="الجودة" value={getAssetQualityLabel(selectedAsset.quality)} />
+          <Info label="القناة" value={selectedAsset.channel || "غير محدد"} />
           <Info label="الحجم" value={selectedAsset.size} />
           <Info label="آخر تحديث" value={selectedAsset.updatedAt} />
 
@@ -277,8 +348,7 @@ export default function AssetLibraryPage() {
           <div className="warning-box">
             <Sparkles size={18} />
             <p>
-              لاحقًا: يجب أن تصبح هذه المكتبة مصدر الأصول للـ Wizard وContent
-              Studio وReview بدل رفع الملفات في كل شاشة.
+              تُستخدم هذه المكتبة لتنظيم الأصول القابلة للمراجعة وإعادة الاستخدام.
             </p>
           </div>
         </aside>
@@ -676,6 +746,11 @@ const styles = `
 .status-pill.amber {
   color: #92400e;
   background: #fffbeb;
+}
+
+.status-pill.red {
+  color: #991b1b;
+  background: #fef2f2;
 }
 
 .status-pill.slate {
