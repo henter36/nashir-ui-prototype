@@ -99,28 +99,6 @@ const outputOptions = [
   "WhatsApp",
 ];
 
-const objectionOptions = [
-  "السعر مرتفع",
-  "غير متأكد من الجودة",
-  "يحتاج معرفة التفاصيل",
-  "يخاف من تأخر التوصيل",
-  "لا يعرف الفرق عن البدائل",
-  "يحتاج ضمان أو سياسة استرجاع",
-  "لا يوجد اعتراض محدد",
-];
-
-const proofOptions = [
-  "تقييمات العملاء",
-  "صور المنتج",
-  "فيديو استخدام المنتج",
-  "ضمان أو استرجاع",
-  "الأكثر مبيعًا",
-  "قبل وبعد",
-  "شهادات وتجارب",
-  "جودة المواد",
-  "لا يوجد إثبات محدد",
-];
-
 const initialProducts = [
   {
     id: "p-1",
@@ -198,36 +176,32 @@ function makeCustomerText({
   cta,
   ageGroup,
   gender,
-  objections,
-  proofs,
   style,
   videoDuration,
 }) {
   const audienceContext = `${ageGroup || "الفئة غير محددة"} · ${gender || "الكل"}`;
-  const objectionContext = objections?.length ? objections.join("، ") : "لا يوجد اعتراض محدد";
-  const proofContext = proofs?.length ? proofs.join("، ") : "لا يوجد إثبات محدد";
 
   if (output.includes("فيديو") || output.includes("Reel")) {
-    return `سيناريو فيديو ${videoDuration} يعرّف بالمنتج "${productName}" ويربطه بهدف "${goal}" لفئة ${audienceContext} بأسلوب ${style}. يعالج: ${objectionContext}. يستند إلى: ${proofContext}. ينتهي بدعوة "${cta}".`;
+    return `سيناريو فيديو ${videoDuration} يعرّف بالمنتج "${productName}" ويربطه بهدف "${goal}" لفئة ${audienceContext} بأسلوب ${style}. سيظهر المنتج بوضوح، ثم يشرح الفائدة الرئيسية، ثم ينتهي بدعوة "${cta}".`;
   }
 
   if (output.includes("صورة") || output.includes("Story") || output.includes("Carousel")) {
-    return `اتجاه بصري عام لمخرج ${output}: إبراز المنتج "${productName}" مع عرض واضح "${offer}" ودعوة "${cta}" وخلفية نظيفة تناسب الهوية. الفئة: ${audienceContext}. الإثباتات: ${proofContext}.`;
+    return `اتجاه بصري عام لمخرج ${output}: إبراز المنتج "${productName}" مع عرض واضح "${offer}" ودعوة "${cta}" وخلفية نظيفة تناسب الهوية. الفئة: ${audienceContext}.`;
   }
 
   if (output.includes("Email")) {
-    return `هيكل بريد تسويقي يفتتح باعتراض "${objectionContext}"، ثم يعرض المنتج "${productName}" وفوائده، ثم يوضح العرض "${offer}" وينتهي بدعوة "${cta}". الفئة: ${audienceContext}.`;
+    return `هيكل بريد تسويقي يفتتح بمناسبة أو فائدة، ثم يعرض المنتج "${productName}" وفوائده، ثم يوضح العرض "${offer}" وينتهي بدعوة "${cta}". الفئة: ${audienceContext}.`;
   }
 
   if (output.includes("WhatsApp")) {
     return `صياغة قصيرة ومباشرة تناسب WhatsApp، تركز على المنتج "${productName}" والعرض "${offer}" مع دعوة "${cta}" دون إطالة.`;
   }
 
-  return `نص تسويقي عام لمخرج ${output} يركز على المنتج "${productName}" والهدف "${goal}" والعرض "${offer}" ودعوة "${cta}"، مع اعتراضات "${objectionContext}" وإثباتات "${proofContext}".`;
+  return `نص تسويقي عام لمخرج ${output} يركز على المنتج "${productName}" والهدف "${goal}" والعرض "${offer}" ودعوة "${cta}" بنبرة واضحة وقابلة للمراجعة.`;
 }
 
-function makeInternalPrompt({ output, productName, goal, offer, cta, ageGroup, gender, objections, proofs, style }) {
-  return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | cta=${cta} | age=${ageGroup} | gender=${gender} | objections=${objections.join(",")} | proofs=${proofs.join(",")} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
+function makeInternalPrompt({ output, productName, goal, offer, cta, ageGroup, gender, style }) {
+  return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | cta=${cta} | age=${ageGroup} | gender=${gender} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
 }
 
 export default function CampaignWizardPage() {
@@ -264,8 +238,6 @@ export default function CampaignWizardPage() {
 
   const [offer, setOffer] = useState("خصم");
   const [cta, setCta] = useState("اطلب الآن");
-  const [objections, setObjections] = useState(["السعر مرتفع", "غير متأكد من الجودة"]);
-  const [proofs, setProofs] = useState(["تقييمات العملاء", "ضمان أو استرجاع"]);
 
   const [ageGroup, setAgeGroup] = useState("25–34");
   const [gender, setGender] = useState("الكل");
@@ -343,8 +315,6 @@ export default function CampaignWizardPage() {
       cta,
       ageGroup,
       gender,
-      objections.length,
-      proofs.length,
       language,
       channels.length,
       outputs.length,
@@ -365,10 +335,8 @@ export default function CampaignWizardPage() {
     gender,
     goal,
     language,
-    objections.length,
     offer,
     outputs.length,
-    proofs.length,
     selectedProductKey,
     startDate,
     style,
@@ -383,8 +351,6 @@ export default function CampaignWizardPage() {
     ["القنوات", channels.join("، ")],
     ["العرض", offer],
     ["دعوة الإجراء", cta],
-    ["الاعتراضات", objections.join("، ")],
-    ["الإثباتات", proofs.join("، ")],
     ["الميزانية", budget],
     ["التواريخ", `${startDate} → ${endDate}`],
     ["المخرجات", outputs.join("، ")],
@@ -455,8 +421,6 @@ export default function CampaignWizardPage() {
       cta,
       ageGroup,
       gender,
-      objections,
-      proofs,
       style,
       videoDuration,
     });
@@ -469,8 +433,6 @@ export default function CampaignWizardPage() {
       cta,
       ageGroup,
       gender,
-      objections,
-      proofs,
       style,
     });
 
@@ -517,8 +479,6 @@ export default function CampaignWizardPage() {
           cta,
           ageGroup,
           gender,
-          objections,
-          proofs,
           style,
           videoDuration,
         }),
@@ -541,8 +501,6 @@ export default function CampaignWizardPage() {
       cta,
       ageGroup,
       gender,
-      objections,
-      proofs,
       selectedAssetCount: selectedAssets.length,
       selectedAssets: selectedAssets.map((asset) => ({
         name: asset.name,
@@ -779,20 +737,6 @@ export default function CampaignWizardPage() {
                   setSelected={setCta}
                 />
 
-                <MultiChoice
-                  title="الاعتراضات"
-                  options={objectionOptions}
-                  selected={objections}
-                  setSelected={setObjections}
-                />
-
-                <MultiChoice
-                  title="الإثباتات"
-                  options={proofOptions}
-                  selected={proofs}
-                  setSelected={setProofs}
-                />
-
                 <ChoiceGroup
                   title="الفئة العمرية"
                   options={ageGroupOptions}
@@ -919,8 +863,6 @@ export default function CampaignWizardPage() {
                         cta,
                         ageGroup,
                         gender,
-                        objections,
-                        proofs,
                         style,
                         videoDuration,
                       }),
@@ -932,8 +874,6 @@ export default function CampaignWizardPage() {
                         cta,
                         ageGroup,
                         gender,
-                        objections,
-                        proofs,
                         style,
                       }),
                       regeneratedAt: "مبدئي",
