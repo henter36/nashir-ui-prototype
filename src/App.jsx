@@ -30,6 +30,7 @@ import TemplateEnginePage from "./pages/TemplateEnginePage.jsx";
 import MultiPlatformPage from "./pages/MultiPlatformPage.jsx";
 import TeamCollaborationPage from "./pages/TeamCollaborationPage.jsx";
 import ContentStudioPage from "./pages/ContentStudioPage.jsx";
+import ContentReviewPreviewUnifiedPage from "./pages/ContentReviewPreviewUnifiedPage.jsx";
 import SystemAdminPage from "./pages/SystemAdminPage.jsx";
 import SecretsAndKeysPage from "./pages/SecretsAndKeysPage.jsx";
 import ModelRoutingPage from "./pages/ModelRoutingPage.jsx";
@@ -92,7 +93,8 @@ export default function App() {
       { id: "campaigns", label: "معالج الحملات", icon: Megaphone, enabled: true },
       { id: "campaignsList", label: "الحملات", icon: Megaphone, enabled: true },
 
-      { id: "content", label: "المحتوى والمراجعة", icon: FileCheck2, enabled: true },
+      { id: "content", label: "المحتوى", icon: FileCheck2, enabled: true },
+      { id: "contentReview", label: "المراجعة والمعاينة", icon: FileCheck2, enabled: true },
       { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
 
       { id: "analytics", label: "التحليلات", icon: BarChart3, enabled: true },
@@ -147,6 +149,7 @@ export default function App() {
   }
 
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
+  if (activeScreen === "contentReview") pageContent = <ContentReviewPreviewUnifiedPage />;
   if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
   if (activeScreen === "analytics") pageContent = <AnalyticsUnifiedPage />;
 
