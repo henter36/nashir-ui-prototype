@@ -303,6 +303,19 @@ export default function CampaignWizardPage() {
     [availableAssets, selectedAssetKeys]
   );
 
+  const productLinkedAssets = useMemo(
+    () => availableAssets.filter((asset) => asset.linkedType === "product" && asset.linkedName === selectedProduct?.name),
+    [availableAssets, selectedProduct?.name]
+  );
+
+  const generalAssets = useMemo(
+    () => availableAssets.filter((asset) => !(asset.linkedType === "product" && asset.linkedName === selectedProduct?.name)),
+    [availableAssets, selectedProduct?.name]
+  );
+
+  const selectedHasImage = selectedAssets.some((asset) => asset.type === "image");
+  const selectedHasVideo = selectedAssets.some((asset) => asset.type === "video");
+
   const readiness = useMemo(() => {
     const checks = [
       campaignName,
@@ -409,7 +422,7 @@ export default function CampaignWizardPage() {
     setAvailableAssets(nextAssets);
     setSelectedAssetKeys((prev) => Array.from(new Set([...prev, asset.id])));
     setAssetDraft({ name: "", type: "image", url: "" });
-    setAssetNotice("تمت إضافة الأصل وربطه بالمنتج المحدد.");
+    setAssetNotice("تمت إضافة الأصل وربطه بالمنتج الحالي. تم ربطه بالمنتج الحالي.");
   };
 
   const regenerateOutputText = (output) => {
@@ -640,40 +653,41 @@ export default function CampaignWizardPage() {
 
               <Notice tone="neutral">
                 اختر الأصول التي ستُستخدم في هذه الحملة. الأصول المرتبطة بالمنتج تظهر أولًا.
+                معالج الحملة يختار من الأصول المتاحة ولا يصبح مالكًا للكتالوج.
               </Notice>
 
               <div className="asset-step-header">
                 <Badge tone="blue">{selectedAssets.length} أصل مختار</Badge>
-                <span>المنتج الحالي: {selectedProduct?.name || "غير محدد"}</span>
+                <span>المنتج المحدد: {selectedProduct?.name || "غير محدد"}</span>
               </div>
 
-              <div className="asset-select-grid">
-                {sortedAssets.map((asset) => {
-                  const isSelected = selectedAssetKeys.includes(asset.id);
-                  const isLinked = asset.linkedType === "product" && asset.linkedName === selectedProduct?.name;
-
-                  return (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      className={`asset-select-card ${isSelected ? "selected" : ""}`}
-                      onClick={() => toggleAssetSelection(asset)}
-                    >
-                      <div className="asset-select-icon">
-                        {asset.type === "video" ? <Video size={22} /> : <ImageIcon size={22} />}
-                      </div>
-                      <strong>{asset.name}</strong>
-                      <span>{asset.linkedName || "عام"}</span>
-                      <div className="asset-select-actions">
-                        {isLinked ? <Badge tone="green">مرتبط بالمنتج</Badge> : null}
-                        <Badge tone={isSelected ? "green" : "neutral"}>
-                          {isSelected ? "مختار" : "اختيار الأصل"}
-                        </Badge>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="asset-readiness-summary">
+                <Info label="المنتج المحدد" value={selectedProduct?.name || "غير محدد"} />
+                <Info label="عدد الأصول المرتبطة بالمنتج" value={String(productLinkedAssets.length)} />
+                <Info label="عدد الأصول المختارة" value={String(selectedAssets.length)} />
+                <Info label="هل يوجد أصل صورة؟" value={selectedHasImage ? "نعم" : "لا"} />
+                <Info label="هل يوجد أصل فيديو؟" value={selectedHasVideo ? "نعم" : "لا"} />
               </div>
+
+              {!productLinkedAssets.length ? (
+                <Notice tone="amber">لا توجد أصول مرتبطة بهذا المنتج. يمكنك رفع أصل جديد وسيتم ربطه بالمنتج الحالي.</Notice>
+              ) : null}
+
+              <AssetSelectionGroup
+                title="أصول مرتبطة بالمنتج الحالي"
+                assets={productLinkedAssets}
+                selectedAssetKeys={selectedAssetKeys}
+                selectedProduct={selectedProduct}
+                onToggle={toggleAssetSelection}
+              />
+
+              <AssetSelectionGroup
+                title="أصول عامة أو غير مرتبطة"
+                assets={generalAssets}
+                selectedAssetKeys={selectedAssetKeys}
+                selectedProduct={selectedProduct}
+                onToggle={toggleAssetSelection}
+              />
 
               <div className="form-grid">
                 <Field
@@ -963,6 +977,63 @@ function Card({ children, className = "" }) {
 
 function Badge({ children, tone = "neutral" }) {
   return <span className={`badge ${tone}`}>{children}</span>;
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="asset-info-cell">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function AssetSelectionGroup({ title, assets, selectedAssetKeys, selectedProduct, onToggle }) {
+  return (
+    <section className="asset-selection-section">
+      <div className="asset-section-title">
+        <h3>{title}</h3>
+        <Badge tone="neutral">{assets.length} أصل</Badge>
+      </div>
+
+      {assets.length ? (
+        <div className="asset-select-grid">
+          {assets.map((asset) => {
+            const isSelected = selectedAssetKeys.includes(asset.id);
+            const isCurrentProduct = asset.linkedType === "product" && asset.linkedName === selectedProduct?.name;
+            const linkLabel = isCurrentProduct
+              ? "مرتبط بالمنتج الحالي"
+              : asset.linkedType === "product"
+                ? "مرتبط بمنتج آخر"
+                : "أصل عام";
+
+            return (
+              <button
+                key={asset.id}
+                type="button"
+                className={`asset-select-card ${isSelected ? "selected" : ""}`}
+                onClick={() => onToggle(asset)}
+              >
+                <div className="asset-select-icon">
+                  {asset.type === "video" ? <Video size={22} /> : <ImageIcon size={22} />}
+                </div>
+                <strong>{asset.name}</strong>
+                <span>{asset.linkedName || "أصل عام"}</span>
+                <div className="asset-select-actions">
+                  <Badge tone={isCurrentProduct ? "green" : "neutral"}>{linkLabel}</Badge>
+                  <Badge tone={isSelected ? "green" : "neutral"}>
+                    {isSelected ? "مختار" : "غير مختار"}
+                  </Badge>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <Notice tone="neutral">لا توجد أصول في هذه المجموعة.</Notice>
+      )}
+    </section>
+  );
 }
 
 function Button({ children, onClick, variant = "primary", disabled = false }) {
@@ -1517,6 +1588,55 @@ const styles = `
   font-weight: 900;
 }
 
+.asset-readiness-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.asset-info-cell {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.asset-info-cell span,
+.asset-info-cell strong {
+  display: block;
+}
+
+.asset-info-cell span {
+  color: #6f746b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.asset-info-cell strong {
+  margin-top: 5px;
+  color: #25301f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.asset-selection-section {
+  margin-bottom: 16px;
+}
+
+.asset-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.asset-section-title h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
 .asset-select-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1935,6 +2055,7 @@ const styles = `
   }
 
   .upload-grid,
+  .asset-readiness-summary,
   .asset-select-grid,
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1963,6 +2084,7 @@ const styles = `
   .form-grid,
   .form-grid.compact-grid,
   .upload-grid,
+  .asset-readiness-summary,
   .asset-select-grid,
   .metrics-grid,
   .brief-grid {

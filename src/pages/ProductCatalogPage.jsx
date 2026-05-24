@@ -312,7 +312,7 @@ export default function ProductCatalogPage() {
           <h1>كتالوج المنتجات</h1>
           <p>
             مركز المنتجات الذي تختار منه الحملات بدل إعادة إدخال المنتج في كل شاشة.
-            كل منتج له جاهزية، أصول، خصائص، وقيود ادعاءات.
+            كتالوج المنتجات يعرّف المنتج ووسائطه لتستخدمها الحملات ومكتبة الأصول بوضوح.
           </p>
         </div>
 
@@ -524,22 +524,22 @@ export default function ProductCatalogPage() {
 
           <Info label="الرابط" value={selectedProduct.url || "غير محدد"} />
           <Info label="التصنيف" value={selectedProduct.category} />
-          <Info label="رابط صورة المنتج" value={hasUrl(selectedProduct.imageUrl) ? "صورة متاحة" : "لا توجد صورة"} />
-          <Info label="رابط فيديو المنتج" value={hasUrl(selectedProduct.videoUrl) ? "فيديو متاح" : "لا يوجد فيديو"} />
+          <Info label="صورة المنتج" value={hasUrl(selectedProduct.imageUrl) ? "صورة متاحة" : "غير محدد"} />
+          <Info label="فيديو المنتج" value={hasUrl(selectedProduct.videoUrl) ? "فيديو متاح" : "غير محدد"} />
           <Info label="المصدر" value={selectedProduct.source} />
           <Info label="الأصول المرتبطة" value={String(selectedProduct.assets)} />
           <Info label="جاهزية الحملات" value={`${selectedProduct.readiness}%`} />
 
           <h3>خصائص المنتج</h3>
           <div className="chips">
-            {selectedProduct.flags.map((flag) => (
+            {(selectedProduct.flags || []).map((flag) => (
               <span key={flag}>{flag}</span>
             ))}
           </div>
 
           <h3>قيود الادعاءات</h3>
           <div className="claim-list">
-            {selectedProduct.claims.map((claim) => (
+            {(selectedProduct.claims || []).map((claim) => (
               <div key={claim}>
                 <AlertTriangle size={15} />
                 {claim}

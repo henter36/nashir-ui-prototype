@@ -734,11 +734,12 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                   fallback.forEach((name, index) => addDetectedProduct(name, index));
                 }}><Plus size={16} /> سحب منتجات مقترحة</Button>
               </div>
+              <Notice>المنتجات المدخلة هنا تظهر في كتالوج المنتجات ومعالج إنشاء الحملة. التصنيف والوسائط تساعد في اقتراح الأصول المناسبة للحملة.</Notice>
               <Notice>هامش الربح اختياري وحساس ولا يجب جعله إلزاميًا في V1. المنتجات المسحوبة من المتجر تحتاج مراجعة قبل استخدامها في الحملات.</Notice>
               <div className="product-manager-grid">
                 <div className="product-form-card">
                   <div className="product-form-head">
-                    <div><h3>{editingProductId ? "تعديل منتج" : "إضافة منتج جديد"}</h3><p>أدخل بيانات المنتج ثم احفظه ليظهر في جدول المنتجات.</p></div>
+                    <div><h3>{editingProductId ? "تعديل منتج" : "إضافة منتج جديد"}</h3><p>أدخل بيانات المنتج ثم احفظه ليظهر في جدول المنتجات وكتالوج المنتجات.</p></div>
                     <Badge tone={editingProductId ? "blue" : "green"}>{editingProductId ? "تعديل" : "جديد"}</Badge>
                   </div>
                   <div className="form-grid">

@@ -152,7 +152,7 @@ export default function AssetLibraryPage() {
 
   const filteredAssets = useMemo(() => {
     return assets.filter((asset) => {
-      const matchesQuery = `${asset.name} ${asset.linkedName} ${asset.channel} ${asset.tags.join(" ")}`
+      const matchesQuery = `${asset.name} ${asset.linkedName} ${asset.channel} ${(asset.tags || []).join(" ")}`
         .toLowerCase()
         .includes(query.toLowerCase());
       const matchesFilter = filter === "all" || asset.type === filter;
@@ -186,7 +186,7 @@ export default function AssetLibraryPage() {
           <h1>مكتبة الأصول</h1>
           <p>
             مركز واحد للصور، الفيديو، الشعار، والنصوص المرجعية حتى لا تتكرر
-            عمليات الرفع داخل كل حملة.
+            عمليات الرفع داخل كل حملة. مكتبة الأصول تحفظ الصور والفيديوهات القابلة للاستخدام.
           </p>
         </div>
 
@@ -278,7 +278,7 @@ export default function AssetLibraryPage() {
 
                   <div className="asset-body">
                     <strong>{asset.name}</strong>
-                    <span>{asset.linkedName}</span>
+                    <span>{getAssetProductLinkLabel(asset)}</span>
                   </div>
 
                   <div className="asset-meta">
@@ -299,23 +299,23 @@ export default function AssetLibraryPage() {
           </div>
 
           <h2>{selectedAsset.name}</h2>
-          <p>{getAssetTypeLabel(selectedAsset.type)} · {selectedAsset.linkedName}</p>
+          <p>{getAssetTypeLabel(selectedAsset.type)} · {getAssetProductLinkLabel(selectedAsset)}</p>
 
           <Info label="نوع الأصل" value={getAssetTypeLabel(selectedAsset.type)} />
           <Info label="رابط الأصل" value={selectedAsset.url || "غير محدد"} />
           <Info label="صورة مصغرة" value={selectedAsset.thumbnailUrl ? "متاحة" : "غير محددة"} />
-          <Info label="مرتبط بـ" value={selectedAsset.linkedName || "عام"} />
+          <Info label="مرتبط بالمنتج" value={getAssetProductLinkLabel(selectedAsset)} />
           <Info label="الحالة" value={getAssetStatusLabel(selectedAsset.status)} />
           <Info label="حالة الحقوق" value={getAssetRightsLabel(selectedAsset.rightsStatus)} />
           <Info label="الجودة" value={getAssetQualityLabel(selectedAsset.quality)} />
-          <Info label="القناة" value={selectedAsset.channel || "غير محدد"} />
+          <Info label="قناة الاستخدام" value={selectedAsset.channel || "غير محدد"} />
           <Info label="الحجم" value={selectedAsset.size} />
           <Info label="آخر تحديث" value={selectedAsset.updatedAt} />
 
           <div className="detail-section">
             <h3>الاستخدام في الحملات</h3>
             <div className="usage-list">
-              {selectedAsset.usage.map((item) => (
+              {(selectedAsset.usage || []).map((item) => (
                 <span key={item}>{item}</span>
               ))}
             </div>
@@ -324,7 +324,7 @@ export default function AssetLibraryPage() {
           <div className="detail-section">
             <h3>الوسوم</h3>
             <div className="tag-list">
-              {selectedAsset.tags.map((tag) => (
+              {(selectedAsset.tags || []).map((tag) => (
                 <span key={tag}>#{tag}</span>
               ))}
             </div>
@@ -378,6 +378,14 @@ function Info({ label, value }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function getAssetProductLinkLabel(asset = {}) {
+  if (asset.linkedType === "product" && asset.linkedName) {
+    return `مرتبط بالمنتج: ${asset.linkedName}`;
+  }
+
+  return "عام / غير مرتبط بمنتج";
 }
 
 const styles = `
