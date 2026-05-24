@@ -423,6 +423,9 @@ const STATUS_META = {
   testing: ["تجريبي", "amber"],
   disabled: ["معطل", "slate"],
   deprecated: ["Deprecated", "red"],
+  ready: ["جاهز", "green"],
+  warning: ["يحتاج ضبط", "amber"],
+  blocked: ["محظور", "red"],
 };
 
 const TABS = [
@@ -453,6 +456,133 @@ function getWorkflowUsageLabel(taskType) {
   return `${usage.length} Workflow · ${stepCount} خطوة`;
 }
 
+function getRouteCostRow(route, costRows = []) {
+  if (!route) return null;
+  const routeKeys = [route.taskType, route.routeId, route.id].filter(Boolean);
+  return costRows.find((row) => routeKeys.includes(row.task) || routeKeys.includes(row.route)) || null;
+}
+
+function buildRouteHealth(route, models = [], costRows = []) {
+  const checks = [];
+  const warnings = [];
+  const blockedReasons = [];
+
+  if (!route) {
+    return {
+      status: "blocked",
+      score: 0,
+      checks: [],
+      warnings: [],
+      blockedReasons: ["لا يوجد مسار محدد."],
+      primaryModel: null,
+      fallbackModels: [],
+      costRow: null,
+      usage: [],
+    };
+  }
+
+  const cost = route.cost || {};
+  const policy = route.policy || {};
+  const governance = route.governance || {};
+  const fallbackModelIds = Array.isArray(route.fallbackModelIds) ? route.fallbackModelIds : [];
+  const primaryModel = models.find((model) => model.id === route.primaryModelId || model.modelId === route.primaryModelId);
+  const fallbackModels = fallbackModelIds
+    .map((id) => models.find((model) => model.id === id || model.modelId === id))
+    .filter(Boolean);
+  const costRow = getRouteCostRow(route, costRows);
+  const usage = getWorkflowUsage(route.taskType);
+  const maxCost = Number(cost.maxCostPerRun ?? costRow?.avgRunCost ?? NaN);
+  const approvalAbove = Number(cost.requireApprovalAboveCost ?? costRow?.approvalAbove ?? NaN);
+  const highCost = Number.isFinite(maxCost) && maxCost >= 1;
+  const riskyTask = ["image_generation", "video_generation", "risk_review"].includes(route.taskType);
+
+  if (primaryModel) {
+    checks.push("النموذج الأساسي موجود.");
+    if (primaryModel.status === "active") {
+      checks.push("النموذج الأساسي نشط.");
+    } else {
+      blockedReasons.push("النموذج الأساسي غير نشط.");
+    }
+  } else {
+    blockedReasons.push("النموذج الأساسي غير موجود.");
+  }
+
+  if (fallbackModelIds.length) {
+    if (fallbackModels.length === fallbackModelIds.length) {
+      checks.push("النماذج البديلة معرفة.");
+    } else {
+      warnings.push("بعض النماذج البديلة غير موجودة.");
+    }
+  } else {
+    warnings.push("لا توجد نماذج بديلة لهذا المسار.");
+  }
+
+  if (route.cost) {
+    checks.push("إعداد التكلفة موجود.");
+  } else {
+    warnings.push("إعداد التكلفة غير مكتمل.");
+  }
+
+  if (cost.maxCostPerRun !== undefined && cost.maxCostPerRun !== "") {
+    checks.push("حد التكلفة محدد.");
+  } else {
+    warnings.push("حد التكلفة غير محدد.");
+  }
+
+  if (cost.requireApprovalAboveCost !== undefined && cost.requireApprovalAboveCost !== "") {
+    checks.push("حد الموافقة محدد.");
+  } else {
+    warnings.push("حد الموافقة غير محدد.");
+  }
+
+  if (Number.isFinite(maxCost) && Number.isFinite(approvalAbove) && maxCost > approvalAbove) {
+    warnings.push("حد التكلفة أعلى من حد الموافقة.");
+  }
+
+  if ((highCost || riskyTask) && !governance.humanReviewRequired) {
+    warnings.push("المراجعة البشرية مطلوبة للمسارات عالية المخاطر أو التكلفة.");
+  } else if (governance.humanReviewRequired) {
+    checks.push("المراجعة البشرية مفعلة.");
+  }
+
+  if (usage.length) {
+    checks.push("مستخدم في التشغيلات.");
+  } else {
+    warnings.push("المسار غير مستخدم في أي تشغيل ظاهر.");
+  }
+
+  if (policy.timeoutSeconds) {
+    checks.push("مهلة التشغيل محددة.");
+  } else {
+    warnings.push("مهلة التشغيل غير محددة.");
+  }
+
+  if (policy.retryOnFailure || fallbackModelIds.length) {
+    checks.push("سياسة retry أو fallback موجودة.");
+  } else {
+    warnings.push("لا توجد سياسة retry أو fallback واضحة.");
+  }
+
+  if (!costRow) {
+    warnings.push("لا يوجد صف تكلفة مرتبط من شاشة التكلفة.");
+  }
+
+  const score = Math.max(0, 100 - blockedReasons.length * 35 - warnings.length * 8);
+  const status = blockedReasons.length ? "blocked" : warnings.length ? "warning" : "ready";
+
+  return {
+    status,
+    score,
+    checks,
+    warnings,
+    blockedReasons,
+    primaryModel,
+    fallbackModels,
+    costRow,
+    usage,
+  };
+}
+
 export default function ModelRoutingPage() {
   const [models, setModels] = useState(() => readModelRegistry(MODEL_REGISTRY_SEED));
   const [routes, setRoutes] = useState(() => readModelRoutes(ROUTES_SEED));
@@ -461,6 +591,7 @@ export default function ModelRoutingPage() {
   const [testTask, setTestTask] = useState("store_reading");
   const [testInput, setTestInput] = useState("https://store.example.com");
   const [testLog, setTestLog] = useState([]);
+  const [costRows, setCostRows] = useState(() => readCostRows([]));
 
   const visibleRoutes = routes.length ? routes : ROUTES_SEED;
   const selectedRoute =
@@ -472,18 +603,21 @@ export default function ModelRoutingPage() {
     const reloadRouting = () => {
       setModels(readModelRegistry(MODEL_REGISTRY_SEED));
       setRoutes(readModelRoutes(ROUTES_SEED));
+      setCostRows(readCostRows([]));
     };
 
     window.addEventListener("focus", reloadRouting);
     window.addEventListener("storage", reloadRouting);
     window.addEventListener("nashir-model-registry-updated", reloadRouting);
     window.addEventListener("nashir-model-routing-updated", reloadRouting);
+    window.addEventListener("nashir-cost-monitor-updated", reloadRouting);
 
     return () => {
       window.removeEventListener("focus", reloadRouting);
       window.removeEventListener("storage", reloadRouting);
       window.removeEventListener("nashir-model-registry-updated", reloadRouting);
       window.removeEventListener("nashir-model-routing-updated", reloadRouting);
+      window.removeEventListener("nashir-cost-monitor-updated", reloadRouting);
     };
   }, []);
 
@@ -550,11 +684,13 @@ export default function ModelRoutingPage() {
   const addFallback = (routeId, modelId) => {
     const route = routes.find((item) => item.id === routeId);
 
-    if (!route || !modelId || route.fallbackModelIds.includes(modelId)) return;
+    const fallbackModelIds = Array.isArray(route?.fallbackModelIds) ? route.fallbackModelIds : [];
+
+    if (!route || !modelId || fallbackModelIds.includes(modelId)) return;
 
     const updatedRoute = {
       ...route,
-      fallbackModelIds: [...route.fallbackModelIds, modelId],
+      fallbackModelIds: [...fallbackModelIds, modelId],
     };
     const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
 
@@ -569,7 +705,7 @@ export default function ModelRoutingPage() {
 
     const updatedRoute = {
       ...route,
-      fallbackModelIds: route.fallbackModelIds.filter((id) => id !== modelId),
+      fallbackModelIds: (route.fallbackModelIds || []).filter((id) => id !== modelId),
     };
     const next = upsertModelRoute(updatedRoute, ROUTES_SEED);
 
@@ -578,27 +714,32 @@ export default function ModelRoutingPage() {
   };
 
   const runTest = () => {
-    const route = routes.find((item) => item.taskType === testTask);
+    const route = visibleRoutes.find((item) => item.taskType === testTask);
     const task = findTask(testTask);
+    const routeHealth = buildRouteHealth(route, models, costRows);
     const primary = route ? modelName(models, route.primaryModelId) : "غير محدد";
     const fallback = route?.fallbackModelIds?.length
       ? route.fallbackModelIds.map((id) => modelName(models, id)).join(" → ")
       : "لا يوجد";
 
     const estimatedCost = route?.cost?.maxCostPerRun || "0.00";
-    const routeBlocked = !route || route.governance.blockAutoPublish !== true;
+    const routeBlocked = !route || routeHealth.status === "blocked";
+    const routeNeedsTuning = routeHealth.status === "warning";
 
     setTestLog((prev) => [
       {
         id: Date.now(),
         task: task?.[1] || testTask,
-        status: routeBlocked ? "warning" : "success",
+        status: routeBlocked || routeNeedsTuning ? "warning" : "success",
         input: testInput,
         primary,
         fallback,
         estimatedCost,
+        routeHealth: routeHealth.status,
         message: routeBlocked
-          ? "المسار يحتاج مراجعة حوكمة أو غير موجود."
+          ? "المسار محظور بسبب جاهزية غير مكتملة."
+          : routeNeedsTuning
+            ? "المسار يحتاج ضبطًا قبل الاعتماد الكامل."
           : "تمت محاكاة التوجيه بنجاح. لم يتم استدعاء أي نموذج فعلي.",
         time: "الآن",
       },
@@ -742,10 +883,12 @@ export default function ModelRoutingPage() {
                 <span>الاستخدام</span>
                 <span>المراجعة</span>
                 <span>التكلفة</span>
+                <span>جاهزية المسار</span>
               </div>
 
               {visibleRoutes.map((route) => {
                 const task = findTask(route.taskType);
+                const health = buildRouteHealth(route, models, costRows);
                 return (
                   <button
                     key={route.id}
@@ -755,14 +898,15 @@ export default function ModelRoutingPage() {
                   >
                     <span>
                       <strong>{task?.[1] || route.taskType}</strong>
-                      <small>{route.taskType}</small>
+                      <small>{task?.[2] || "تشغيلي"}</small>
                     </span>
                     <span>{task?.[2] || "—"}</span>
                     <span>{modelName(models, route.primaryModelId)}</span>
-                    <span>{route.fallbackModelIds.length}</span>
+                    <span>{(route.fallbackModelIds || []).length}</span>
                     <span>{getWorkflowUsageLabel(route.taskType)}</span>
-                    <span>{route.governance.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"}</span>
-                    <span>{route.cost.maxCostPerRun}$ / run</span>
+                    <span>{route.governance?.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"}</span>
+                    <span>{route.cost?.maxCostPerRun || "—"}$ / run</span>
+                    <RouteHealthBadge status={health.status} />
                   </button>
                 );
               })}
@@ -804,26 +948,27 @@ export default function ModelRoutingPage() {
             </div>
 
             <WorkflowUsagePanel route={selectedRoute} />
+            <RouteHealthPanel route={selectedRoute} models={models} costRows={costRows} />
 
             <div className="editor-grid">
               <Field
                 label="Max retries"
-                value={selectedRoute.policy.maxRetries}
+                value={selectedRoute.policy?.maxRetries || 0}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "maxRetries", Number(value))}
               />
               <Field
                 label="Timeout seconds"
-                value={selectedRoute.policy.timeoutSeconds}
+                value={selectedRoute.policy?.timeoutSeconds || 0}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "timeoutSeconds", Number(value))}
               />
               <Field
                 label="Max cost/run"
-                value={selectedRoute.cost.maxCostPerRun}
+                value={selectedRoute.cost?.maxCostPerRun || ""}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "cost", "maxCostPerRun", value)}
               />
               <Field
                 label="Monthly budget"
-                value={selectedRoute.cost.monthlyBudgetLimit}
+                value={selectedRoute.cost?.monthlyBudgetLimit || ""}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "cost", "monthlyBudgetLimit", value)}
               />
             </div>
@@ -831,32 +976,32 @@ export default function ModelRoutingPage() {
             <div className="toggle-list">
               <Toggle
                 label="Use cheapest first"
-                checked={selectedRoute.policy.useCheapestFirst}
+                checked={Boolean(selectedRoute.policy?.useCheapestFirst)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "useCheapestFirst", value)}
               />
               <Toggle
                 label="Use best quality"
-                checked={selectedRoute.policy.useBestQuality}
+                checked={Boolean(selectedRoute.policy?.useBestQuality)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "useBestQuality", value)}
               />
               <Toggle
                 label="Retry on failure"
-                checked={selectedRoute.policy.retryOnFailure}
+                checked={Boolean(selectedRoute.policy?.retryOnFailure)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "retryOnFailure", value)}
               />
               <Toggle
                 label="Human review required"
-                checked={selectedRoute.governance.humanReviewRequired}
+                checked={Boolean(selectedRoute.governance?.humanReviewRequired)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "humanReviewRequired", value)}
               />
               <Toggle
                 label="Block auto publish"
-                checked={selectedRoute.governance.blockAutoPublish}
+                checked={Boolean(selectedRoute.governance?.blockAutoPublish)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "blockAutoPublish", value)}
               />
               <Toggle
                 label="Redact sensitive data"
-                checked={selectedRoute.governance.redactSensitiveData}
+                checked={Boolean(selectedRoute.governance?.redactSensitiveData)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "redactSensitiveData", value)}
               />
             </div>
@@ -881,7 +1026,7 @@ export default function ModelRoutingPage() {
                   <h3>{task?.[1]}</h3>
                   <div className="fallback-chain">
                     <span>{modelName(models, route.primaryModelId)}</span>
-                    {route.fallbackModelIds.map((modelId) => (
+                    {(route.fallbackModelIds || []).map((modelId) => (
                       <React.Fragment key={modelId}>
                         <b>→</b>
                         <span>{modelName(models, modelId)}</span>
@@ -893,8 +1038,8 @@ export default function ModelRoutingPage() {
                     <span>{getWorkflowUsageLabel(route.taskType)}</span>
                   </div>
                   <p>
-                    {route.policy.retryOnFailure ? "Retry مفعّل" : "Retry غير مفعّل"} ·{" "}
-                    {route.cost.maxCostPerRun}$ كحد أقصى للتشغيل
+                    {route.policy?.retryOnFailure ? "Retry مفعّل" : "Retry غير مفعّل"} ·{" "}
+                    {route.cost?.maxCostPerRun || "—"}$ كحد أقصى للتشغيل
                   </p>
                 </article>
               );
@@ -915,14 +1060,18 @@ export default function ModelRoutingPage() {
           <div className="cost-grid">
             {routes.map((route) => {
               const task = findTask(route.taskType);
-              const highCost = Number(route.cost.maxCostPerRun) >= 1;
+              const highCost = Number(route.cost?.maxCostPerRun || 0) >= 1;
+              const health = buildRouteHealth(route, models, costRows);
               return (
                 <article key={route.id} className={`cost-card ${highCost ? "high" : ""}`}>
-                  <h3>{task?.[1]}</h3>
-                  <Info label="Max cost/run" value={`${route.cost.maxCostPerRun}$`} />
-                  <Info label="Monthly budget" value={`${route.cost.monthlyBudgetLimit}$`} />
-                  <Info label="Approval above" value={`${route.cost.requireApprovalAboveCost}$`} />
-                  <Info label="Timeout" value={`${route.policy.timeoutSeconds}s`} />
+                  <div className="cost-card-head">
+                    <h3>{task?.[1]}</h3>
+                    <RouteHealthBadge status={health.status} />
+                  </div>
+                  <Info label="Max cost/run" value={`${route.cost?.maxCostPerRun || "—"}$`} />
+                  <Info label="Monthly budget" value={`${route.cost?.monthlyBudgetLimit || "—"}$`} />
+                  <Info label="Approval above" value={`${route.cost?.requireApprovalAboveCost || "—"}$`} />
+                  <Info label="Timeout" value={`${route.policy?.timeoutSeconds || "—"}s`} />
                 </article>
               );
             })}
@@ -973,6 +1122,7 @@ export default function ModelRoutingPage() {
                     <small>Primary: {log.primary}</small>
                     <small>Fallback: {log.fallback}</small>
                     <small>Estimated max cost: {log.estimatedCost}$</small>
+                    <small>جاهزية المسار: {getRouteHealthLabel(log.routeHealth)}</small>
                     <small>{log.time}</small>
                   </div>
                 ))
@@ -989,13 +1139,13 @@ export default function ModelRoutingPage() {
 
 
 function WorkflowUsagePanel({ route }) {
-  const usage = getWorkflowUsage(route.taskType);
+  const usage = getWorkflowUsage(route?.taskType);
 
   return (
     <section className={`workflow-usage-box ${usage.length ? "linked" : "orphan"}`}>
       <div className="usage-box-head">
         <ListChecks size={16} />
-        <strong>Workflow Usage</strong>
+        <strong>مستخدم في التشغيلات</strong>
       </div>
 
       {usage.length ? (
@@ -1004,11 +1154,11 @@ function WorkflowUsagePanel({ route }) {
             <div key={`${item.workflowId}-${item.taskType}`} className="usage-item">
               <div>
                 <strong>{item.workflow}</strong>
-                <span>{item.source} · {item.workflowId}</span>
+                <span>{item.source} · {item.steps.length} خطوة</span>
               </div>
               <div className="usage-steps">
-                {item.steps.map((step) => (
-                  <code key={step}>{step}</code>
+                {item.steps.map((step, index) => (
+                  <code key={step}>خطوة {index + 1}</code>
                 ))}
               </div>
             </div>
@@ -1022,6 +1172,73 @@ function WorkflowUsagePanel({ route }) {
           </span>
         </div>
       )}
+    </section>
+  );
+}
+
+function getRouteHealthLabel(status) {
+  const labels = {
+    ready: "جاهز",
+    warning: "يحتاج ضبط",
+    blocked: "محظور",
+  };
+
+  return labels[status] || "يحتاج ضبط";
+}
+
+function RouteHealthBadge({ status }) {
+  return <span className={`route-health-badge ${status}`}>{getRouteHealthLabel(status)}</span>;
+}
+
+function RouteHealthPanel({ route, models, costRows }) {
+  const health = buildRouteHealth(route, models, costRows);
+  const fallbackCount = Array.isArray(route?.fallbackModelIds) ? route.fallbackModelIds.length : 0;
+  const maxCost = route?.cost?.maxCostPerRun || health.costRow?.avgRunCost || "غير محدد";
+  const approvalAbove = route?.cost?.requireApprovalAboveCost || health.costRow?.approvalAbove || "غير محدد";
+
+  return (
+    <section className={`route-health-panel ${health.status}`}>
+      <div className="route-health-head">
+        <div>
+          <strong>جاهزية المسار</strong>
+          <span>{getRouteHealthLabel(health.status)} · {health.score}%</span>
+        </div>
+        <RouteHealthBadge status={health.status} />
+      </div>
+
+      <div className="route-health-grid">
+        <Info label="النموذج الأساسي" value={health.primaryModel?.displayName || "غير محدد"} />
+        <Info label="النماذج البديلة" value={`${fallbackCount}`} />
+        <Info label="حد التكلفة" value={`$${maxCost}`} />
+        <Info label="حد الموافقة" value={`$${approvalAbove}`} />
+        <Info label="المراجعة البشرية" value={route?.governance?.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"} />
+        <Info label="مستخدم في التشغيلات" value={health.usage.length ? `${health.usage.length} مسار` : "غير مستخدم"} />
+      </div>
+
+      {health.blockedReasons.length ? (
+        <div className="health-notes blocked-notes">
+          <strong>أسباب الحظر</strong>
+          {health.blockedReasons.map((reason) => (
+            <span key={reason}>{reason}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {health.warnings.length ? (
+        <div className="health-notes warning-notes">
+          <strong>تحذيرات</strong>
+          {health.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="health-notes check-notes">
+        <strong>الفحوصات</strong>
+        {health.checks.slice(0, 5).map((check) => (
+          <span key={check}>{check}</span>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1420,7 +1637,7 @@ const styles = `
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) 130px 170px 80px 130px 110px 100px;
+  grid-template-columns: minmax(210px, 1.35fr) 120px 155px 70px 120px 95px 90px 105px;
   gap: 10px;
   align-items: center;
   padding: 13px 14px;
@@ -1511,6 +1728,116 @@ const styles = `
   color: #6f746b;
   font-size: 12px;
   margin-top: 3px;
+}
+
+.route-health-panel {
+  border: 1px solid #d9ead7;
+  background: #fbfdf9;
+  border-radius: 18px;
+  padding: 12px;
+  margin: 14px 0;
+}
+
+.route-health-panel.warning {
+  border-color: #fde68a;
+  background: #fffaf0;
+}
+
+.route-health-panel.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.route-health-head,
+.cost-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.route-health-head strong {
+  display: block;
+  color: #1f241d;
+  font-size: 14px;
+}
+
+.route-health-head span {
+  display: block;
+  margin-top: 4px;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.route-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.route-health-badge {
+  width: fit-content;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.route-health-badge.ready {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.route-health-badge.warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.route-health-badge.blocked {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.health-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.health-notes strong {
+  display: block;
+  color: #1f241d;
+  font-size: 12px;
+}
+
+.health-notes span {
+  border-radius: 12px;
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.blocked-notes span {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.warning-notes span {
+  color: #92400e;
+  background: #ffedd5;
+}
+
+.check-notes span {
+  color: #166534;
+  background: #ecfdf5;
 }
 
 .usage-steps {
