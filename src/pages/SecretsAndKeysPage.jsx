@@ -725,7 +725,7 @@ export default function SecretsAndKeysPage() {
   const [selectedProviderId, setSelectedProviderId] = useState(initialProviders[0].id);
   const [draftPreset, setDraftPreset] = useState("openai");
   const [query, setQuery] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [viewMode, setViewMode] = useState("list");
   const [testLog, setTestLog] = useState([]);
 
   const selectedProvider =
@@ -801,7 +801,7 @@ export default function SecretsAndKeysPage() {
     const next = createProviderFromPreset(draftPreset);
     setProviders((prev) => [next, ...prev]);
     setSelectedProviderId(next.id);
-    setDrawerOpen(true);
+    setViewMode("editor");
   };
 
   const removeProvider = (id) => {
@@ -810,6 +810,7 @@ export default function SecretsAndKeysPage() {
     setProviders(next);
     if (selectedProviderId === id) {
       setSelectedProviderId(next[0].id);
+      if (viewMode === "editor") setViewMode("list");
     }
   };
 
@@ -830,6 +831,7 @@ export default function SecretsAndKeysPage() {
 
     setProviders((prev) => [copy, ...prev]);
     setSelectedProviderId(copy.id);
+    setViewMode("editor");
   };
 
   const validateProvider = (provider) => {
@@ -979,48 +981,53 @@ export default function SecretsAndKeysPage() {
         </div>
       </section>
 
-      <section className="stats-grid">
-        <Stat title="إجمالي المزودين" value={stats.total} icon={Bot} tone="blue" />
-        <Stat title="متصل" value={stats.connected} icon={CheckCircle2} tone="green" />
-        <Stat title="حقول ناقصة" value={stats.missing} icon={AlertTriangle} tone="amber" />
-        <Stat title="نشر تلقائي مخالف" value={stats.autoPublishUnsafe} icon={Lock} tone="red" />
-      </section>
+      {viewMode === "list" ? (
+        <>
+          <section className="stats-grid">
+            <Stat title="إجمالي المزودين" value={stats.total} icon={Bot} tone="blue" />
+            <Stat title="متصل" value={stats.connected} icon={CheckCircle2} tone="green" />
+            <Stat title="حقول ناقصة" value={stats.missing} icon={AlertTriangle} tone="amber" />
+            <Stat title="نشر تلقائي مخالف" value={stats.autoPublishUnsafe} icon={Lock} tone="red" />
+          </section>
 
-      <section className="toolbar-card">
-        <div className="search-box">
-          <Search size={17} />
-          <input
-            value={query}
-            placeholder="ابحث باسم المزود أو النوع..."
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
+          <section className="toolbar-card">
+            <div className="search-box">
+              <Search size={17} />
+              <input
+                value={query}
+                placeholder="ابحث باسم المزود أو النوع..."
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
 
-        <div className="add-provider-inline">
-          <select value={draftPreset} onChange={(event) => setDraftPreset(event.target.value)}>
-            {PROVIDER_TYPES.map(([id, label]) => (
-              <option key={id} value={id}>{label}</option>
-            ))}
-          </select>
+            <div className="add-provider-inline">
+              <select value={draftPreset} onChange={(event) => setDraftPreset(event.target.value)}>
+                {PROVIDER_TYPES.map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
 
-          <button type="button" className="secondary-button" onClick={addProvider}>
-            <Plus size={16} />
-            إضافة من إعداد جاهز
-          </button>
-        </div>
-      </section>
+              <button type="button" className="secondary-button" onClick={addProvider}>
+                <Plus size={16} />
+                إضافة من إعداد جاهز
+              </button>
+            </div>
+          </section>
+        </>
+      ) : null}
 
-      <section className="main-layout">
-        <article className="providers-table-card">
+      <section className={`main-layout ${viewMode === "editor" ? "editor-layout" : "list-layout"}`}>
+        {viewMode === "list" ? (
+          <article className="providers-table-card">
           <div className="card-header">
             <div>
-              <h2>جدول المزودين</h2>
+              <h2>قائمة المزودين</h2>
               <p>كل مزود يستخدم نفس النموذج، مع حقول مطلوبة حسب نوعه.</p>
             </div>
 
-            <button type="button" className="secondary-button" onClick={() => setDrawerOpen((value) => !value)}>
-              <SlidersHorizontal size={16} />
-              {drawerOpen ? "إخفاء النموذج" : "إظهار النموذج"}
+            <button type="button" className="secondary-button" onClick={addProvider}>
+              <Plus size={16} />
+              إضافة مزود
             </button>
           </div>
 
@@ -1029,8 +1036,9 @@ export default function SecretsAndKeysPage() {
               <span>المزود</span>
               <span>النوع</span>
               <span>الحالة</span>
-              <span>النموذج</span>
-              <span>الميزانية</span>
+              <span>النماذج</span>
+              <span>قناة الوصول</span>
+              <span>البيئة</span>
               <span>القدرات</span>
               <span>جاهزية المزود</span>
               <span>الإجراءات</span>
@@ -1043,7 +1051,7 @@ export default function SecretsAndKeysPage() {
                 selected={provider.id === selectedProvider.id}
                 onSelect={() => {
                   setSelectedProviderId(provider.id);
-                  setDrawerOpen(true);
+                  setViewMode("editor");
                 }}
                 onTest={() => testConnection(provider)}
                 onRotate={() => rotateKey(provider)}
@@ -1052,18 +1060,19 @@ export default function SecretsAndKeysPage() {
               />
             ))}
           </div>
-        </article>
+          </article>
+        ) : null}
 
-        {drawerOpen ? (
-          <aside className="drawer-card">
+        {viewMode === "editor" ? (
+          <aside className="drawer-card editor-card">
+            <button type="button" className="back-button" onClick={() => setViewMode("list")}>
+              العودة إلى قائمة المزودين
+            </button>
             <div className="drawer-header">
               <div>
-                <h2>نموذج المزود الموحد</h2>
-                <p>{selectedProvider.displayName}</p>
+                <h2>{selectedProvider.status === "draft" ? "إضافة مزود" : "تعديل مزود"}</h2>
+                <p>نموذج المزود الموحد · {selectedProvider.displayName}</p>
               </div>
-              <button type="button" onClick={() => setDrawerOpen(false)}>
-                <X size={18} />
-              </button>
             </div>
 
             <ProviderReadinessSummary provider={selectedProvider} />
@@ -1385,13 +1394,7 @@ function ProviderRow({
   const capabilities = Object.entries(normalizeCapabilities(provider.capabilities))
     .filter(([, enabled]) => enabled)
     .map(([key]) => capabilityLabel(key));
-
-  const defaultModel =
-    provider.textModel ||
-    provider.imageModel ||
-    provider.videoModel ||
-    provider.embeddingModel ||
-    "—";
+  const configuredModelCount = getConfiguredModels(provider).length;
 
   return (
     <div className={`table-row ${selected ? "selected" : ""}`}>
@@ -1409,9 +1412,11 @@ function ProviderRow({
 
       <span className={`status-badge ${statusTone}`}>{statusText}</span>
 
-      <span className="model-cell">{defaultModel}</span>
+      <span className="model-cell">{configuredModelCount ? `${configuredModelCount} نماذج` : "غير مهيأة"}</span>
 
-      <span>{provider.limits?.monthlyHardLimit || "—"}</span>
+      <span>{getOptionLabel(DELIVERY_CHANNELS, provider.deliveryChannel)}</span>
+
+      <span>{getOptionLabel(ENVIRONMENTS, provider.environment)}</span>
 
       <div className="capability-pills">
         {capabilities.slice(0, 3).map((capability) => (
@@ -1423,7 +1428,8 @@ function ProviderRow({
       <ReadinessBadge status={readiness.status} />
 
       <div className="row-actions">
-        <button type="button" onClick={onSelect}>تعديل</button>
+        <button type="button" onClick={onSelect}>فتح الإعداد</button>
+        <button type="button" onClick={onSelect}>تعديل مزود</button>
         <button type="button" onClick={onTest}>اختبار</button>
         <button type="button" onClick={onRotate}>تدوير</button>
         <button type="button" onClick={onDuplicate}>نسخ</button>
@@ -1914,9 +1920,14 @@ const styles = `
 
 .main-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 460px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+.editor-layout {
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
 .providers-table-card,
@@ -1969,7 +1980,7 @@ const styles = `
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.1fr) 85px 95px 135px 75px 145px 105px 240px;
+  grid-template-columns: minmax(210px, 1.2fr) 80px 95px 105px 120px 80px 145px 105px 240px;
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
@@ -2137,10 +2148,24 @@ const styles = `
 }
 
 .drawer-card {
-  position: sticky;
-  top: 96px;
-  max-height: calc(100vh - 120px);
-  overflow: auto;
+  overflow: visible;
+}
+
+.editor-card {
+  width: 100%;
+}
+
+.back-button {
+  min-height: 40px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 14px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  margin-bottom: 14px;
 }
 
 .form-grid {
