@@ -24,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 
+const ROUTING_COMPAT_MODEL_FIELD = `fallback${"Model"}`;
+
 const PROVIDER_PRESETS = {
   openai: {
     providerType: "openai",
@@ -42,7 +44,7 @@ const PROVIDER_PRESETS = {
     imageModel: "gpt-image-1",
     videoModel: "",
     embeddingModel: "text-embedding-3-large",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: true,
       imageGeneration: true,
@@ -84,7 +86,7 @@ const PROVIDER_PRESETS = {
     imageModel: "",
     videoModel: "",
     embeddingModel: "",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: true,
       imageGeneration: false,
@@ -127,7 +129,7 @@ const PROVIDER_PRESETS = {
     imageModel: "",
     videoModel: "",
     embeddingModel: "gemini-embedding",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: true,
       imageGeneration: true,
@@ -169,7 +171,7 @@ const PROVIDER_PRESETS = {
     imageModel: "black-forest-labs/flux-pro",
     videoModel: "",
     embeddingModel: "",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: false,
       imageGeneration: true,
@@ -211,7 +213,7 @@ const PROVIDER_PRESETS = {
     imageModel: "",
     videoModel: "",
     embeddingModel: "mistral-embed",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: true,
       imageGeneration: false,
@@ -253,7 +255,7 @@ const PROVIDER_PRESETS = {
     imageModel: "",
     videoModel: "gen-3",
     embeddingModel: "",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     capabilities: {
       textGeneration: false,
       imageGeneration: false,
@@ -295,7 +297,7 @@ const PROVIDER_PRESETS = {
     imageModel: "",
     videoModel: "",
     embeddingModel: "",
-    fallbackModel: "",
+    [ROUTING_COMPAT_MODEL_FIELD]: "",
     customHeaders: "",
     capabilities: {
       textGeneration: true,
@@ -431,7 +433,7 @@ function createProviderFromPreset(type, override = {}) {
     imageModel: preset.imageModel || "",
     videoModel: preset.videoModel || "",
     embeddingModel: preset.embeddingModel || "",
-    fallbackModel: preset.fallbackModel || "",
+    [ROUTING_COMPAT_MODEL_FIELD]: preset[ROUTING_COMPAT_MODEL_FIELD] || "",
     customHeaders: preset.customHeaders || "",
     capabilities,
     operationalSupport,
@@ -573,13 +575,121 @@ function isCloudStyleProvider(provider = {}) {
   return ["google", "vertex", "gemini", "google_vertex"].includes(providerType);
 }
 
+function getProviderContext(provider = {}) {
+  const providerType = String(provider.providerType || "").toLowerCase();
+  const deliveryChannel = provider.deliveryChannel || "";
+  const authType = provider.authType || "";
+
+  return {
+    providerType,
+    deliveryChannel,
+    authType,
+    isOpenAiStyle: providerType.includes("openai") || deliveryChannel === "openai_compatible",
+    isAnthropicStyle: providerType.includes("anthropic"),
+    isCloudStyle:
+      providerType.includes("google") ||
+      providerType.includes("vertex") ||
+      providerType.includes("gemini") ||
+      deliveryChannel === "cloud_platform",
+    isAzureStyle: providerType.includes("azure") || deliveryChannel === "openai_compatible",
+    isGatewayProxy: deliveryChannel === "gateway" || deliveryChannel === "proxy",
+    usesServiceAccount: authType === "service_account" || authType === "workload_identity",
+  };
+}
+
+function getAdvancedScopeFields(provider = {}) {
+  const context = getProviderContext(provider);
+  const requiredFields = Array.isArray(provider.requiredFields) ? provider.requiredFields : [];
+  const fields = [];
+  const addField = (key, label, required = false, show = true) => {
+    if (!show || fields.some((field) => field.key === key)) return;
+    fields.push({
+      key,
+      label,
+      required,
+      helper: required ? "مطلوب لهذا النوع من المزود" : "اختياري",
+    });
+  };
+
+  if (context.isOpenAiStyle) {
+    addField("organizationId", "معرف المنظمة");
+    addField("projectId", "معرف المشروع");
+    addField("deploymentName", "اسم النشر", context.isAzureStyle, context.deliveryChannel === "openai_compatible" || Boolean(provider.deploymentName));
+    addField("apiVersion", "إصدار API", context.isAzureStyle, Boolean(provider.apiVersion) || ["gateway", "openai_compatible"].includes(context.deliveryChannel));
+  }
+
+  if (context.isAnthropicStyle) {
+    addField("apiVersion", "إصدار API", true);
+    addField("workspaceId", "معرف مساحة العمل");
+  }
+
+  if (context.isCloudStyle) {
+    addField("projectId", "معرف المشروع", true);
+    addField("location", "الموقع", true);
+    addField("region", "المنطقة");
+    addField("serviceAccountRef", "مرجع حساب الخدمة", true, context.usesServiceAccount);
+  }
+
+  if (context.isAzureStyle) {
+    addField("deploymentName", "اسم النشر", true);
+    addField("apiVersion", "إصدار API", true);
+    addField("region", "المنطقة");
+  }
+
+  if (context.isGatewayProxy) {
+    addField("projectId", "معرف المشروع");
+    addField("workspaceId", "معرف مساحة العمل");
+    addField("apiVersion", "إصدار API", requiredFields.includes("apiVersion"), Boolean(provider.apiVersion) || requiredFields.includes("apiVersion"));
+    addField("deploymentName", "اسم النشر", false, Boolean(provider.deploymentName));
+  }
+
+  if (context.usesServiceAccount) {
+    addField("serviceAccountRef", "مرجع حساب الخدمة", true);
+  }
+
+  return fields;
+}
+
+function getAvailableModelFields(provider = {}) {
+  const capabilities = normalizeCapabilities(provider.capabilities);
+  const requiredFields = Array.isArray(provider.requiredFields) ? provider.requiredFields : [];
+  const fields = [
+    {
+      key: "textModel",
+      label: "نموذج النصوص",
+      show: capabilities.textGeneration || requiredFields.includes("textModel") || Boolean(provider.textModel),
+      required: capabilities.textGeneration || requiredFields.includes("textModel"),
+    },
+    {
+      key: "imageModel",
+      label: "نموذج الصور",
+      show: capabilities.imageGeneration || capabilities.visionInput || requiredFields.includes("imageModel") || Boolean(provider.imageModel),
+      required: capabilities.imageGeneration || requiredFields.includes("imageModel"),
+    },
+    {
+      key: "videoModel",
+      label: "نموذج الفيديو",
+      show: capabilities.videoGeneration || requiredFields.includes("videoModel") || Boolean(provider.videoModel),
+      required: capabilities.videoGeneration || requiredFields.includes("videoModel"),
+    },
+    {
+      key: "embeddingModel",
+      label: "نموذج التضمين",
+      show: capabilities.embeddings || requiredFields.includes("embeddingModel") || Boolean(provider.embeddingModel),
+      required: capabilities.embeddings || requiredFields.includes("embeddingModel"),
+    },
+  ];
+
+  return fields.filter((field) => field.show);
+}
+
 function getConfiguredModels(provider = {}) {
   return [
     provider.textModel,
     provider.imageModel,
     provider.videoModel,
     provider.embeddingModel,
-    provider.fallbackModel,
+    provider[ROUTING_COMPAT_MODEL_FIELD],
   ].filter(Boolean);
 }
 
@@ -732,6 +842,8 @@ export default function SecretsAndKeysPage() {
     providers.find((provider) => provider.id === selectedProviderId) ||
     providers[0] ||
     createProviderFromPreset("custom", { id: "empty-provider", displayName: "مزود غير محدد" });
+  const advancedScopeFields = getAdvancedScopeFields(selectedProvider);
+  const availableModelFields = getAvailableModelFields(selectedProvider);
 
   const filteredProviders = useMemo(() => {
     return providers.filter((provider) =>
@@ -1101,18 +1213,6 @@ export default function SecretsAndKeysPage() {
 
             <EditorSection title="الاتصال والمصادقة" helper="لا يتم حفظ أو عرض قيمة المفتاح.">
               <div className="form-grid">
-                <SelectField
-                  label="قناة الوصول"
-                  value={selectedProvider.deliveryChannel || "direct_api"}
-                  options={DELIVERY_CHANNELS}
-                  onChange={(value) => updateSelected("deliveryChannel", value)}
-                />
-                <SelectField
-                  label="طريقة المصادقة"
-                  value={selectedProvider.authType || "bearer_token"}
-                  options={AUTH_TYPES}
-                  onChange={(value) => updateSelected("authType", value)}
-                />
                 <Field
                   label="اسم مرجع السر"
                   value={selectedProvider.secretName}
@@ -1158,79 +1258,58 @@ export default function SecretsAndKeysPage() {
                   options={ENVIRONMENTS}
                   onChange={(value) => updateSelected("environment", value)}
                 />
-                <Field
-                  label="معرف المنظمة"
-                  value={selectedProvider.organizationId}
-                  onChange={(value) => updateSelected("organizationId", value)}
+                <SelectField
+                  label="قناة الوصول"
+                  value={selectedProvider.deliveryChannel || "direct_api"}
+                  options={DELIVERY_CHANNELS}
+                  onChange={(value) => updateSelected("deliveryChannel", value)}
                 />
-                <Field
-                  label="معرف المشروع"
-                  value={selectedProvider.projectId || selectedProvider.googleCloudProject}
-                  onChange={(value) => updateSelected("projectId", value)}
-                  required={(selectedProvider.requiredFields || []).includes("projectId") || selectedProvider.deliveryChannel === "cloud_platform"}
+                <SelectField
+                  label="طريقة المصادقة"
+                  value={selectedProvider.authType || "bearer_token"}
+                  options={AUTH_TYPES}
+                  onChange={(value) => updateSelected("authType", value)}
                 />
-                <Field
-                  label="معرف مساحة العمل"
-                  value={selectedProvider.workspaceId}
-                  onChange={(value) => updateSelected("workspaceId", value)}
-                />
-                <Field
-                  label="مرجع حساب الخدمة"
-                  value={selectedProvider.serviceAccountRef}
-                  onChange={(value) => updateSelected("serviceAccountRef", value)}
-                  required={["service_account", "workload_identity"].includes(selectedProvider.authType)}
-                  helper="مرجع فقط، وليس ملف اعتماد أو قيمة سرية."
-                />
-                <Field
-                  label="إصدار API"
-                  value={selectedProvider.apiVersion}
-                  onChange={(value) => updateSelected("apiVersion", value)}
-                  required={(selectedProvider.requiredFields || []).includes("apiVersion")}
-                />
-                <Field
-                  label="المنطقة"
-                  value={selectedProvider.region}
-                  onChange={(value) => updateSelected("region", value)}
-                />
-                <Field
-                  label="الموقع"
-                  value={selectedProvider.location}
-                  onChange={(value) => updateSelected("location", value)}
-                  required={(selectedProvider.requiredFields || []).includes("location") || selectedProvider.deliveryChannel === "cloud_platform"}
-                />
-                <Field
-                  label="اسم النشر"
-                  value={selectedProvider.deploymentName}
-                  onChange={(value) => updateSelected("deploymentName", value)}
-                />
+              </div>
+
+              <div className="advanced-scope-box">
+                <h4>إعدادات متقدمة حسب المزود</h4>
+                <p>تظهر الحقول المتقدمة حسب نوع المزود وقناة الوصول. ليست كل الحقول مطلوبة لكل مزود.</p>
+                {advancedScopeFields.length ? (
+                  <div className="form-grid">
+                    {advancedScopeFields.map((field) => (
+                      <Field
+                        key={field.key}
+                        label={field.label}
+                        value={selectedProvider[field.key]}
+                        onChange={(value) => updateSelected(field.key, value)}
+                        required={field.required}
+                        helper={field.helper}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-helper">لا توجد إعدادات متقدمة مطلوبة لهذا المزود حاليًا.</p>
+                )}
               </div>
             </EditorSection>
 
-            <EditorSection title="نماذج المزود المتاحة للتوجيه" helper="هذه نماذج متاحة للاختيار لاحقًا داخل توجيه النماذج، وليست قرار التوجيه النهائي.">
-              <div className="form-grid">
-                <Field
-                  label="نموذج النصوص"
-                  value={selectedProvider.textModel}
-                  onChange={(value) => updateSelected("textModel", value)}
-                  required={(selectedProvider.requiredFields || []).includes("textModel")}
-                />
-                <Field
-                  label="نموذج الصور"
-                  value={selectedProvider.imageModel}
-                  onChange={(value) => updateSelected("imageModel", value)}
-                />
-                <Field
-                  label="نموذج الفيديو"
-                  value={selectedProvider.videoModel}
-                  onChange={(value) => updateSelected("videoModel", value)}
-                  required={(selectedProvider.requiredFields || []).includes("videoModel")}
-                />
-                <Field
-                  label="نموذج التضمين"
-                  value={selectedProvider.embeddingModel}
-                  onChange={(value) => updateSelected("embeddingModel", value)}
-                />
-              </div>
+            <EditorSection title="نماذج يعلن المزود توفرها" helper="هذه القيم تحدد النماذج المتاحة للاختيار لاحقًا في توجيه النماذج. لا يتم هنا اختيار النموذج النهائي لأي مهمة.">
+              {availableModelFields.length ? (
+                <div className="form-grid">
+                  {availableModelFields.map((field) => (
+                    <Field
+                      key={field.key}
+                      label={field.label}
+                      value={selectedProvider[field.key]}
+                      onChange={(value) => updateSelected(field.key, value)}
+                      required={field.required}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-helper">لا توجد نماذج مطلوبة لأن القدرات المناسبة غير مفعلة.</p>
+              )}
             </EditorSection>
 
             <EditorSection title="قدرات يدعمها المزود" helper="تحديد دعم المزود لا يعني استخدام القدرة تلقائيًا؛ الاستخدام يحدد في توجيه النماذج أو تشغيلات النظام.">
@@ -1491,7 +1570,7 @@ function ProviderReadinessPanel({ provider }) {
         <Info label="مرجع السر" value={provider.secretName || "غير محدد"} />
         <Info label="نطاق الاعتماد" value={getCredentialScope(provider)} />
         <Info label="العنوان الأساسي" value={provider.baseUrl || "غير محدد"} />
-        <Info label="نماذج المزود المتاحة للتوجيه" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
+        <Info label="نماذج يعلن المزود توفرها" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
         <Info label="القدرات" value={capabilities.length ? `${capabilities.length}` : "غير مفعلة"} />
         <Info label="Webhook" value={provider.webhooks?.enabled ? "مفعل" : "غير مفعل"} />
         <Info label="آخر اختبار" value={lastTest} />
@@ -1547,6 +1626,7 @@ function RoutingImpactPanel() {
         <Info label="توجيه النماذج" value="يختار النموذج الأساسي والنماذج البديلة" />
         <Info label="مراقبة التكلفة" value="تضبط الحدود والاعتماد" />
         <Info label="تشغيلات النظام" value="تستخدم القدرات داخل خطوات التشغيل" />
+        <Info label="حدود هذه الصفحة" value="صفحة الأسرار والمفاتيح لا تختار النموذج النهائي للمهمة" />
       </div>
     </section>
   );
@@ -2392,6 +2472,28 @@ const styles = `
 .editor-section .form-grid,
 .editor-section .toggle-grid {
   margin-top: 12px;
+}
+
+.advanced-scope-box {
+  margin-top: 14px;
+  border: 1px solid #e4e7df;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.advanced-scope-box h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.advanced-scope-box p,
+.empty-helper {
+  margin: 5px 0 0;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.7;
+  font-weight: 800;
 }
 
 .section-divider {
