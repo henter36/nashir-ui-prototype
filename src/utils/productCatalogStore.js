@@ -8,6 +8,8 @@ function normalizeProduct(product = {}) {
     id,
     name: product.name || "",
     category: product.category || "غير مصنف",
+    imageUrl: product.imageUrl || "",
+    videoUrl: product.videoUrl || "",
     price: product.price || "غير محدد",
     currency: product.currency || "SAR",
     url: product.url || "",
@@ -15,7 +17,6 @@ function normalizeProduct(product = {}) {
     status: product.status || "draft",
     assets: Number.isFinite(Number(product.assets)) ? Number(product.assets) : 0,
     source: product.source || "Manual",
-    sourceSurface: product.sourceSurface || product.source || "Unknown",
     flags: Array.isArray(product.flags) ? product.flags : [],
     claims: Array.isArray(product.claims)
       ? product.claims
@@ -83,9 +84,9 @@ export function upsertProduct(product, seed = []) {
   return writeProductCatalog(next);
 }
 
-export function deleteProduct(productId, seed = []) {
+export function deleteProduct(id, seed = []) {
   const current = readProductCatalog(seed);
-  const next = current.filter((item) => item.id !== productId);
+  const next = current.filter((item) => item.id !== id);
 
   return writeProductCatalog(next.length ? next : seed.map(normalizeProduct));
 }

@@ -81,8 +81,32 @@ const flagOptions = [
   "يصلح للفيديو",
 ];
 
+const categoryOptions = [
+  "عطور",
+  "عناية وجمال",
+  "أزياء",
+  "إكسسوارات",
+  "غذاء ومشروبات",
+  "إلكترونيات",
+  "منزل",
+  "هدايا",
+  "خدمات",
+  "أخرى",
+];
+
 function toggleValue(list, value) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+}
+
+function hasUrl(value) {
+  if (!value || typeof value !== "string") return false;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export default function ProductCatalogPage() {
@@ -94,9 +118,11 @@ export default function ProductCatalogPage() {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({
     name: "",
-    category: "",
+    category: categoryOptions[0],
     price: "",
     url: "",
+    imageUrl: "",
+    videoUrl: "",
     description: "",
     flags: [],
   });
@@ -142,9 +168,11 @@ export default function ProductCatalogPage() {
   const resetDraft = () => {
     setDraft({
       name: "",
-      category: "",
+      category: categoryOptions[0],
       price: "",
       url: "",
+      imageUrl: "",
+      videoUrl: "",
       description: "",
       flags: [],
     });
@@ -162,14 +190,15 @@ export default function ProductCatalogPage() {
         {
           ...currentProduct,
           name: draft.name,
-          category: draft.category || "غير مصنف",
+          category: draft.category || categoryOptions[0],
           price: draft.price || "غير محدد",
           url: draft.url,
+          imageUrl: draft.imageUrl,
+          videoUrl: draft.videoUrl,
           description: draft.description,
           flags: draft.flags,
           readiness: Math.max(currentProduct.readiness, 55),
           status: currentProduct.status === "blocked" ? currentProduct.status : "review",
-          sourceSurface: "ProductCatalogPage",
         },
         initialProducts
       );
@@ -183,15 +212,16 @@ export default function ProductCatalogPage() {
     const product = {
       id: `p-${Date.now()}`,
       name: draft.name,
-      category: draft.category || "غير مصنف",
+      category: draft.category || categoryOptions[0],
       price: draft.price || "غير محدد",
       currency: "SAR",
       url: draft.url,
+      imageUrl: draft.imageUrl,
+      videoUrl: draft.videoUrl,
       readiness: 35,
       status: "draft",
       assets: 0,
       source: "Manual",
-      sourceSurface: "ProductCatalogPage",
       flags: draft.flags.length ? draft.flags : ["جديد"],
       claims: ["يحتاج مراجعة وصف المنتج قبل استخدامه في حملة"],
       description: draft.description || "منتج جديد يحتاج استكمال التفاصيل قبل استخدامه في الحملات.",
@@ -208,9 +238,11 @@ export default function ProductCatalogPage() {
     setSelectedId(product.id);
     setDraft({
       name: product.name,
-      category: product.category,
+      category: categoryOptions.includes(product.category) ? product.category : "أخرى",
       price: product.price,
       url: product.url,
+      imageUrl: product.imageUrl,
+      videoUrl: product.videoUrl,
       description: product.description,
       flags: product.flags,
     });
@@ -229,7 +261,7 @@ export default function ProductCatalogPage() {
       {
         id: `crawl-${Date.now()}-1`,
         name: "منتج مكتشف من رابط المتجر",
-        category: "منتجات مكتشفة",
+        category: "أخرى",
         price: "199",
         currency: "SAR",
         url: "https://store.example/products/discovered",
@@ -237,7 +269,6 @@ export default function ProductCatalogPage() {
         status: "review",
         assets: 2,
         source: "Store Crawler",
-        sourceSurface: "ProductCatalogPage",
         flags: ["من رابط المتجر", "يحتاج مراجعة"],
         claims: ["تأكد من حقوق الصور قبل استخدامها"],
         description: "منتج تم سحبه كمحاكاة من رابط المتجر ويحتاج مراجعة قبل استخدامه.",
@@ -245,7 +276,7 @@ export default function ProductCatalogPage() {
       {
         id: `crawl-${Date.now()}-2`,
         name: "باقة موسمية مكتشفة",
-        category: "عروض",
+        category: "هدايا",
         price: "299",
         currency: "SAR",
         url: "https://store.example/products/seasonal",
@@ -253,7 +284,6 @@ export default function ProductCatalogPage() {
         status: "review",
         assets: 3,
         source: "Store Crawler",
-        sourceSurface: "ProductCatalogPage",
         flags: ["موسمي", "مناسب للهدايا"],
         claims: ["تأكد من توفر المخزون وسعر العرض"],
         description: "باقة موسمية تم سحبها كمحاكاة من المتجر.",
@@ -317,11 +347,16 @@ export default function ProductCatalogPage() {
 
         <div className="field">
           <span>التصنيف</span>
-          <input
+          <select
             value={draft.category}
             onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
-            placeholder="مثال: عطور"
-          />
+          >
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="field">
@@ -339,6 +374,24 @@ export default function ProductCatalogPage() {
             value={draft.url}
             onChange={(event) => setDraft((prev) => ({ ...prev, url: event.target.value }))}
             placeholder="https://store.example/products/..."
+          />
+        </div>
+
+        <div className="field">
+          <span>رابط صورة المنتج</span>
+          <input
+            value={draft.imageUrl}
+            onChange={(event) => setDraft((prev) => ({ ...prev, imageUrl: event.target.value }))}
+            placeholder="https://store.example/products/image.jpg"
+          />
+        </div>
+
+        <div className="field">
+          <span>رابط فيديو المنتج</span>
+          <input
+            value={draft.videoUrl}
+            onChange={(event) => setDraft((prev) => ({ ...prev, videoUrl: event.target.value }))}
+            placeholder="https://store.example/products/video.mp4"
           />
         </div>
 
@@ -398,6 +451,7 @@ export default function ProductCatalogPage() {
               <span>المنتج</span>
               <span>الحالة</span>
               <span>الجاهزية</span>
+              <span>التصنيف</span>
               <span>الأصول</span>
               <span>المصدر</span>
               <span>إجراء</span>
@@ -429,6 +483,7 @@ export default function ProductCatalogPage() {
                   <small>{product.readiness}%</small>
                 </div>
 
+                <span>{product.category}</span>
                 <span>{product.assets}</span>
                 <span className="source-pill">{product.source}</span>
 
@@ -468,6 +523,9 @@ export default function ProductCatalogPage() {
           <p>{selectedProduct.category} · {selectedProduct.price} ر.س</p>
 
           <Info label="الرابط" value={selectedProduct.url || "غير محدد"} />
+          <Info label="التصنيف" value={selectedProduct.category} />
+          <Info label="رابط صورة المنتج" value={hasUrl(selectedProduct.imageUrl) ? "صورة متاحة" : "لا توجد صورة"} />
+          <Info label="رابط فيديو المنتج" value={hasUrl(selectedProduct.videoUrl) ? "فيديو متاح" : "لا يوجد فيديو"} />
           <Info label="المصدر" value={selectedProduct.source} />
           <Info label="الأصول المرتبطة" value={String(selectedProduct.assets)} />
           <Info label="جاهزية الحملات" value={`${selectedProduct.readiness}%`} />
@@ -651,6 +709,7 @@ const styles = `
 }
 
 .field input,
+.field select,
 .field textarea {
   width: 100%;
   box-sizing: border-box;
@@ -660,7 +719,8 @@ const styles = `
   font-family: inherit;
 }
 
-.field input {
+.field input,
+.field select {
   height: 42px;
 }
 
@@ -747,7 +807,7 @@ const styles = `
 .head,
 .row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) 0.8fr 0.8fr 0.45fr 0.7fr 1fr;
+  grid-template-columns: minmax(220px, 1.35fr) 0.8fr 0.8fr 0.65fr 0.45fr 0.7fr 1fr;
   gap: 10px;
   align-items: center;
   padding: 13px 14px;
