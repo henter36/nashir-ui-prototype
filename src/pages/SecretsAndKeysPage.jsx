@@ -1066,234 +1066,206 @@ export default function SecretsAndKeysPage() {
               </button>
             </div>
 
-            <div className="form-grid">
-              <SelectField
-                label="نوع المزود"
-                value={selectedProvider.providerType}
-                options={PROVIDER_TYPES}
-                onChange={changeProviderType}
-              />
+            <ProviderReadinessSummary provider={selectedProvider} />
 
-              <SelectField
-                label="قناة الوصول"
-                value={selectedProvider.deliveryChannel || "direct_api"}
-                options={DELIVERY_CHANNELS}
-                onChange={(value) => updateSelected("deliveryChannel", value)}
-              />
-
-              <SelectField
-                label="البيئة"
-                value={selectedProvider.environment || "sandbox"}
-                options={ENVIRONMENTS}
-                onChange={(value) => updateSelected("environment", value)}
-              />
-
-              <Field
-                label="اسم العرض"
-                value={selectedProvider.displayName}
-                onChange={(value) => updateSelected("displayName", value)}
-                required
-              />
-
-              <SelectField
-                label="طريقة المصادقة"
-                value={selectedProvider.authType || "bearer_token"}
-                options={AUTH_TYPES}
-                onChange={(value) => updateSelected("authType", value)}
-              />
-
-              <Field
-                label="اسم الترويسة"
-                value={selectedProvider.headerName}
-                onChange={(value) => updateSelected("headerName", value)}
-              />
-
-              <SelectField
-                label="بادئة المصادقة"
-                value={selectedProvider.tokenPrefix}
-                options={[
-                  ["Bearer", "Bearer"],
-                  ["Token", "Token"],
-                  ["None", "None"],
-                ]}
-                onChange={(value) => updateSelected("tokenPrefix", value)}
-              />
-
-              <Field
-                label="اسم مرجع السر"
-                value={selectedProvider.secretName}
-                onChange={(value) => updateSelected("secretName", value)}
-                required
-                helper="اسم مرجع السر فقط، وليس قيمة المفتاح."
-              />
-
-              <Field
-                label="العنوان الأساسي"
-                value={selectedProvider.baseUrl}
-                onChange={(value) => updateSelected("baseUrl", value)}
-                required={(selectedProvider.requiredFields || []).includes("baseUrl")}
-              />
-
-              <Field
-                label="إصدار API"
-                value={selectedProvider.apiVersion}
-                onChange={(value) => updateSelected("apiVersion", value)}
-                required={(selectedProvider.requiredFields || []).includes("apiVersion")}
-              />
-
-              <div className="form-subsection wide">
-                <strong>نطاق الاعتماد</strong>
-                <small>حقول اختيارية لتقسيم المزود حسب منظمة أو مشروع أو مساحة عمل.</small>
+            <EditorSection title="ملخص المزود" helper="ابدأ من الجاهزية ثم راجع الاتصال والنماذج والقدرات.">
+              <div className="form-grid">
+                <Field
+                  label="اسم العرض"
+                  value={selectedProvider.displayName}
+                  onChange={(value) => updateSelected("displayName", value)}
+                  required
+                />
+                <SelectField
+                  label="نوع المزود"
+                  value={selectedProvider.providerType}
+                  options={PROVIDER_TYPES}
+                  onChange={changeProviderType}
+                />
+                <Info label="الفئة" value={selectedProvider.category} />
+                <Info label="الحالة" value={statusMap[selectedProvider.status]?.[0] || selectedProvider.status} />
               </div>
+            </EditorSection>
 
-              <Field
-                label="معرف المنظمة"
-                value={selectedProvider.organizationId}
-                onChange={(value) => updateSelected("organizationId", value)}
-              />
-
-              <Field
-                label="معرف المشروع"
-                value={selectedProvider.projectId || selectedProvider.googleCloudProject}
-                onChange={(value) => updateSelected("projectId", value)}
-                required={(selectedProvider.requiredFields || []).includes("projectId") || selectedProvider.deliveryChannel === "cloud_platform"}
-              />
-
-              <Field
-                label="معرف مساحة العمل"
-                value={selectedProvider.workspaceId}
-                onChange={(value) => updateSelected("workspaceId", value)}
-              />
-
-              <Field
-                label="مرجع حساب الخدمة"
-                value={selectedProvider.serviceAccountRef}
-                onChange={(value) => updateSelected("serviceAccountRef", value)}
-                required={["service_account", "workload_identity"].includes(selectedProvider.authType)}
-                helper="مرجع فقط، وليس ملف اعتماد أو قيمة سرية."
-              />
-
-              <Field
-                label="المنطقة"
-                value={selectedProvider.region}
-                onChange={(value) => updateSelected("region", value)}
-              />
-
-              <Field
-                label="الموقع"
-                value={selectedProvider.location}
-                onChange={(value) => updateSelected("location", value)}
-                required={(selectedProvider.requiredFields || []).includes("location") || selectedProvider.deliveryChannel === "cloud_platform"}
-              />
-
-              <Field
-                label="اسم النشر"
-                value={selectedProvider.deploymentName}
-                onChange={(value) => updateSelected("deploymentName", value)}
-              />
-
-              <div className="form-subsection wide">
-                <strong>النماذج المهيأة</strong>
-                <small>هذه ليست قائمة كل نماذج المزود؛ بل النماذج المختارة للاستخدام داخل التوجيه والتشغيل.</small>
+            <EditorSection title="الاتصال والمصادقة" helper="لا يتم حفظ أو عرض قيمة المفتاح.">
+              <div className="form-grid">
+                <SelectField
+                  label="قناة الوصول"
+                  value={selectedProvider.deliveryChannel || "direct_api"}
+                  options={DELIVERY_CHANNELS}
+                  onChange={(value) => updateSelected("deliveryChannel", value)}
+                />
+                <SelectField
+                  label="طريقة المصادقة"
+                  value={selectedProvider.authType || "bearer_token"}
+                  options={AUTH_TYPES}
+                  onChange={(value) => updateSelected("authType", value)}
+                />
+                <Field
+                  label="اسم مرجع السر"
+                  value={selectedProvider.secretName}
+                  onChange={(value) => updateSelected("secretName", value)}
+                  required
+                  helper="اسم مرجع السر فقط، وليس قيمة المفتاح."
+                />
+                <Field
+                  label="العنوان الأساسي"
+                  value={selectedProvider.baseUrl}
+                  onChange={(value) => updateSelected("baseUrl", value)}
+                  required={(selectedProvider.requiredFields || []).includes("baseUrl")}
+                />
+                <Field
+                  label="اسم الترويسة"
+                  value={selectedProvider.headerName}
+                  onChange={(value) => updateSelected("headerName", value)}
+                />
+                <SelectField
+                  label="بادئة المصادقة"
+                  value={selectedProvider.tokenPrefix}
+                  options={[
+                    ["Bearer", "Bearer"],
+                    ["Token", "Token"],
+                    ["None", "None"],
+                  ]}
+                  onChange={(value) => updateSelected("tokenPrefix", value)}
+                />
+                <TextArea
+                  label="بيانات تعريف إضافية"
+                  value={selectedProvider.customHeaders}
+                  onChange={(value) => updateSelected("customHeaders", value)}
+                  wide
+                />
               </div>
+            </EditorSection>
 
-              <Field
-                label="نموذج النصوص"
-                value={selectedProvider.textModel}
-                onChange={(value) => updateSelected("textModel", value)}
-                required={(selectedProvider.requiredFields || []).includes("textModel")}
-              />
+            <EditorSection title="نطاق الاعتماد والبيئة">
+              <div className="form-grid">
+                <SelectField
+                  label="البيئة"
+                  value={selectedProvider.environment || "sandbox"}
+                  options={ENVIRONMENTS}
+                  onChange={(value) => updateSelected("environment", value)}
+                />
+                <Field
+                  label="معرف المنظمة"
+                  value={selectedProvider.organizationId}
+                  onChange={(value) => updateSelected("organizationId", value)}
+                />
+                <Field
+                  label="معرف المشروع"
+                  value={selectedProvider.projectId || selectedProvider.googleCloudProject}
+                  onChange={(value) => updateSelected("projectId", value)}
+                  required={(selectedProvider.requiredFields || []).includes("projectId") || selectedProvider.deliveryChannel === "cloud_platform"}
+                />
+                <Field
+                  label="معرف مساحة العمل"
+                  value={selectedProvider.workspaceId}
+                  onChange={(value) => updateSelected("workspaceId", value)}
+                />
+                <Field
+                  label="مرجع حساب الخدمة"
+                  value={selectedProvider.serviceAccountRef}
+                  onChange={(value) => updateSelected("serviceAccountRef", value)}
+                  required={["service_account", "workload_identity"].includes(selectedProvider.authType)}
+                  helper="مرجع فقط، وليس ملف اعتماد أو قيمة سرية."
+                />
+                <Field
+                  label="إصدار API"
+                  value={selectedProvider.apiVersion}
+                  onChange={(value) => updateSelected("apiVersion", value)}
+                  required={(selectedProvider.requiredFields || []).includes("apiVersion")}
+                />
+                <Field
+                  label="المنطقة"
+                  value={selectedProvider.region}
+                  onChange={(value) => updateSelected("region", value)}
+                />
+                <Field
+                  label="الموقع"
+                  value={selectedProvider.location}
+                  onChange={(value) => updateSelected("location", value)}
+                  required={(selectedProvider.requiredFields || []).includes("location") || selectedProvider.deliveryChannel === "cloud_platform"}
+                />
+                <Field
+                  label="اسم النشر"
+                  value={selectedProvider.deploymentName}
+                  onChange={(value) => updateSelected("deploymentName", value)}
+                />
+              </div>
+            </EditorSection>
 
-              <Field
-                label="نموذج الصور"
-                value={selectedProvider.imageModel}
-                onChange={(value) => updateSelected("imageModel", value)}
-              />
+            <EditorSection title="النماذج المهيأة" helper="هذه ليست قائمة كل نماذج المزود؛ بل النماذج المختارة للاستخدام داخل التوجيه والتشغيل.">
+              <div className="form-grid">
+                <Field
+                  label="نموذج النصوص"
+                  value={selectedProvider.textModel}
+                  onChange={(value) => updateSelected("textModel", value)}
+                  required={(selectedProvider.requiredFields || []).includes("textModel")}
+                />
+                <Field
+                  label="نموذج الصور"
+                  value={selectedProvider.imageModel}
+                  onChange={(value) => updateSelected("imageModel", value)}
+                />
+                <Field
+                  label="نموذج الفيديو"
+                  value={selectedProvider.videoModel}
+                  onChange={(value) => updateSelected("videoModel", value)}
+                  required={(selectedProvider.requiredFields || []).includes("videoModel")}
+                />
+                <Field
+                  label="نموذج التضمين"
+                  value={selectedProvider.embeddingModel}
+                  onChange={(value) => updateSelected("embeddingModel", value)}
+                />
+                <Field
+                  label="النموذج البديل"
+                  value={selectedProvider.fallbackModel}
+                  onChange={(value) => updateSelected("fallbackModel", value)}
+                />
+              </div>
+            </EditorSection>
 
-              <Field
-                label="نموذج الفيديو"
-                value={selectedProvider.videoModel}
-                onChange={(value) => updateSelected("videoModel", value)}
-                required={(selectedProvider.requiredFields || []).includes("videoModel")}
-              />
-
-              <Field
-                label="نموذج التضمين"
-                value={selectedProvider.embeddingModel}
-                onChange={(value) => updateSelected("embeddingModel", value)}
-              />
-
-              <Field
-                label="النموذج البديل"
-                value={selectedProvider.fallbackModel}
-                onChange={(value) => updateSelected("fallbackModel", value)}
-              />
-
-              <Field
-                label="الحد الشهري المرن"
-                value={selectedProvider.limits?.monthlySoftLimit}
-                onChange={(value) => updateNested("limits", "monthlySoftLimit", value)}
-              />
-
-              <Field
-                label="الحد الشهري الصارم"
-                value={selectedProvider.limits?.monthlyHardLimit}
-                onChange={(value) => updateNested("limits", "monthlyHardLimit", value)}
-              />
-
-              <Field
-                label="حد الطلبات في الدقيقة"
-                value={selectedProvider.limits?.rpm}
-                onChange={(value) => updateNested("limits", "rpm", value)}
-              />
-
-              <Field
-                label="حد الرموز في الدقيقة"
-                value={selectedProvider.limits?.tpm}
-                onChange={(value) => updateNested("limits", "tpm", value)}
-              />
-
-              <Field
-                label="أقصى مدة تشغيل بالثواني"
-                value={selectedProvider.limits?.maxJobDurationSeconds}
-                onChange={(value) => updateNested("limits", "maxJobDurationSeconds", value)}
-              />
-
-              <TextArea
-                label="بيانات تعريف إضافية"
-                value={selectedProvider.customHeaders}
-                onChange={(value) => updateSelected("customHeaders", value)}
-                wide
-              />
-            </div>
-
-            <ProviderReadinessPanel provider={selectedProvider} />
-
-            <RoutingImpactPanel />
-
-            <Section title="القدرات">
+            <EditorSection title="القدرات التشغيلية">
               <ToggleGrid
                 source={normalizeCapabilities(selectedProvider.capabilities)}
                 onChange={(key, value) => updateNested("capabilities", key, value)}
               />
-            </Section>
-
-            <Section title="دعم التشغيل والمراقبة">
+              <div className="section-divider" />
               <ToggleGrid
                 source={{ ...DEFAULT_OPERATIONAL_SUPPORT, ...(selectedProvider.operationalSupport || {}) }}
                 onChange={(key, value) => updateNested("operationalSupport", key, value)}
               />
-            </Section>
+              <div className="form-grid compact-grid">
+                <Field
+                  label="الحد الشهري المرن"
+                  value={selectedProvider.limits?.monthlySoftLimit}
+                  onChange={(value) => updateNested("limits", "monthlySoftLimit", value)}
+                />
+                <Field
+                  label="الحد الشهري الصارم"
+                  value={selectedProvider.limits?.monthlyHardLimit}
+                  onChange={(value) => updateNested("limits", "monthlyHardLimit", value)}
+                />
+                <Field
+                  label="حد الطلبات في الدقيقة"
+                  value={selectedProvider.limits?.rpm}
+                  onChange={(value) => updateNested("limits", "rpm", value)}
+                />
+                <Field
+                  label="حد الرموز في الدقيقة"
+                  value={selectedProvider.limits?.tpm}
+                  onChange={(value) => updateNested("limits", "tpm", value)}
+                />
+                <Field
+                  label="أقصى مدة تشغيل بالثواني"
+                  value={selectedProvider.limits?.maxJobDurationSeconds}
+                  onChange={(value) => updateNested("limits", "maxJobDurationSeconds", value)}
+                />
+              </div>
+            </EditorSection>
 
-            <Section title="الحوكمة">
-              <ToggleGrid
-                source={selectedProvider.governance || {}}
-                onChange={(key, value) => updateNested("governance", key, value)}
-                dangerKeys={["autoPublishAllowed", "allowSensitiveContentGeneration"]}
-              />
-            </Section>
-
-            <Section title="Webhook">
+            <EditorSection title="Webhook والعمليات">
               <div className="form-grid">
                 <Toggle
                   label="Webhook مفعّل"
@@ -1322,7 +1294,17 @@ export default function SecretsAndKeysPage() {
                   onChange={(value) => updateNested("webhooks", "lastDeliveryStatus", value)}
                 />
               </div>
-            </Section>
+            </EditorSection>
+
+            <EditorSection title="الحوكمة وقابلية الربط">
+              <ToggleGrid
+                source={selectedProvider.governance || {}}
+                onChange={(key, value) => updateNested("governance", key, value)}
+                dangerKeys={["autoPublishAllowed", "allowSensitiveContentGeneration"]}
+              />
+              <ProviderReadinessPanel provider={selectedProvider} />
+              <RoutingImpactPanel />
+            </EditorSection>
 
             <div className="drawer-actions">
               <button type="button" className="secondary-button" onClick={() => duplicateProvider(selectedProvider)}>
@@ -1455,6 +1437,30 @@ function ReadinessBadge({ status }) {
   return <span className={`readiness-badge ${status}`}>{getReadinessLabel(status)}</span>;
 }
 
+function ProviderReadinessSummary({ provider }) {
+  const readiness = buildProviderReadiness(provider);
+  const mainBlocker = readiness.blockedReasons[0] || "لا توجد أسباب حظر";
+  const mainWarning = readiness.warnings[0] || "لا توجد تحذيرات";
+
+  return (
+    <section className={`readiness-summary ${readiness.status}`}>
+      <div>
+        <div className="summary-title">
+          <strong>جاهزية المزود</strong>
+          <ReadinessBadge status={readiness.status} />
+        </div>
+        <p>ابدأ من الجاهزية ثم راجع الاتصال والنماذج والقدرات.</p>
+      </div>
+      <div className="summary-metrics">
+        <Info label="الدرجة" value={`${readiness.score}%`} />
+        <Info label="أهم سبب حظر" value={mainBlocker} />
+        <Info label="أهم تحذير" value={mainWarning} />
+        <span className="details-cue">تفاصيل الجاهزية أدناه</span>
+      </div>
+    </section>
+  );
+}
+
 function ProviderReadinessPanel({ provider }) {
   const readiness = buildProviderReadiness(provider);
   const configuredModels = getConfiguredModels(provider);
@@ -1512,6 +1518,18 @@ function ProviderReadinessPanel({ provider }) {
           <span key={check}>{check}</span>
         ))}
       </div>
+    </section>
+  );
+}
+
+function EditorSection({ title, helper, children }) {
+  return (
+    <section className="editor-section">
+      <div className="editor-section-head">
+        <h3>{title}</h3>
+        {helper ? <p>{helper}</p> : null}
+      </div>
+      {children}
     </section>
   );
 }
@@ -2269,6 +2287,90 @@ const styles = `
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
+}
+
+.readiness-summary,
+.editor-section {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.readiness-summary {
+  border-color: #d9ead7;
+  background: #fbfdf9;
+}
+
+.readiness-summary.warning {
+  border-color: #fde68a;
+  background: #fffaf0;
+}
+
+.readiness-summary.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.summary-title,
+.editor-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.summary-title strong,
+.editor-section-head h3 {
+  margin: 0;
+  color: #1f241d;
+  font-size: 15px;
+}
+
+.readiness-summary p,
+.editor-section-head p {
+  margin: 5px 0 0;
+  color: #6f746b;
+  font-size: 12px;
+  line-height: 1.7;
+  font-weight: 800;
+}
+
+.summary-metrics {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.summary-metrics .info-cell:first-child {
+  grid-row: span 2;
+}
+
+.details-cue {
+  border: 1px dashed #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 14px;
+  padding: 9px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.editor-section .form-grid,
+.editor-section .toggle-grid {
+  margin-top: 12px;
+}
+
+.section-divider {
+  height: 1px;
+  background: #e4e7df;
+  margin: 14px 0;
+}
+
+.compact-grid {
+  margin-top: 14px;
 }
 
 .provider-readiness-panel,
