@@ -34,6 +34,12 @@ import {
   writeStoreScanSnapshot,
 } from "../utils/dataSourcesStore.js";
 
+import {
+  getChannelConnectionStatus,
+  readIntegrationConnections,
+  upsertIntegrationConnection,
+} from "../utils/integrationConnectionsStore.js";
+
 const steps = [
   [1, "بيانات المتجر", "البيانات الأساسية والهوية التشغيلية."],
   [2, "المنتجات", "جدول المنتجات والخدمات المستخدمة في الحملات."],
@@ -121,8 +127,6 @@ const channelConnectionLabels = {
   failed: ["فشل الربط", "red"],
 };
 
-const integrationConnectionsKey = "nashir_mock_integration_connections";
-
 const oauthProviderMeta = {
   Instagram: {
     id: "instagram",
@@ -175,42 +179,6 @@ function normalizeProviderKey(channel) {
   return (oauthProviderMeta[channel]?.id || String(channel))
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "_");
-}
-
-function readSharedIntegrationConnections() {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem(integrationConnectionsKey);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed?.connections && typeof parsed.connections === "object"
-      ? parsed.connections
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeSharedIntegrationConnections(nextConnections, preferredChannels = []) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(
-      integrationConnectionsKey,
-      JSON.stringify({
-        version: 1,
-        source: "nashir_ui_prototype_shared_oauth_mock",
-        updatedAt: new Date().toISOString(),
-        preferredChannels,
-        connections: nextConnections,
-      })
-    );
-
-    window.dispatchEvent(new Event("nashir-integration-connections-updated"));
-  } catch {
-    // Prototype-only: ignore storage errors.
-  }
 }
 
 function snapshotToStoreSource(snapshot) {
@@ -271,7 +239,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   const [storeSource, setStoreSource] = useState(() =>
     snapshotToStoreSource(readStoreScanSnapshot())
   );
-  const [channelConnections, setChannelConnections] = useState(() => readSharedIntegrationConnections());
+  const [channelConnections, setChannelConnections] = useState(() => readIntegrationConnections());
   const [collectedData, setCollectedData] = useState(() =>
     snapshotToCollectedData(readStoreScanSnapshot())
   );
@@ -317,6 +285,22 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     };
   }, []);
 
+  useEffect(() => {
+    const refreshConnections = () => {
+      setChannelConnections(readIntegrationConnections());
+    };
+
+    window.addEventListener("focus", refreshConnections);
+    window.addEventListener("storage", refreshConnections);
+    window.addEventListener("nashir-integration-connections-updated", refreshConnections);
+
+    return () => {
+      window.removeEventListener("focus", refreshConnections);
+      window.removeEventListener("storage", refreshConnections);
+      window.removeEventListener("nashir-integration-connections-updated", refreshConnections);
+    };
+  }, []);
+
   const completion = useMemo(() => {
     const checks = [
       form.storeName,
@@ -357,7 +341,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
 
   const connectedChannelsCount = form.preferredChannels.filter((channel) => {
     const key = normalizeProviderKey(channel);
-    const status = channelConnections[key]?.status || "disconnected";
+    const status = getChannelConnectionStatus(channelConnections[key]);
     return status === "connected" || status === "pending_oauth";
   }).length;
 
@@ -369,25 +353,21 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       scopes: ["profile_later"],
     };
 
-    setChannelConnections((prev) => {
-      const next = {
-        ...prev,
-        [key]: {
-          providerId: provider.id,
-          providerName: channel,
-          status,
-          authorizationUrl: provider.authUrl,
-          requestedScopes: provider.scopes,
-          accountName: extra.accountName || prev[key]?.accountName || "",
-          updatedAt: new Date().toISOString(),
-          sourceSurface: "StoreSetupPage",
-          ...extra,
-        },
-      };
+    const next = upsertIntegrationConnection(
+      {
+        providerId: provider.id,
+        providerName: channel,
+        status,
+        authorizationUrl: provider.authUrl,
+        requestedScopes: provider.scopes,
+        accountName: extra.accountName || channelConnections[key]?.accountName || "",
+        updatedAt: new Date().toISOString(),
+        ...extra,
+      },
+      form.preferredChannels
+    );
 
-      writeSharedIntegrationConnections(next, form.preferredChannels);
-      return next;
-    });
+    setChannelConnections(next);
 
     setSaved(false);
   };
@@ -479,7 +459,6 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
         ...productDraft,
         id: editingProductId || productDraft.id || Date.now(),
         source: productDraft.source || "store_setup",
-        sourceSurface: "StoreSetupPage",
       },
       defaultProducts
     );
@@ -524,7 +503,6 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
         description: "منتج مسحوب من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في الحملات.",
         flags: ["مناسب للهدايا", "يصلح للفيديو"],
         source: "store_scan",
-        sourceSurface: "StoreSetupPage",
       },
       defaultProducts
     );
@@ -577,7 +555,6 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
               description: "منتج مكتشف من رابط المتجر ويحتاج مراجعة التفاصيل قبل استخدامه في حملة.",
               flags: ["مناسب للهدايا", "يصلح للفيديو"],
               source: "store_scan",
-              sourceSurface: "StoreSetupPage",
             },
             defaultProducts
           );
@@ -838,8 +815,8 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
               <div className="settings-sync-card">
                 <Link2 size={18} />
                 <div>
-                  <strong>مصدر ربط واحد</strong>
-                  <span>إعداد المتجر والإعدادات يقرآن نفس مصدر الربط المؤقت <code>{integrationConnectionsKey}</code>. لا توجد مزامنة يدوية ولا نسختان للحالة.</span>
+                  <strong>ربط القنوات</strong>
+                  <span>الربط الذي يتم هنا ينعكس تلقائيًا في الإعدادات دون مزامنة يدوية.</span>
                 </div>
                 <Badge tone={connectedChannelsCount ? "green" : "neutral"}>{connectedChannelsCount} قناة مرتبطة/بانتظار</Badge>
               </div>
@@ -848,7 +825,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                 {form.preferredChannels.map((channel) => {
                   const key = normalizeProviderKey(channel);
                   const connection = channelConnections[key] || {};
-                  const connectionStatus = connection.status || "disconnected";
+                  const connectionStatus = getChannelConnectionStatus(connection);
                   return (
                     <div key={channel} className="channel-card">
                       <Globe2 size={20} />

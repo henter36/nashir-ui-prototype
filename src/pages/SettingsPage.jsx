@@ -23,8 +23,11 @@ import {
 } from "lucide-react";
 import { getModelRoutingSummary } from "../utils/modelCostStore.js";
 import { getWorkspaceTeamSummary } from "../utils/teamAccessStore.js";
-
-const INTEGRATION_CONNECTIONS_KEY = "nashir_mock_integration_connections";
+import {
+  getChannelConnectionStatus,
+  readIntegrationConnections,
+  upsertIntegrationConnection,
+} from "../utils/integrationConnectionsStore.js";
 
 const OAUTH_PROVIDERS = {
   instagram: {
@@ -186,111 +189,10 @@ function getProviderKey(channel) {
   return safeNormalize(channel.providerId || channel.id || channel.name || channel);
 }
 
-function normalizeConnectionStatus(value) {
-  const raw = typeof value === "string" ? value : value?.status || value?.mode || "";
-
-  if (["connected", "connected_mock", "approved", "linked"].includes(raw)) {
-    return "connected";
-  }
-
-  if (["pending", "pending_oauth", "pending_connection", "waiting"].includes(raw)) {
-    return "pending_oauth";
-  }
-
-  if (["failed", "error"].includes(raw)) {
-    return "failed";
-  }
-
-  return "disconnected";
-}
-
-function readSharedIntegrationConnections() {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem(INTEGRATION_CONNECTIONS_KEY);
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw);
-
-    if (Array.isArray(parsed)) {
-      return parsed.reduce((acc, item) => {
-        const key = getProviderKey(item);
-        if (!key) return acc;
-        acc[key] = item;
-        return acc;
-      }, {});
-    }
-
-    if (parsed?.connections && typeof parsed.connections === "object") {
-      return Object.entries(parsed.connections).reduce((acc, [key, value]) => {
-        const normalizedKey = safeNormalize(key);
-        acc[normalizedKey] =
-          value && typeof value === "object"
-            ? {
-                ...value,
-                providerId: value.providerId || normalizedKey,
-                status: normalizeConnectionStatus(value),
-                updatedAt: value.updatedAt || parsed.updatedAt || "حالة محفوظة",
-              }
-            : {
-                providerId: normalizedKey,
-                status: normalizeConnectionStatus(value),
-                updatedAt: parsed.updatedAt || "حالة محفوظة",
-              };
-        return acc;
-      }, {});
-    }
-
-    if (parsed && typeof parsed === "object") {
-      return Object.entries(parsed).reduce((acc, [key, value]) => {
-        if (["version", "source", "updatedAt", "preferredChannels", "connections"].includes(key)) {
-          return acc;
-        }
-
-        const normalizedKey = safeNormalize(key);
-        acc[normalizedKey] =
-          value && typeof value === "object"
-            ? {
-                ...value,
-                providerId: value.providerId || normalizedKey,
-                status: normalizeConnectionStatus(value),
-              }
-            : {
-                providerId: normalizedKey,
-                status: normalizeConnectionStatus(value),
-              };
-
-        return acc;
-      }, {});
-    }
-
-    return {};
-  } catch {
-    return {};
-  }
-}
-
-function writeSharedIntegrationConnections(nextConnections) {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(
-    INTEGRATION_CONNECTIONS_KEY,
-    JSON.stringify({
-      version: 1,
-      source: "nashir_ui_prototype_shared_oauth_mock",
-      updatedAt: new Date().toISOString(),
-      connections: nextConnections,
-    })
-  );
-
-  window.dispatchEvent(new Event("nashir-integration-connections-updated"));
-}
-
 function buildDefaultChannels(sharedConnections = {}) {
   return Object.values(OAUTH_PROVIDERS).map((provider) => {
     const existing = sharedConnections[provider.id] || {};
-    const status = normalizeConnectionStatus(existing);
+    const status = getChannelConnectionStatus(existing);
 
     return {
       ...provider,
@@ -300,7 +202,6 @@ function buildDefaultChannels(sharedConnections = {}) {
       authorizationUrl: existing.authorizationUrl || provider.authUrl,
       requestedScopes: existing.requestedScopes || provider.scopes,
       updatedAt: existing.updatedAt || "",
-      sourceSurface: existing.sourceSurface || "",
       lastAction: existing.lastAction || "",
       fromSharedConnection: Boolean(sharedConnections[provider.id]),
     };
@@ -312,7 +213,7 @@ function applySharedConnections(channels, sharedConnections = {}) {
     const key = getProviderKey(channel);
     const shared = sharedConnections[key] || {};
     const provider = OAUTH_PROVIDERS[key] || channel;
-    const status = normalizeConnectionStatus(shared);
+    const status = getChannelConnectionStatus(shared);
 
     return {
       ...channel,
@@ -323,7 +224,6 @@ function applySharedConnections(channels, sharedConnections = {}) {
       authorizationUrl: shared.authorizationUrl || provider.authUrl || channel.authorizationUrl,
       requestedScopes: shared.requestedScopes || provider.scopes || channel.requestedScopes || [],
       updatedAt: shared.updatedAt || "",
-      sourceSurface: shared.sourceSurface || "",
       lastAction: shared.lastAction || "",
       fromSharedConnection: Boolean(sharedConnections[key]),
     };
@@ -520,9 +420,9 @@ function calculateScore(warnings) {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [sharedConnections, setSharedConnections] = useState(() => readSharedIntegrationConnections());
+  const [sharedConnections, setSharedConnections] = useState(() => readIntegrationConnections());
   const [channels, setChannels] = useState(() =>
-    buildDefaultChannels(readSharedIntegrationConnections())
+    buildDefaultChannels(readIntegrationConnections())
   );
   const [modelRoutingSummary, setModelRoutingSummary] = useState(() => getModelRoutingSummary());
   const [workspaceTeamSummary, setWorkspaceTeamSummary] = useState(() => getWorkspaceTeamSummary());
@@ -544,7 +444,7 @@ export default function SettingsPage() {
   const [outputSettings, setOutputSettings] = useState(DEFAULT_OUTPUT_SETTINGS);
 
   const refreshSharedConnections = () => {
-    const latest = readSharedIntegrationConnections();
+    const latest = readIntegrationConnections();
     setSharedConnections(latest);
     setChannels((prev) => applySharedConnections(prev, latest));
   };
@@ -556,11 +456,7 @@ export default function SettingsPage() {
     const handleVisibility = () => {
       if (!document.hidden) refreshSharedConnections();
     };
-    const handleStorage = (event) => {
-      if (!event.key || event.key === INTEGRATION_CONNECTIONS_KEY) {
-        refreshSharedConnections();
-      }
-    };
+    const handleStorage = () => refreshSharedConnections();
 
     window.addEventListener("focus", handleRefresh);
     window.addEventListener("storage", handleStorage);
@@ -704,27 +600,22 @@ export default function SettingsPage() {
 
     if (!provider) return;
 
-    const nextConnections = {
-      ...sharedConnections,
-      [providerId]: {
-        providerId,
-        providerName: provider.name,
-        status,
-        authorizationUrl: provider.authUrl,
-        requestedScopes: provider.scopes,
-        accountName:
-          extra.accountName ||
-          sharedConnections[providerId]?.accountName ||
-          "",
-        updatedAt: new Date().toISOString(),
-        sourceSurface: "SettingsPage",
-        ...extra,
-      },
-    };
+    const nextConnections = upsertIntegrationConnection({
+      providerId,
+      providerName: provider.name,
+      status,
+      authorizationUrl: provider.authUrl,
+      requestedScopes: provider.scopes,
+      accountName:
+        extra.accountName ||
+        sharedConnections[providerId]?.accountName ||
+        "",
+      updatedAt: new Date().toISOString(),
+      ...extra,
+    });
 
     setSharedConnections(nextConnections);
     setChannels((prev) => applySharedConnections(prev, nextConnections));
-    writeSharedIntegrationConnections(nextConnections);
   };
 
   const startOAuthConnection = (channel) => {
@@ -786,7 +677,7 @@ export default function SettingsPage() {
   };
 
   const resetSettings = () => {
-    const latest = readSharedIntegrationConnections();
+    const latest = readIntegrationConnections();
     setSharedConnections(latest);
     setChannels(buildDefaultChannels(latest));
     setWorkspace(DEFAULT_WORKSPACE);
