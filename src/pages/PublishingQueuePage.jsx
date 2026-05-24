@@ -17,6 +17,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import { readCampaigns } from "../utils/campaignAnalyticsStore.js";
 import {
   createQueueItemFromContent,
   deletePublishingQueueItem,
@@ -149,11 +150,15 @@ const riskMap = {
 };
 
 const channels = ["Instagram", "TikTok", "WhatsApp", "Email", "Snapchat"];
-const campaigns = ["إطلاق مجموعة الصيف", "عرض نهاية الأسبوع", "خصومات العيد", "عودة إلى المدرسة"];
 const contentTypes = ["Story", "Post", "Video", "Message", "Email"];
+
+function getQueueKey(item) {
+  return String(item?.scheduleId || item?.id || "");
+}
 
 function getItemWarnings(item, allItems) {
   const warnings = [];
+  const checklist = item.checklist || {};
   const sameSlot = allItems.filter(
     (candidate) =>
       candidate.id !== item.id &&
@@ -166,10 +171,10 @@ function getItemWarnings(item, allItems) {
   if (item.status === "draft") warnings.push("العنصر ما زال مسودة ولا يصلح للنشر.");
   if (item.status === "blocked") warnings.push("العنصر محظور ولا يجب إرساله للنشر.");
   if (item.risk === "high") warnings.push("القناة أو نوع المحتوى عالي الحساسية ويتطلب مراجعة بشرية.");
-  if (!item.checklist.contentApproved) warnings.push("المحتوى غير معتمد.");
-  if (!item.checklist.assetRights) warnings.push("حقوق الأصل غير مؤكدة.");
-  if (!item.checklist.linkChecked) warnings.push("الرابط أو CTA غير مفحوص.");
-  if (!item.checklist.channelReady) warnings.push("القناة غير جاهزة.");
+  if (!checklist.contentApproved) warnings.push("المحتوى غير معتمد.");
+  if (!checklist.assetRights) warnings.push("حقوق الأصل غير مؤكدة.");
+  if (!checklist.linkChecked) warnings.push("الرابط أو CTA غير مفحوص.");
+  if (!checklist.channelReady) warnings.push("القناة غير جاهزة.");
 
   return warnings;
 }
@@ -179,7 +184,8 @@ function isPublishable(item, allItems) {
 }
 
 function getReadiness(item, allItems) {
-  const checks = Object.values(item.checklist).filter(Boolean).length;
+  const checklist = item.checklist || {};
+  const checks = Object.values(checklist).filter(Boolean).length;
   let score = checks * 20;
 
   if (item.approval === "approved") score += 10;
@@ -193,15 +199,20 @@ function getReadiness(item, allItems) {
 }
 
 export default function PublishingQueuePage() {
+  const [campaignList, setCampaignList] = useState(() => readCampaigns());
   const [contentItems, setContentItems] = useState(() => readCampaignContent([]));
   const [items, setItems] = useState(() => readPublishingQueue(initialItems));
   const [selectedId, setSelectedId] = useState(String(initialItems[0].id));
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
+  const campaignOptions = useMemo(() => {
+    const names = campaignList.map((campaign) => campaign.name).filter(Boolean);
+    return names.length ? names : ["حملة تجريبية"];
+  }, [campaignList]);
   const [newItem, setNewItem] = useState({
     title: "",
-    campaign: campaigns[0],
+    campaign: campaignOptions[0],
     channel: channels[0],
     date: "2026-05-24",
     time: "09:00",
@@ -215,24 +226,38 @@ export default function PublishingQueuePage() {
 
   useEffect(() => {
     const reloadItems = () => {
+      setCampaignList(readCampaigns());
       setContentItems(readCampaignContent([]));
       setItems(readPublishingQueue(initialItems));
     };
 
     window.addEventListener("focus", reloadItems);
     window.addEventListener("storage", reloadItems);
+    window.addEventListener("nashir-campaigns-updated", reloadItems);
     window.addEventListener("nashir-campaign-content-updated", reloadItems);
     window.addEventListener("nashir-publishing-queue-updated", reloadItems);
 
     return () => {
       window.removeEventListener("focus", reloadItems);
       window.removeEventListener("storage", reloadItems);
+      window.removeEventListener("nashir-campaigns-updated", reloadItems);
       window.removeEventListener("nashir-campaign-content-updated", reloadItems);
       window.removeEventListener("nashir-publishing-queue-updated", reloadItems);
     };
   }, []);
 
-  const selected = items.find((item) => item.id === selectedId) || items[0];
+  useEffect(() => {
+    setNewItem((prev) =>
+      campaignOptions.includes(prev.campaign)
+        ? prev
+        : { ...prev, campaign: campaignOptions[0] || "حملة تجريبية" }
+    );
+  }, [campaignOptions]);
+
+  const selected =
+    items.find((item) => getQueueKey(item) === String(selectedId)) ||
+    items[0] ||
+    initialItems[0];
 
   const days = useMemo(() => {
     return Array.from(new Set(items.map((item) => item.date))).sort();
@@ -308,11 +333,12 @@ export default function PublishingQueuePage() {
   };
 
   const updateChecklist = (key) => {
+    const checklist = selected.checklist || {};
     const updatedItem = {
       ...selected,
       checklist: {
-        ...selected.checklist,
-        [key]: !selected.checklist[key],
+        ...checklist,
+        [key]: !checklist[key],
       },
     };
     const next = upsertPublishingQueueItem(updatedItem, initialItems);
@@ -331,9 +357,11 @@ export default function PublishingQueuePage() {
       return;
     }
 
+    const selectedCampaign =
+      newItem.campaign || sourceContent.campaign || campaignOptions[0] || "حملة تجريبية";
     const item = createQueueItemFromContent(sourceContent, {
       title: newItem.title.trim() || sourceContent.title,
-      campaign: newItem.campaign,
+      campaign: selectedCampaign,
       channel: newItem.channel,
       date: newItem.date,
       time: newItem.time,
@@ -502,8 +530,8 @@ export default function PublishingQueuePage() {
                       <button
                         key={item.id}
                         type="button"
-                        className={selectedId === item.id ? "selected" : ""}
-                        onClick={() => setSelectedId(item.id)}
+                        className={selectedId === getQueueKey(item) ? "selected" : ""}
+                        onClick={() => setSelectedId(getQueueKey(item))}
                       >
                         <span>{item.time}</span>
                         <b>{item.title}</b>
@@ -613,7 +641,7 @@ export default function PublishingQueuePage() {
                 value={newItem.campaign}
                 onChange={(event) => setNewItem((prev) => ({ ...prev, campaign: event.target.value }))}
               >
-                {campaigns.map((campaign) => (
+                {campaignOptions.map((campaign) => (
                   <option key={campaign}>{campaign}</option>
                 ))}
               </select>
@@ -682,17 +710,21 @@ export default function PublishingQueuePage() {
                 ["assetRights", "حقوق الأصول مؤكدة"],
                 ["linkChecked", "الرابط / CTA مفحوص"],
                 ["channelReady", "القناة جاهزة"],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={selected.checklist[key] ? "checked" : ""}
-                  onClick={() => updateChecklist(key)}
-                >
-                  {selected.checklist[key] ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
-                  <span>{label}</span>
-                </button>
-              ))}
+              ].map(([key, label]) => {
+                const checklist = selected.checklist || {};
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={checklist[key] ? "checked" : ""}
+                    onClick={() => updateChecklist(key)}
+                  >
+                    {checklist[key] ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">اختر عنصرًا لإدارة قائمة التحقق.</div>
@@ -742,8 +774,8 @@ export default function PublishingQueuePage() {
             <button
               key={item.id}
               type="button"
-              onClick={() => setSelectedId(item.id)}
-              className={selectedId === item.id ? "active" : ""}
+              onClick={() => setSelectedId(getQueueKey(item))}
+              className={selectedId === getQueueKey(item) ? "active" : ""}
             >
               <span>{item.title}</span>
               <span>{item.channel}</span>
