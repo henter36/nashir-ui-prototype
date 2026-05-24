@@ -1072,6 +1072,9 @@ export default function SecretsAndKeysPage() {
               <div>
                 <h2>{selectedProvider.status === "draft" ? "إضافة مزود" : "تعديل مزود"}</h2>
                 <p>نموذج المزود الموحد · {selectedProvider.displayName}</p>
+                <p className="ownership-note">
+                  هذه الصفحة تضبط جاهزية المزود ومرجع السر والقدرات التي يدعمها فقط. اختيار نموذج المهمة، النماذج البديلة، وسياسات التشغيل تتم من توجيه النماذج وتشغيلات النظام.
+                </p>
               </div>
             </div>
 
@@ -1203,7 +1206,7 @@ export default function SecretsAndKeysPage() {
               </div>
             </EditorSection>
 
-            <EditorSection title="النماذج المهيأة" helper="هذه ليست قائمة كل نماذج المزود؛ بل النماذج المختارة للاستخدام داخل التوجيه والتشغيل.">
+            <EditorSection title="نماذج المزود المتاحة للتوجيه" helper="هذه نماذج متاحة للاختيار لاحقًا داخل توجيه النماذج، وليست قرار التوجيه النهائي.">
               <div className="form-grid">
                 <Field
                   label="نموذج النصوص"
@@ -1227,15 +1230,10 @@ export default function SecretsAndKeysPage() {
                   value={selectedProvider.embeddingModel}
                   onChange={(value) => updateSelected("embeddingModel", value)}
                 />
-                <Field
-                  label="النموذج البديل"
-                  value={selectedProvider.fallbackModel}
-                  onChange={(value) => updateSelected("fallbackModel", value)}
-                />
               </div>
             </EditorSection>
 
-            <EditorSection title="القدرات التشغيلية">
+            <EditorSection title="قدرات يدعمها المزود" helper="تحديد دعم المزود لا يعني استخدام القدرة تلقائيًا؛ الاستخدام يحدد في توجيه النماذج أو تشغيلات النظام.">
               <ToggleGrid
                 source={normalizeCapabilities(selectedProvider.capabilities)}
                 onChange={(key, value) => updateNested("capabilities", key, value)}
@@ -1493,7 +1491,7 @@ function ProviderReadinessPanel({ provider }) {
         <Info label="مرجع السر" value={provider.secretName || "غير محدد"} />
         <Info label="نطاق الاعتماد" value={getCredentialScope(provider)} />
         <Info label="العنوان الأساسي" value={provider.baseUrl || "غير محدد"} />
-        <Info label="النماذج المهيأة" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
+        <Info label="نماذج المزود المتاحة للتوجيه" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
         <Info label="القدرات" value={capabilities.length ? `${capabilities.length}` : "غير مفعلة"} />
         <Info label="Webhook" value={provider.webhooks?.enabled ? "مفعل" : "غير مفعل"} />
         <Info label="آخر اختبار" value={lastTest} />
@@ -1546,9 +1544,9 @@ function RoutingImpactPanel() {
       <h3>قابلية الربط</h3>
       <p>هذه الحقول تحدد كيف يمكن ربط المزود لاحقًا بمسارات النماذج والتكلفة والتشغيلات دون حفظ أي قيمة سرية.</p>
       <div className="link-readiness-grid">
-        <Info label="توجيه النماذج" value="يعتمد على نوع المزود، النماذج، والقدرات" />
-        <Info label="مراقبة التكلفة" value="تعتمد على البيئة ودعم ترويسات الاستهلاك" />
-        <Info label="تشغيلات النظام" value="تعتمد على قناة الوصول وجاهزية المراجعة" />
+        <Info label="توجيه النماذج" value="يختار النموذج الأساسي والنماذج البديلة" />
+        <Info label="مراقبة التكلفة" value="تضبط الحدود والاعتماد" />
+        <Info label="تشغيلات النظام" value="تستخدم القدرات داخل خطوات التشغيل" />
       </div>
     </section>
   );
@@ -1958,6 +1956,14 @@ const styles = `
   margin: 5px 0 0;
   color: #6f746b;
   font-size: 12px;
+}
+
+.drawer-header .ownership-note {
+  max-width: 760px;
+  margin-top: 8px;
+  line-height: 1.8;
+  color: #475569;
+  font-weight: 800;
 }
 
 .drawer-header button {
