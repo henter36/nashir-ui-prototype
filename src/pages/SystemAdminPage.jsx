@@ -226,6 +226,65 @@ const featureFlags = [
   },
 ];
 
+function getFlag(flags, key) {
+  return flags.find((flag) => flag.key === key) || {};
+}
+
+function getPolicyStatusLabel(status) {
+  const labels = {
+    ready: "جاهزة",
+    warning: "تحتاج ضبط",
+    blocked: "محظورة",
+  };
+
+  return labels[status] || "تحتاج ضبط";
+}
+
+function buildAiOpsPolicyHealth(flags = [], roles = [], integrations = [], auditLogs = []) {
+  const checks = [];
+  const warnings = [];
+  const blockedReasons = [];
+  const humanReview = getFlag(flags, "human_review_required");
+  const autoPublish = getFlag(flags, "auto_publish");
+  const videoGeneration = getFlag(flags, "ai_video_generation");
+  const externalIntegrations = getFlag(flags, "external_integrations");
+  const hasAdminRole = roles.some((role) => ["Owner", "Admin"].includes(role.id) || ["Owner", "Admin"].includes(role.label));
+  const hasReviewerRole = roles.some((role) => role.id === "Reviewer" || role.label === "Reviewer");
+  const warningAuditCount = auditLogs.filter((log) => ["warning", "critical"].includes(log.level || log.severity)).length;
+  const criticalAudit = auditLogs.some((log) => (log.level || log.severity) === "critical");
+  const riskyIntegrations = integrations.filter((item) => ["warning", "restricted", "limited"].includes(item.status));
+
+  if (humanReview.enabled) checks.push("المراجعة البشرية مفعلة.");
+  else blockedReasons.push("المراجعة البشرية معطلة.");
+
+  if (autoPublish.enabled) blockedReasons.push("النشر التلقائي مفعل دون ضوابط كافية.");
+  else checks.push("النشر التلقائي معطل أو مقيد.");
+
+  if (videoGeneration.enabled) warnings.push("توليد الفيديو يحتاج مراجعة بشرية واعتماد تكلفة قبل التشغيل.");
+  else checks.push("توليد الفيديو غير مفعل افتراضيًا.");
+
+  if (externalIntegrations.enabled) warnings.push("التكاملات الخارجية تحتاج موافقة وصلاحيات واضحة قبل استخدامها في التشغيلات.");
+  else checks.push("التكاملات الخارجية غير مفعلة افتراضيًا.");
+
+  if (hasAdminRole) checks.push("صلاحيات الإدارة متوفرة.");
+  else blockedReasons.push("لا يوجد دور Admin/Owner لتغيير السياسات الحساسة.");
+
+  if (hasReviewerRole) checks.push("دور Reviewer متوفر للمراجعة.");
+  else blockedReasons.push("لا يوجد دور Reviewer للمراجعة.");
+
+  if (auditLogs.length) checks.push("سجل التدقيق متوفر.");
+  else warnings.push("لا توجد أحداث تدقيق مسجلة.");
+
+  if (riskyIntegrations.length) warnings.push("توجد تكاملات خارجية تحتاج متابعة قبل التشغيل.");
+  if (warningAuditCount) warnings.push("توجد أحداث تدقيق تحذيرية تؤثر على جاهزية التشغيل.");
+  if (criticalAudit) warnings.push("يوجد حدث حرج في سجل التدقيق يحتاج مراجعة.");
+
+  const score = Math.max(0, 100 - blockedReasons.length * 35 - warnings.length * 8);
+  const status = blockedReasons.length ? "blocked" : warnings.length ? "warning" : "ready";
+
+  return { status, score, checks, warnings, blockedReasons };
+}
+
 export default function SystemAdminPage() {
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState(featureFlags);
@@ -275,6 +334,11 @@ export default function SystemAdminPage() {
     const text = `${workspace.name} ${workspace.owner} ${workspace.plan}`.toLowerCase();
     return text.includes(query.toLowerCase());
   });
+
+  const aiOpsHealth = useMemo(
+    () => buildAiOpsPolicyHealth(flags, workspaceRoles, integrations, adminAuditLogs),
+    [adminAuditLogs, flags, workspaceRoles]
+  );
 
   const toggleFlag = (key) => {
     setFlags((prev) =>
@@ -332,10 +396,65 @@ export default function SystemAdminPage() {
           <strong>تنبيه حوكمي</strong>
           <p>
             هذه الصفحة Prototype فقط. لا تنفذ تعطيل حسابات، حذف مستخدمين، أو
-            تغيير مفاتيح تكاملات فعليًا من الواجهة. أي إجراء حقيقي يحتاج Backend
-            وصلاحيات وسجل تدقيق.
+            تغيير مفاتيح تكاملات فعليًا من الواجهة. أي إجراء حقيقي يحتاج
+            صلاحيات وسجل تدقيق معتمد.
           </p>
         </div>
+      </section>
+
+      <section className={`sys-card ai-policy-card ${aiOpsHealth.status}`}>
+        <div className="sys-card-header">
+          <div>
+            <h2>سياسات تشغيل الذكاء الاصطناعي</h2>
+            <p>
+              هذه السياسات تحدد السلوك المطلوب عند تنفيذ تشغيلات الذكاء الاصطناعي.
+              أي تعطيل للمراجعة البشرية أو تفعيل للنشر التلقائي يؤثر على جاهزية التشغيل.
+            </p>
+          </div>
+          <PolicyBadge status={aiOpsHealth.status} />
+        </div>
+
+        <div className="policy-health-grid">
+          <InfoBox label="حالة السياسات" value={`${getPolicyStatusLabel(aiOpsHealth.status)} · ${aiOpsHealth.score}%`} />
+          <InfoBox label="المراجعة البشرية" value={getFlag(flags, "human_review_required").enabled ? "مفعلة" : "معطلة"} />
+          <InfoBox label="النشر التلقائي" value={getFlag(flags, "auto_publish").enabled ? "مفعل" : "معطل"} />
+          <InfoBox label="توليد الفيديو" value={getFlag(flags, "ai_video_generation").enabled ? "مفعل" : "معطل"} />
+          <InfoBox label="التكاملات الخارجية" value={getFlag(flags, "external_integrations").enabled ? "مفعلة" : "معطلة"} />
+          <InfoBox label="صلاحيات الإدارة" value={workspaceRoles.some((role) => ["Owner", "Admin"].includes(role.id) || ["Owner", "Admin"].includes(role.label)) ? "متوفرة" : "غير مكتملة"} />
+          <InfoBox label="سجل التدقيق" value={`${adminAuditLogs.length} حدث`} />
+          <InfoBox label="أثرها على تشغيلات النظام" value="تؤثر على جاهزية التشغيل" />
+        </div>
+
+        <div className="policy-impact-note">
+          <ShieldCheck size={17} />
+          <span>Reviewer مطلوب للمراجعة. Admin/Owner مطلوب لتغيير السياسات الحساسة. Editor لا يملك اعتمادًا نهائيًا.</span>
+        </div>
+
+        <div className="policy-impact-note">
+          <Server size={17} />
+          <span>التكاملات الخارجية تحتاج موافقة وصلاحيات واضحة قبل استخدامها في التشغيلات. القنوات الخارجية لا تعني نشرًا تلقائيًا.</span>
+        </div>
+
+        <div className="policy-audit-summary">
+          <InfoBox label="آخر تغيير سياسة" value={adminAuditLogs.find((log) => String(log.action).includes("سياسة") || String(log.target).includes("Feature"))?.time || "لا يوجد"} />
+          <InfoBox label="آخر تحذير" value={adminAuditLogs.find((log) => ["warning", "critical"].includes(log.level || log.severity))?.time || "لا يوجد"} />
+          <InfoBox label="عدد أحداث التدقيق" value={adminAuditLogs.length} />
+          <InfoBox label="هل يوجد حدث حرج؟" value={adminAuditLogs.some((log) => (log.level || log.severity) === "critical") ? "نعم" : "لا"} />
+        </div>
+
+        {aiOpsHealth.blockedReasons.length ? (
+          <div className="policy-notes blocked-notes">
+            <strong>أسباب الحظر</strong>
+            {aiOpsHealth.blockedReasons.map((reason) => <span key={reason}>{reason}</span>)}
+          </div>
+        ) : null}
+
+        {aiOpsHealth.warnings.length ? (
+          <div className="policy-notes warning-notes">
+            <strong>تحذيرات</strong>
+            {aiOpsHealth.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+          </div>
+        ) : null}
       </section>
 
       <section className="sys-stats-grid">
@@ -416,9 +535,9 @@ export default function SystemAdminPage() {
             </div>
 
             <HealthRow label="API Gateway" value="99.9%" tone="green" />
-            <HealthRow label="AI Jobs Queue" value="مستقر" tone="green" />
+            <HealthRow label="طابور تشغيل الذكاء الاصطناعي" value="مستقر" tone="green" />
             <HealthRow label="OAuth Callbacks" value="تحتاج مراقبة" tone="amber" />
-            <HealthRow label="Audit Log" value="نشط" tone="green" />
+            <HealthRow label="سجل التدقيق" value="نشط" tone="green" />
           </article>
 
           <article className="sys-card security-card">
@@ -428,8 +547,8 @@ export default function SystemAdminPage() {
 
             <h2>الأسرار والمفاتيح</h2>
             <p>
-              لا تعرض أو تحفظ مفاتيح API داخل الواجهة. التخزين الحقيقي يجب أن
-              يكون في Backend آمن مع تشفير.
+              لا تعرض أو تحفظ قيم مفاتيح داخل الواجهة. يتم التعامل مع مراجع
+              الأسرار فقط ضمن ضوابط الأمان.
             </p>
 
             <button type="button" className="sys-secondary full">
@@ -496,7 +615,7 @@ export default function SystemAdminPage() {
         <article className="sys-card">
           <div className="sys-card-header">
             <div>
-              <h2>Feature Flags</h2>
+              <h2>سياسات الخصائص</h2>
               <p>تشغيل وتعطيل خصائص النظام بشكل محكوم.</p>
             </div>
             <Flag size={20} />
@@ -507,7 +626,7 @@ export default function SystemAdminPage() {
               <div key={flag.key} className="flag-row">
                 <div>
                   <strong>{flag.label}</strong>
-                  <span>المخاطر: {flag.risk}</span>
+                  <span>المخاطر: {flag.risk} · يؤثر على: تشغيلات النظام، توجيه النماذج، مراقبة التكلفة، حوكمة المطالبات، الأسرار والمفاتيح</span>
                 </div>
 
                 <button
@@ -528,7 +647,7 @@ export default function SystemAdminPage() {
           <div className="sys-card-header">
             <div>
               <h2>سجل التدقيق التجريبي</h2>
-              <p>أحداث حساسة يجب أن تكون محفوظة فعليًا لاحقًا في Backend.</p>
+              <p>أحداث حساسة يجب أن تحفظ ضمن سجل تدقيق محكوم.</p>
             </div>
 
             <button type="button" className="sys-secondary">
@@ -564,8 +683,8 @@ export default function SystemAdminPage() {
           <ul>
             <li>نموذج صلاحيات مدير النظام ومدير المساحة.</li>
             <li>سياسة تعطيل الحسابات والتجميد المؤقت.</li>
-            <li>تشفير وحفظ أسرار OAuth و API Keys.</li>
-            <li>Audit Log فعلي غير قابل للتلاعب.</li>
+            <li>تشفير وحفظ مراجع الأسرار للتكاملات.</li>
+            <li>سجل تدقيق فعلي غير قابل للتلاعب.</li>
             <li>حدود التكلفة والاستخدام حسب مساحة العمل.</li>
           </ul>
         </article>
@@ -604,6 +723,19 @@ function StatusBadge({ status }) {
 
 function RiskBadge({ risk }) {
   return <span className={`risk-badge ${risk}`}>{risk}</span>;
+}
+
+function PolicyBadge({ status }) {
+  return <span className={`policy-badge ${status}`}>{getPolicyStatusLabel(status)}</span>;
+}
+
+function InfoBox({ label, value }) {
+  return (
+    <div className="policy-info-box">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
 }
 
 function HealthRow({ label, value, tone }) {
@@ -733,6 +865,121 @@ const styles = `
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.ai-policy-card {
+  margin-bottom: 16px;
+}
+
+.ai-policy-card.warning {
+  border-color: #fde68a;
+  background: #fffaf0;
+}
+
+.ai-policy-card.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.policy-badge {
+  width: fit-content;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.policy-badge.ready {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.policy-badge.warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.policy-badge.blocked {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.policy-health-grid,
+.policy-audit-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.policy-info-box {
+  border: 1px solid #e7edf3;
+  background: #fff;
+  border-radius: 16px;
+  padding: 11px;
+}
+
+.policy-info-box span {
+  display: block;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.policy-info-box strong {
+  display: block;
+  margin-top: 5px;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.policy-impact-note {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 16px;
+  padding: 11px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.8;
+}
+
+.policy-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.policy-notes strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.policy-notes span {
+  border-radius: 12px;
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.6;
+}
+
+.blocked-notes span {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.warning-notes span {
+  color: #92400e;
+  background: #ffedd5;
 }
 
 .sys-stat-card,
@@ -1170,7 +1417,9 @@ const styles = `
 
 @media (max-width: 1280px) {
   .sys-stats-grid,
-  .sys-lower-grid {
+  .sys-lower-grid,
+  .policy-health-grid,
+  .policy-audit-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1197,7 +1446,9 @@ const styles = `
   }
 
   .sys-stats-grid,
-  .sys-lower-grid {
+  .sys-lower-grid,
+  .policy-health-grid,
+  .policy-audit-summary {
     grid-template-columns: 1fr;
   }
 
