@@ -323,12 +323,51 @@ const PROVIDER_PRESETS = {
   },
 };
 
+const DELIVERY_CHANNELS = [
+  ["direct_api", "API مباشر"],
+  ["cloud_platform", "منصة سحابية"],
+  ["openai_compatible", "متوافق مع OpenAI"],
+  ["gateway", "بوابة موحدة"],
+  ["proxy", "وسيط Proxy"],
+  ["self_hosted", "مستضاف ذاتيًا"],
+];
+
+const ENVIRONMENTS = [
+  ["sandbox", "تجريبي"],
+  ["staging", "اختبار"],
+  ["production", "إنتاج"],
+];
+
 const AUTH_TYPES = [
   ["bearer_token", "Bearer Token"],
-  ["api_key_header", "ترويسة مفتاح"],
-  ["oauth", "OAuth"],
+  ["api_key_header", "API Key Header"],
+  ["oauth_bearer", "OAuth Bearer"],
+  ["workload_identity", "هوية عمل / Workload Identity"],
+  ["service_account", "حساب خدمة"],
   ["custom_headers", "ترويسات مخصصة"],
+  ["no_auth_local", "بدون مصادقة محليًا"],
 ];
+
+const DEFAULT_CAPABILITIES = {
+  textGeneration: false,
+  structuredOutput: false,
+  visionInput: false,
+  imageGeneration: false,
+  videoGeneration: false,
+  embeddings: false,
+  toolCalling: false,
+  streaming: false,
+  batch: false,
+  files: false,
+  webhooks: false,
+};
+
+const DEFAULT_OPERATIONAL_SUPPORT = {
+  requestIdSupport: false,
+  rateLimitHeadersSupport: false,
+  usageHeadersSupport: false,
+  tokenCountingSupport: false,
+};
 
 const PROVIDER_TYPES = [
   ["openai", "OpenAI"],
@@ -342,6 +381,29 @@ const PROVIDER_TYPES = [
 
 function createProviderFromPreset(type, override = {}) {
   const preset = PROVIDER_PRESETS[type] || PROVIDER_PRESETS.custom;
+  const legacyCapabilities = preset.capabilities || {};
+  const capabilities = {
+    ...DEFAULT_CAPABILITIES,
+    textGeneration: Boolean(legacyCapabilities.textGeneration),
+    structuredOutput: Boolean(legacyCapabilities.structuredOutput),
+    visionInput: Boolean(legacyCapabilities.visionInput || legacyCapabilities.vision),
+    imageGeneration: Boolean(legacyCapabilities.imageGeneration),
+    videoGeneration: Boolean(legacyCapabilities.videoGeneration),
+    embeddings: Boolean(legacyCapabilities.embeddings),
+    toolCalling: Boolean(legacyCapabilities.toolCalling || legacyCapabilities.functionCalling),
+    streaming: Boolean(legacyCapabilities.streaming || legacyCapabilities.textGeneration),
+    batch: Boolean(legacyCapabilities.batch),
+    files: Boolean(legacyCapabilities.files),
+    webhooks: Boolean(legacyCapabilities.webhooks || preset.webhooks?.enabled),
+  };
+  const operationalSupport = {
+    ...DEFAULT_OPERATIONAL_SUPPORT,
+    ...(preset.operationalSupport || {}),
+    requestIdSupport: preset.operationalSupport?.requestIdSupport ?? true,
+    rateLimitHeadersSupport: preset.operationalSupport?.rateLimitHeadersSupport ?? true,
+    usageHeadersSupport: preset.operationalSupport?.usageHeadersSupport ?? Boolean(capabilities.textGeneration || capabilities.embeddings),
+    tokenCountingSupport: preset.operationalSupport?.tokenCountingSupport ?? Boolean(capabilities.textGeneration || capabilities.embeddings),
+  };
 
   return {
     id: `${type}-${Date.now()}`,
@@ -349,23 +411,30 @@ function createProviderFromPreset(type, override = {}) {
     displayName: preset.displayName,
     category: preset.category,
     status: "draft",
-    authType: preset.authType,
+    deliveryChannel: preset.deliveryChannel || (preset.providerType === "gemini" ? "cloud_platform" : "direct_api"),
+    environment: preset.environment || "sandbox",
+    authType: preset.providerType === "gemini" ? "workload_identity" : preset.authType,
     headerName: preset.headerName,
     tokenPrefix: preset.tokenPrefix,
     secretName: preset.secretName,
     baseUrl: preset.baseUrl,
     apiVersion: preset.apiVersion || "",
     organizationId: preset.organizationId || "",
-    projectId: preset.projectId || "",
+    projectId: preset.projectId || preset.googleCloudProject || "",
+    workspaceId: preset.workspaceId || "",
+    serviceAccountRef: preset.serviceAccountRef || (preset.providerType === "gemini" ? "GCP_AI_SERVICE_ACCOUNT" : ""),
     googleCloudProject: preset.googleCloudProject || "",
     region: preset.region || "",
+    location: preset.location || preset.region || "",
+    deploymentName: preset.deploymentName || "",
     textModel: preset.textModel || "",
     imageModel: preset.imageModel || "",
     videoModel: preset.videoModel || "",
     embeddingModel: preset.embeddingModel || "",
     fallbackModel: preset.fallbackModel || "",
     customHeaders: preset.customHeaders || "",
-    capabilities: { ...preset.capabilities },
+    capabilities,
+    operationalSupport,
     limits: { ...preset.limits },
     governance: {
       humanReviewRequired: true,
@@ -374,7 +443,14 @@ function createProviderFromPreset(type, override = {}) {
       logAllRequests: true,
       redactInputs: true,
     },
-    webhooks: { ...preset.webhooks },
+    webhooks: {
+      enabled: false,
+      secretName: "",
+      callbackUrl: "",
+      eventTypes: "",
+      lastDeliveryStatus: "",
+      ...preset.webhooks,
+    },
     metadata: {
       createdAt: "اليوم",
       updatedAt: "الآن",
@@ -391,6 +467,7 @@ const initialProviders = [
   createProviderFromPreset("openai", {
     id: "openai-main",
     displayName: "OpenAI - Production",
+    environment: "production",
     status: "connected",
     metadata: {
       createdAt: "2026-05-01",
@@ -402,11 +479,13 @@ const initialProviders = [
   }),
   createProviderFromPreset("anthropic", {
     id: "anthropic-review",
+    environment: "production",
     status: "missing_required_fields",
   }),
   createProviderFromPreset("replicate", {
     id: "replicate-images",
     displayName: "Replicate - Image/Video",
+    environment: "production",
     status: "pending_test",
   }),
 ];
@@ -439,11 +518,59 @@ function getRequiredFieldLabel(field) {
     videoModel: "نموذج الفيديو",
     embeddingModel: "نموذج التضمين",
     webhookSecretName: "سر Webhook",
-    apiVersion: "إصدار الواجهة",
-    googleCloudProject: "مشروع Google Cloud",
+    apiVersion: "إصدار API",
+    organizationId: "معرف المنظمة",
+    projectId: "معرف المشروع",
+    workspaceId: "معرف مساحة العمل",
+    serviceAccountRef: "مرجع حساب الخدمة",
+    region: "المنطقة",
+    location: "الموقع",
+    deploymentName: "اسم النشر",
+    googleCloudProject: "معرف المشروع",
   };
 
   return labels[field] || field;
+}
+
+function getOptionLabel(options, value) {
+  return options.find(([id]) => id === value)?.[1] || value || "غير محدد";
+}
+
+function normalizeCapabilities(capabilities = {}) {
+  return {
+    ...DEFAULT_CAPABILITIES,
+    textGeneration: Boolean(capabilities.textGeneration),
+    structuredOutput: Boolean(capabilities.structuredOutput),
+    visionInput: Boolean(capabilities.visionInput || capabilities.vision),
+    imageGeneration: Boolean(capabilities.imageGeneration),
+    videoGeneration: Boolean(capabilities.videoGeneration),
+    embeddings: Boolean(capabilities.embeddings),
+    toolCalling: Boolean(capabilities.toolCalling || capabilities.functionCalling),
+    streaming: Boolean(capabilities.streaming),
+    batch: Boolean(capabilities.batch),
+    files: Boolean(capabilities.files),
+    webhooks: Boolean(capabilities.webhooks),
+  };
+}
+
+function getCredentialScope(provider = {}) {
+  const values = [
+    provider.organizationId ? "معرف المنظمة" : "",
+    provider.projectId || provider.googleCloudProject ? "معرف المشروع" : "",
+    provider.workspaceId ? "معرف مساحة العمل" : "",
+    provider.serviceAccountRef ? "مرجع حساب الخدمة" : "",
+  ].filter(Boolean);
+
+  return values.length ? values.join("، ") : "غير محدد";
+}
+
+function authRequiresSecret(authType) {
+  return ["bearer_token", "api_key_header", "oauth_bearer", "custom_headers"].includes(authType);
+}
+
+function isCloudStyleProvider(provider = {}) {
+  const providerType = String(provider.providerType || "").toLowerCase();
+  return ["google", "vertex", "gemini", "google_vertex"].includes(providerType);
 }
 
 function getConfiguredModels(provider = {}) {
@@ -471,23 +598,32 @@ function buildProviderReadiness(provider) {
     };
   }
 
-  const capabilities = provider.capabilities || {};
+  const capabilities = normalizeCapabilities(provider.capabilities);
   const governance = provider.governance || {};
   const webhooks = provider.webhooks || {};
   const requiredFields = Array.isArray(provider.requiredFields) ? provider.requiredFields : [];
   const enabledCapabilities = Object.entries(capabilities).filter(([, enabled]) => Boolean(enabled));
+  const configuredModels = getConfiguredModels(provider);
 
   checks.push("المزود موجود.");
 
   if (provider.providerType) checks.push("نوع المزود محدد.");
   else blockedReasons.push("نوع المزود غير محدد.");
 
+  if (provider.deliveryChannel) checks.push("قناة الوصول محددة.");
+  else blockedReasons.push("قناة الوصول غير محددة.");
+
+  if (provider.environment) checks.push("البيئة محددة.");
+  else blockedReasons.push("البيئة غير محددة.");
+
   if (provider.authType) checks.push("طريقة المصادقة محددة.");
   else blockedReasons.push("طريقة المصادقة غير محددة.");
 
-  if (requiredFields.includes("secretName") || provider.authType) {
+  if (authRequiresSecret(provider.authType)) {
     if (String(provider.secretName || "").trim()) checks.push("مرجع السر محدد.");
     else blockedReasons.push("مرجع السر مطلوب.");
+  } else {
+    checks.push("طريقة المصادقة لا تتطلب مرجع سر مباشر.");
   }
 
   if (requiredFields.includes("baseUrl")) {
@@ -495,6 +631,32 @@ function buildProviderReadiness(provider) {
     else blockedReasons.push("العنوان الأساسي مطلوب.");
   } else if (!String(provider.baseUrl || "").trim()) {
     warnings.push("العنوان الأساسي غير محدد.");
+  }
+
+  if (requiredFields.includes("apiVersion")) {
+    if (String(provider.apiVersion || "").trim()) checks.push("إصدار API محدد.");
+    else blockedReasons.push("إصدار API مطلوب لهذا المزود.");
+  }
+
+  if (provider.deliveryChannel === "cloud_platform" && isCloudStyleProvider(provider)) {
+    if (String(provider.projectId || provider.googleCloudProject || "").trim()) checks.push("معرف المشروع محدد.");
+    else blockedReasons.push("معرف المشروع مطلوب لقناة المنصة السحابية.");
+
+    if (String(provider.location || provider.region || "").trim()) checks.push("الموقع أو المنطقة محددة.");
+    else blockedReasons.push("الموقع مطلوب لقناة المنصة السحابية.");
+  }
+
+  if (["service_account", "workload_identity"].includes(provider.authType)) {
+    if (String(provider.serviceAccountRef || "").trim()) checks.push("مرجع حساب الخدمة محدد.");
+    else blockedReasons.push("مرجع حساب الخدمة مطلوب لطريقة المصادقة الحالية.");
+  }
+
+  if (provider.providerType === "openai" && provider.environment === "production" && !String(provider.projectId || "").trim()) {
+    warnings.push("يفضل تحديد معرف المشروع لمزود OpenAI في بيئة الإنتاج.");
+  }
+
+  if (provider.providerType === "anthropic" && provider.environment === "production" && !String(provider.workspaceId || "").trim()) {
+    warnings.push("يفضل تحديد معرف مساحة العمل لمزود Anthropic في بيئة الإنتاج.");
   }
 
   const modelRequirements = [
@@ -510,6 +672,9 @@ function buildProviderReadiness(provider) {
     if (String(provider[field] || "").trim()) checks.push(`${label} مهيأ.`);
     else blockedReasons.push(`${label} مطلوب عند تفعيل القدرة المرتبطة.`);
   });
+
+  if (configuredModels.length) checks.push("يوجد نموذج واحد مهيأ على الأقل.");
+  else blockedReasons.push("يجب تهيئة نموذج واحد على الأقل لاستخدامه في التوجيه.");
 
   if (webhooks.enabled || requiredFields.includes("webhookSecretName")) {
     if (String(webhooks.secretName || "").trim()) checks.push("سر Webhook محدد.");
@@ -527,6 +692,8 @@ function buildProviderReadiness(provider) {
 
   if (provider.metadata?.lastTestedAt) {
     checks.push("آخر اختبار موجود.");
+  } else if (provider.environment === "production") {
+    warnings.push("مزود الإنتاج يحتاج تسجيل اختبار قبل الاعتماد.");
   } else {
     warnings.push("لم يتم تسجيل آخر اختبار بعد.");
   }
@@ -562,7 +729,9 @@ export default function SecretsAndKeysPage() {
   const [testLog, setTestLog] = useState([]);
 
   const selectedProvider =
-    providers.find((provider) => provider.id === selectedProviderId) || providers[0];
+    providers.find((provider) => provider.id === selectedProviderId) ||
+    providers[0] ||
+    createProviderFromPreset("custom", { id: "empty-provider", displayName: "مزود غير محدد" });
 
   const filteredProviders = useMemo(() => {
     return providers.filter((provider) =>
@@ -577,7 +746,7 @@ export default function SecretsAndKeysPage() {
       total: providers.length,
       connected: providers.filter((p) => p.status === "connected").length,
       missing: providers.filter((p) => p.status === "missing_required_fields").length,
-      autoPublishUnsafe: providers.filter((p) => p.governance.autoPublishAllowed).length,
+      autoPublishUnsafe: providers.filter((p) => p.governance?.autoPublishAllowed).length,
     };
   }, [providers]);
 
@@ -608,7 +777,7 @@ export default function SecretsAndKeysPage() {
   const updateNested = (section, key, value) => {
     updateProvider(selectedProvider.id, {
       [section]: {
-        ...selectedProvider[section],
+        ...(selectedProvider[section] || {}),
         [key]: value,
       },
       status: selectedProvider.status === "connected" ? "pending_test" : selectedProvider.status,
@@ -666,10 +835,22 @@ export default function SecretsAndKeysPage() {
   const validateProvider = (provider) => {
     const missing = [];
     const requiredFields = Array.isArray(provider?.requiredFields) ? provider.requiredFields : [];
+    const readiness = buildProviderReadiness(provider);
 
     requiredFields.forEach((field) => {
+      if (field === "secretName" && !authRequiresSecret(provider.authType)) {
+        return;
+      }
+
       if (field === "webhookSecretName") {
         if (!provider.webhooks?.secretName) missing.push(getRequiredFieldLabel(field));
+        return;
+      }
+
+      if (field === "googleCloudProject") {
+        if (!String(provider.projectId || provider.googleCloudProject || "").trim()) {
+          missing.push(getRequiredFieldLabel("projectId"));
+        }
         return;
       }
 
@@ -678,11 +859,7 @@ export default function SecretsAndKeysPage() {
       }
     });
 
-    if (provider.governance?.autoPublishAllowed) {
-      missing.push("auto_publish_must_remain_disabled");
-    }
-
-    return missing;
+    return [...new Set([...missing, ...readiness.blockedReasons])];
   };
 
   const testConnection = (provider = selectedProvider) => {
@@ -897,6 +1074,20 @@ export default function SecretsAndKeysPage() {
                 onChange={changeProviderType}
               />
 
+              <SelectField
+                label="قناة الوصول"
+                value={selectedProvider.deliveryChannel || "direct_api"}
+                options={DELIVERY_CHANNELS}
+                onChange={(value) => updateSelected("deliveryChannel", value)}
+              />
+
+              <SelectField
+                label="البيئة"
+                value={selectedProvider.environment || "sandbox"}
+                options={ENVIRONMENTS}
+                onChange={(value) => updateSelected("environment", value)}
+              />
+
               <Field
                 label="اسم العرض"
                 value={selectedProvider.displayName}
@@ -906,7 +1097,7 @@ export default function SecretsAndKeysPage() {
 
               <SelectField
                 label="طريقة المصادقة"
-                value={selectedProvider.authType}
+                value={selectedProvider.authType || "bearer_token"}
                 options={AUTH_TYPES}
                 onChange={(value) => updateSelected("authType", value)}
               />
@@ -944,42 +1135,67 @@ export default function SecretsAndKeysPage() {
               />
 
               <Field
-                label="إصدار الواجهة"
+                label="إصدار API"
                 value={selectedProvider.apiVersion}
                 onChange={(value) => updateSelected("apiVersion", value)}
                 required={(selectedProvider.requiredFields || []).includes("apiVersion")}
               />
 
-              {selectedProvider.providerType === "openai" ? (
-                <>
-                  <Field
-                    label="Organization ID"
-                    value={selectedProvider.organizationId}
-                    onChange={(value) => updateSelected("organizationId", value)}
-                  />
-                  <Field
-                    label="Project ID"
-                    value={selectedProvider.projectId}
-                    onChange={(value) => updateSelected("projectId", value)}
-                  />
-                </>
-              ) : null}
+              <div className="form-subsection wide">
+                <strong>نطاق الاعتماد</strong>
+                <small>حقول اختيارية لتقسيم المزود حسب منظمة أو مشروع أو مساحة عمل.</small>
+              </div>
 
-              {selectedProvider.providerType === "gemini" ? (
-                <>
-                  <Field
-                    label="Google Cloud Project"
-                    value={selectedProvider.googleCloudProject}
-                    onChange={(value) => updateSelected("googleCloudProject", value)}
-                    required
-                  />
-                  <Field
-                    label="Region"
-                    value={selectedProvider.region}
-                    onChange={(value) => updateSelected("region", value)}
-                  />
-                </>
-              ) : null}
+              <Field
+                label="معرف المنظمة"
+                value={selectedProvider.organizationId}
+                onChange={(value) => updateSelected("organizationId", value)}
+              />
+
+              <Field
+                label="معرف المشروع"
+                value={selectedProvider.projectId || selectedProvider.googleCloudProject}
+                onChange={(value) => updateSelected("projectId", value)}
+                required={(selectedProvider.requiredFields || []).includes("projectId") || selectedProvider.deliveryChannel === "cloud_platform"}
+              />
+
+              <Field
+                label="معرف مساحة العمل"
+                value={selectedProvider.workspaceId}
+                onChange={(value) => updateSelected("workspaceId", value)}
+              />
+
+              <Field
+                label="مرجع حساب الخدمة"
+                value={selectedProvider.serviceAccountRef}
+                onChange={(value) => updateSelected("serviceAccountRef", value)}
+                required={["service_account", "workload_identity"].includes(selectedProvider.authType)}
+                helper="مرجع فقط، وليس ملف اعتماد أو قيمة سرية."
+              />
+
+              <Field
+                label="المنطقة"
+                value={selectedProvider.region}
+                onChange={(value) => updateSelected("region", value)}
+              />
+
+              <Field
+                label="الموقع"
+                value={selectedProvider.location}
+                onChange={(value) => updateSelected("location", value)}
+                required={(selectedProvider.requiredFields || []).includes("location") || selectedProvider.deliveryChannel === "cloud_platform"}
+              />
+
+              <Field
+                label="اسم النشر"
+                value={selectedProvider.deploymentName}
+                onChange={(value) => updateSelected("deploymentName", value)}
+              />
+
+              <div className="form-subsection wide">
+                <strong>النماذج المهيأة</strong>
+                <small>هذه ليست قائمة كل نماذج المزود؛ بل النماذج المختارة للاستخدام داخل التوجيه والتشغيل.</small>
+              </div>
 
               <Field
                 label="نموذج النصوص"
@@ -1015,31 +1231,31 @@ export default function SecretsAndKeysPage() {
 
               <Field
                 label="الحد الشهري المرن"
-                value={selectedProvider.limits.monthlySoftLimit}
+                value={selectedProvider.limits?.monthlySoftLimit}
                 onChange={(value) => updateNested("limits", "monthlySoftLimit", value)}
               />
 
               <Field
                 label="الحد الشهري الصارم"
-                value={selectedProvider.limits.monthlyHardLimit}
+                value={selectedProvider.limits?.monthlyHardLimit}
                 onChange={(value) => updateNested("limits", "monthlyHardLimit", value)}
               />
 
               <Field
                 label="حد الطلبات في الدقيقة"
-                value={selectedProvider.limits.rpm}
+                value={selectedProvider.limits?.rpm}
                 onChange={(value) => updateNested("limits", "rpm", value)}
               />
 
               <Field
                 label="حد الرموز في الدقيقة"
-                value={selectedProvider.limits.tpm}
+                value={selectedProvider.limits?.tpm}
                 onChange={(value) => updateNested("limits", "tpm", value)}
               />
 
               <Field
                 label="أقصى مدة تشغيل بالثواني"
-                value={selectedProvider.limits.maxJobDurationSeconds}
+                value={selectedProvider.limits?.maxJobDurationSeconds}
                 onChange={(value) => updateNested("limits", "maxJobDurationSeconds", value)}
               />
 
@@ -1057,14 +1273,21 @@ export default function SecretsAndKeysPage() {
 
             <Section title="القدرات">
               <ToggleGrid
-                source={selectedProvider.capabilities}
+                source={normalizeCapabilities(selectedProvider.capabilities)}
                 onChange={(key, value) => updateNested("capabilities", key, value)}
+              />
+            </Section>
+
+            <Section title="دعم التشغيل والمراقبة">
+              <ToggleGrid
+                source={{ ...DEFAULT_OPERATIONAL_SUPPORT, ...(selectedProvider.operationalSupport || {}) }}
+                onChange={(key, value) => updateNested("operationalSupport", key, value)}
               />
             </Section>
 
             <Section title="الحوكمة">
               <ToggleGrid
-                source={selectedProvider.governance}
+                source={selectedProvider.governance || {}}
                 onChange={(key, value) => updateNested("governance", key, value)}
                 dangerKeys={["autoPublishAllowed", "allowSensitiveContentGeneration"]}
               />
@@ -1073,20 +1296,30 @@ export default function SecretsAndKeysPage() {
             <Section title="Webhook">
               <div className="form-grid">
                 <Toggle
-                  label="مفعل"
-                  checked={selectedProvider.webhooks.enabled}
+                  label="Webhook مفعّل"
+                  checked={Boolean(selectedProvider.webhooks?.enabled)}
                   onChange={(value) => updateNested("webhooks", "enabled", value)}
                 />
                 <Field
-                  label="سر Webhook"
-                  value={selectedProvider.webhooks.secretName}
+                  label="مرجع سر Webhook"
+                  value={selectedProvider.webhooks?.secretName}
                   onChange={(value) => updateNested("webhooks", "secretName", value)}
                   required={(selectedProvider.requiredFields || []).includes("webhookSecretName")}
                 />
                 <Field
                   label="رابط الاستدعاء"
-                  value={selectedProvider.webhooks.callbackUrl}
+                  value={selectedProvider.webhooks?.callbackUrl}
                   onChange={(value) => updateNested("webhooks", "callbackUrl", value)}
+                />
+                <TextArea
+                  label="أنواع الأحداث"
+                  value={selectedProvider.webhooks?.eventTypes}
+                  onChange={(value) => updateNested("webhooks", "eventTypes", value)}
+                />
+                <Field
+                  label="آخر حالة تسليم"
+                  value={selectedProvider.webhooks?.lastDeliveryStatus}
+                  onChange={(value) => updateNested("webhooks", "lastDeliveryStatus", value)}
                 />
               </div>
             </Section>
@@ -1167,7 +1400,7 @@ function ProviderRow({
 }) {
   const [statusText, statusTone] = statusMap[provider.status] || statusMap.draft;
   const readiness = buildProviderReadiness(provider);
-  const capabilities = Object.entries(provider.capabilities || {})
+  const capabilities = Object.entries(normalizeCapabilities(provider.capabilities))
     .filter(([, enabled]) => enabled)
     .map(([key]) => capabilityLabel(key));
 
@@ -1196,7 +1429,7 @@ function ProviderRow({
 
       <span className="model-cell">{defaultModel}</span>
 
-      <span>{provider.limits.monthlyHardLimit || "—"}</span>
+      <span>{provider.limits?.monthlyHardLimit || "—"}</span>
 
       <div className="capability-pills">
         {capabilities.slice(0, 3).map((capability) => (
@@ -1225,7 +1458,7 @@ function ReadinessBadge({ status }) {
 function ProviderReadinessPanel({ provider }) {
   const readiness = buildProviderReadiness(provider);
   const configuredModels = getConfiguredModels(provider);
-  const capabilities = Object.entries(provider.capabilities || {}).filter(([, enabled]) => enabled);
+  const capabilities = Object.entries(normalizeCapabilities(provider.capabilities)).filter(([, enabled]) => enabled);
   const lastTest = provider.metadata?.lastTestedAt || "لم يتم الاختبار";
 
   return (
@@ -1239,14 +1472,18 @@ function ProviderReadinessPanel({ provider }) {
       </div>
 
       <div className="readiness-grid">
+        <Info label="حالة الجاهزية" value={getReadinessLabel(readiness.status)} />
+        <Info label="الدرجة" value={`${readiness.score}%`} />
         <Info label="نوع المزود" value={provider.providerType} />
-        <Info label="طريقة المصادقة" value={provider.authType} />
+        <Info label="قناة الوصول" value={getOptionLabel(DELIVERY_CHANNELS, provider.deliveryChannel)} />
+        <Info label="البيئة" value={getOptionLabel(ENVIRONMENTS, provider.environment)} />
+        <Info label="طريقة المصادقة" value={getOptionLabel(AUTH_TYPES, provider.authType)} />
         <Info label="مرجع السر" value={provider.secretName || "غير محدد"} />
+        <Info label="نطاق الاعتماد" value={getCredentialScope(provider)} />
         <Info label="العنوان الأساسي" value={provider.baseUrl || "غير محدد"} />
         <Info label="النماذج المهيأة" value={configuredModels.length ? `${configuredModels.length}` : "غير مهيأة"} />
         <Info label="القدرات" value={capabilities.length ? `${capabilities.length}` : "غير مفعلة"} />
         <Info label="Webhook" value={provider.webhooks?.enabled ? "مفعل" : "غير مفعل"} />
-        <Info label="سر Webhook" value={provider.webhooks?.secretName ? "محدد" : "غير محدد"} />
         <Info label="آخر اختبار" value={lastTest} />
         <Info label="أثره على توجيه النماذج" value="يؤثر على جاهزية المسار قبل التشغيل" />
       </div>
@@ -1282,9 +1519,13 @@ function ProviderReadinessPanel({ provider }) {
 function RoutingImpactPanel() {
   return (
     <section className="routing-impact-panel">
-      <h3>الأثر على توجيه النماذج</h3>
-      <p>إذا كان المزود غير جاهز، فإن المسارات التي تعتمد على نماذجه تحتاج ضبطًا قبل التشغيل.</p>
-      <p>جاهزية المزود تكمل جاهزية المسار والتكلفة والمطالبة.</p>
+      <h3>قابلية الربط</h3>
+      <p>هذه الحقول تحدد كيف يمكن ربط المزود لاحقًا بمسارات النماذج والتكلفة والتشغيلات دون حفظ أي قيمة سرية.</p>
+      <div className="link-readiness-grid">
+        <Info label="توجيه النماذج" value="يعتمد على نوع المزود، النماذج، والقدرات" />
+        <Info label="مراقبة التكلفة" value="تعتمد على البيئة ودعم ترويسات الاستهلاك" />
+        <Info label="تشغيلات النظام" value="تعتمد على قناة الوصول وجاهزية المراجعة" />
+      </div>
     </section>
   );
 }
@@ -1300,14 +1541,17 @@ function Info({ label, value }) {
 
 function capabilityLabel(key) {
   const labels = {
-    textGeneration: "Text",
-    imageGeneration: "Image",
-    videoGeneration: "Video",
-    embeddings: "Embeddings",
-    vision: "Vision",
-    audio: "Audio",
-    functionCalling: "Tools",
-    structuredOutput: "JSON",
+    textGeneration: "توليد النصوص",
+    structuredOutput: "مخرجات منظمة",
+    visionInput: "إدخال بصري",
+    imageGeneration: "توليد الصور",
+    videoGeneration: "توليد الفيديو",
+    embeddings: "التضمين",
+    toolCalling: "استدعاء الأدوات",
+    streaming: "البث",
+    batch: "المعالجة الدُفعية",
+    files: "الملفات",
+    webhooks: "Webhooks",
   };
   return labels[key] || key;
 }
@@ -1400,13 +1644,20 @@ function Toggle({ label, checked, onChange, danger }) {
 function formatKey(key) {
   const labels = {
     textGeneration: "توليد النصوص",
+    structuredOutput: "مخرجات منظمة",
+    visionInput: "إدخال بصري",
     imageGeneration: "توليد الصور",
     videoGeneration: "توليد الفيديو",
     embeddings: "التضمين",
-    vision: "الرؤية",
-    audio: "الصوت",
-    functionCalling: "استدعاء الأدوات",
-    structuredOutput: "مخرجات منظمة",
+    toolCalling: "استدعاء الأدوات",
+    streaming: "البث",
+    batch: "المعالجة الدُفعية",
+    files: "الملفات",
+    webhooks: "Webhooks",
+    requestIdSupport: "يدعم معرف الطلب",
+    rateLimitHeadersSupport: "يدعم ترويسات حدود الاستخدام",
+    usageHeadersSupport: "يدعم ترويسات الاستهلاك",
+    tokenCountingSupport: "يدعم حساب الرموز",
     humanReviewRequired: "مراجعة بشرية",
     autoPublishAllowed: "السماح بالنشر التلقائي",
     allowSensitiveContentGeneration: "السماح بالمحتوى الحساس",
@@ -1889,6 +2140,28 @@ const styles = `
   grid-column: 1 / -1;
 }
 
+.form-subsection {
+  grid-column: 1 / -1;
+  border: 1px solid #e4e7df;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.form-subsection strong {
+  display: block;
+  font-size: 13px;
+}
+
+.form-subsection small {
+  display: block;
+  margin-top: 4px;
+  color: #6f746b;
+  line-height: 1.7;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .field span {
   font-size: 12px;
   font-weight: 900;
@@ -2046,6 +2319,13 @@ const styles = `
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.link-readiness-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .info-cell {
