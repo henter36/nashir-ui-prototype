@@ -161,9 +161,27 @@ export default function ContentStudioPage() {
     };
   }, []);
 
+  const emptyContentItem = {
+    id: "empty-content",
+    title: "محتوى غير محدد",
+    type: "محتوى",
+    channel: "عام",
+    status: "draft",
+    content: "",
+  };
+
+  const visibleItems = useMemo(() => {
+    return items.length ? items : initialItems;
+  }, [items]);
+
   const activeItem = useMemo(() => {
-    return items.find((item) => item.id === activeItemId) || items[0];
-  }, [items, activeItemId]);
+    return (
+      visibleItems.find((item) => item.id === activeItemId) ||
+      visibleItems[0] ||
+      initialItems[0] ||
+      emptyContentItem
+    );
+  }, [visibleItems, activeItemId]);
 
   const stats = useMemo(() => {
     return {
@@ -311,7 +329,7 @@ export default function ContentStudioPage() {
           </div>
 
           <div className="content-list">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = getSafeContentIcon(item);
               const itemStatus = getSafeStatusConfig(item.status);
               const ItemStatusIcon = itemStatus.icon;
@@ -362,9 +380,9 @@ export default function ContentStudioPage() {
               </div>
             </div>
 
-            <div className={`status-badge ${statusMap[activeItem.status].className}`}>
+            <div className={`status-badge ${getSafeStatusConfig(activeItem.status).className}`}>
               <StatusIcon size={15} />
-              {statusMap[activeItem.status].label}
+              {getSafeStatusConfig(activeItem.status).label}
             </div>
           </div>
 
