@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -19,6 +19,12 @@ import {
   Workflow,
   XCircle,
 } from "lucide-react";
+import {
+  readCostRows,
+  readModelRegistry,
+  readModelRoutes,
+} from "../utils/modelCostStore.js";
+import { readPromptRegistry } from "../utils/promptTemplateStore.js";
 
 const WORKFLOW_TEMPLATES = [
   {
@@ -586,6 +592,197 @@ function getModelRouteWarnings(step, route) {
   return warnings;
 }
 
+function getStepRoute(step, modelRoutes = []) {
+  if (!step || step.processorType !== "model_call") return null;
+
+  return (
+    modelRoutes.find((route) => route.taskType === step.processor || route.processor === step.processor) ||
+    modelRoutes.find((route) => route.taskType === step.outputType) ||
+    null
+  );
+}
+
+function getStepCostRow(step, route, costRows = []) {
+  if (!step) return null;
+  const routeKeys = [route?.taskType, route?.routeId, route?.id, step.processor, step.outputType].filter(Boolean);
+
+  return (
+    costRows.find((row) => routeKeys.includes(row.task) || routeKeys.includes(row.route)) ||
+    null
+  );
+}
+
+function getStepPrompt(step, workflowDraft, promptRegistry = []) {
+  if (!step) return null;
+
+  return (
+    promptRegistry.find((prompt) => prompt.task === step.processor || prompt.task === step.outputType) ||
+    promptRegistry.find((prompt) =>
+      prompt.usage?.some((usage) => usage.step === step.id || usage.step === step.name || usage.workflow === workflowDraft?.name)
+    ) ||
+    null
+  );
+}
+
+function getCostLimitLabel(route, costRow) {
+  const routeMax = route?.cost?.maxCostPerRun;
+  const rowMax = costRow?.avgRunCost;
+  const value = routeMax ?? rowMax;
+
+  return value !== undefined && value !== null && value !== "" ? `$${value}` : "غير محدد";
+}
+
+function buildStepReadiness(step, context = {}) {
+  const checks = [];
+  const warnings = [];
+  const blockedReasons = [];
+  const {
+    modelRegistry = [],
+    modelRoutes = [],
+    costRows = [],
+    promptRegistry = [],
+    workflowDraft = null,
+  } = context;
+
+  if (!step) {
+    return {
+      status: "blocked",
+      score: 0,
+      checks: ["لا توجد خطوة محددة."],
+      warnings: [],
+      blockedReasons: ["لا توجد خطوة محددة."],
+      route: null,
+      primaryModel: null,
+      fallbackModels: [],
+      costRow: null,
+      prompt: null,
+    };
+  }
+
+  const route = getStepRoute(step, modelRoutes);
+  const staticRoute = getModelRouteSummary(step.processor);
+  const primaryModel = route
+    ? modelRegistry.find((model) => model.id === route.primaryModelId || model.modelId === route.primaryModelId)
+    : null;
+  const fallbackIds = Array.isArray(route?.fallbackModelIds) ? route.fallbackModelIds : [];
+  const fallbackModels = fallbackIds
+    .map((id) => modelRegistry.find((model) => model.id === id || model.modelId === id))
+    .filter(Boolean);
+  const costRow = getStepCostRow(step, route, costRows);
+  const prompt = getStepPrompt(step, workflowDraft, promptRegistry);
+
+  if (step.processorType !== "model_call") {
+    checks.push("لا يحتاج مسار نموذج.");
+    checks.push("متطلبات تشغيل غير نموذجية.");
+  } else if (route) {
+    checks.push("مسار النموذج موجود.");
+  } else if (staticRoute) {
+    warnings.push("لا يوجد مسار نموذج مطابق لهذه الخطوة في بيانات التوجيه الحالية.");
+  } else {
+    warnings.push("لا يوجد مسار نموذج مطابق لهذه الخطوة.");
+  }
+
+  if (step.processorType === "model_call" && route) {
+    if (primaryModel) {
+      checks.push("النموذج الأساسي موجود.");
+      if (primaryModel.status === "active") {
+        checks.push("النموذج الأساسي نشط.");
+      } else {
+        blockedReasons.push("النموذج الأساسي غير نشط.");
+      }
+    } else {
+      blockedReasons.push("النموذج الأساسي غير موجود في سجل النماذج.");
+    }
+
+    if (fallbackIds.length) {
+      if (fallbackModels.length === fallbackIds.length) {
+        checks.push("النماذج البديلة معرفة.");
+      } else {
+        warnings.push("بعض النماذج البديلة غير موجودة في سجل النماذج.");
+      }
+    } else {
+      warnings.push("لا توجد نماذج بديلة معرفة لهذه الخطوة.");
+    }
+  }
+
+  if (step.processorType === "model_call") {
+    if (costRow) {
+      checks.push("صف التكلفة مرتبط.");
+    } else {
+      warnings.push("لا يوجد صف تكلفة مطابق لهذه الخطوة.");
+    }
+
+    const maxCost = Number(route?.cost?.maxCostPerRun ?? costRow?.avgRunCost ?? 0);
+    const approvalAbove = Number(route?.cost?.requireApprovalAboveCost ?? costRow?.approvalAbove ?? Number.POSITIVE_INFINITY);
+
+    if (Number.isFinite(maxCost) && Number.isFinite(approvalAbove) && maxCost > approvalAbove) {
+      warnings.push("حد تكلفة التشغيل يتجاوز حد الموافقة.");
+    } else if (maxCost > 0) {
+      checks.push("حد التكلفة ضمن سياسة الموافقة.");
+    }
+  }
+
+  if (step.visibility === "customer_visible") {
+    if (step.reviewRequired) {
+      checks.push("المخرج الظاهر للعميل يمر بالمراجعة.");
+    } else {
+      blockedReasons.push("أي مخرج ظاهر للعميل يجب أن يمر بالمراجعة.");
+    }
+  }
+
+  if (step.destination === "publishing_queue") {
+    if (step.reviewRequired) {
+      checks.push("وجهة النشر مرتبطة بمراجعة.");
+    } else {
+      blockedReasons.push("وجهات النشر تحتاج مراجعة قبل الاستخدام.");
+    }
+  }
+
+  if (step.feedsNextWorkflow) {
+    if (step.reviewRequired) {
+      checks.push("المخرج الذي يفتح مسارًا آخر يمر بالمراجعة.");
+    } else {
+      blockedReasons.push("المخرج يفتح مسارًا آخر دون مراجعة.");
+    }
+  }
+
+  if (step.processorType === "model_call") {
+    if (prompt) {
+      checks.push("المطالبة المرتبطة موجودة.");
+      if (prompt.status === "active" || prompt.status === "approved") {
+        checks.push("المطالبة المرتبطة معتمدة.");
+      } else if (prompt.status === "testing") {
+        warnings.push("المطالبة المرتبطة في حالة اختبار.");
+      } else if (prompt.status === "draft") {
+        blockedReasons.push("المطالبة المرتبطة ما زالت مسودة.");
+      } else if (prompt.status === "blocked") {
+        blockedReasons.push("المطالبة المرتبطة محظورة.");
+      } else {
+        warnings.push("حالة المطالبة المرتبطة تحتاج مراجعة.");
+      }
+    } else {
+      warnings.push("لا يوجد ربط مطالبة معتمد لهذه الخطوة.");
+    }
+  }
+
+  const score = Math.max(0, 100 - blockedReasons.length * 30 - warnings.length * 10);
+  const status = blockedReasons.length ? "blocked" : warnings.length ? "warning" : "ready";
+
+  return {
+    status,
+    score,
+    checks,
+    blockedReasons,
+    warnings,
+    route,
+    primaryModel,
+    fallbackModels,
+    costRow,
+    prompt,
+    staticRoute,
+  };
+}
+
 function cloneTemplate(template) {
   const source = template || WORKFLOW_TEMPLATES[0];
   return {
@@ -615,6 +812,10 @@ export default function WorkflowRunsPage() {
     cloneTemplate(WORKFLOW_TEMPLATES.find((template) => template.id === "video_generation"))
   );
   const [selectedRunId, setSelectedRunId] = useState(RUNS[0].id);
+  const [modelRegistry, setModelRegistry] = useState(() => readModelRegistry([]));
+  const [modelRoutes, setModelRoutes] = useState(() => readModelRoutes([]));
+  const [costRows, setCostRows] = useState(() => readCostRows([]));
+  const [promptRegistry, setPromptRegistry] = useState(() => readPromptRegistry([]));
   const [testLog, setTestLog] = useState([]);
   const [runActionLog, setRunActionLog] = useState([]);
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
@@ -626,7 +827,59 @@ export default function WorkflowRunsPage() {
   });
   const [dryRunResult, setDryRunResult] = useState(null);
 
-  const selectedRun = RUNS.find((run) => run.id === selectedRunId) || RUNS[0];
+  useEffect(() => {
+    const reloadReadinessSources = () => {
+      setModelRegistry(readModelRegistry([]));
+      setModelRoutes(readModelRoutes([]));
+      setCostRows(readCostRows([]));
+      setPromptRegistry(readPromptRegistry([]));
+    };
+
+    window.addEventListener("focus", reloadReadinessSources);
+    window.addEventListener("storage", reloadReadinessSources);
+    window.addEventListener("nashir-model-registry-updated", reloadReadinessSources);
+    window.addEventListener("nashir-model-routing-updated", reloadReadinessSources);
+    window.addEventListener("nashir-cost-monitor-updated", reloadReadinessSources);
+    window.addEventListener("nashir-prompt-governance-updated", reloadReadinessSources);
+
+    return () => {
+      window.removeEventListener("focus", reloadReadinessSources);
+      window.removeEventListener("storage", reloadReadinessSources);
+      window.removeEventListener("nashir-model-registry-updated", reloadReadinessSources);
+      window.removeEventListener("nashir-model-routing-updated", reloadReadinessSources);
+      window.removeEventListener("nashir-cost-monitor-updated", reloadReadinessSources);
+      window.removeEventListener("nashir-prompt-governance-updated", reloadReadinessSources);
+    };
+  }, []);
+
+  const readinessContext = useMemo(
+    () => ({
+      modelRegistry,
+      modelRoutes,
+      costRows,
+      promptRegistry,
+      workflowDraft,
+    }),
+    [costRows, modelRegistry, modelRoutes, promptRegistry, workflowDraft]
+  );
+
+  const selectedRun = RUNS.find((run) => run.id === selectedRunId) || RUNS[0] || {
+    id: "run-empty",
+    title: "لا يوجد تشغيل محدد",
+    workflowType: "—",
+    status: "waiting_for_review",
+    currentStep: "—",
+    modelUsed: "—",
+    source: "—",
+    duration: "—",
+    cost: 0,
+    owner: "—",
+    createdAt: "—",
+    inputSummary: "—",
+    outputSummary: "—",
+    warnings: [],
+    steps: [],
+  };
 
   const selectTemplate = (id) => {
     const template = WORKFLOW_TEMPLATES.find((item) => item.id === id);
@@ -698,6 +951,9 @@ export default function WorkflowRunsPage() {
   };
 
   const runLocalTest = () => {
+    const readinessByStep = workflowDraft.steps.map((step) =>
+      buildStepReadiness(step, readinessContext)
+    );
     const missingInputs = workflowDraft.steps.flatMap((step) =>
       step.inputFrom.length ? [] : [`${step.name}: لا يوجد Input source`]
     );
@@ -726,7 +982,13 @@ export default function WorkflowRunsPage() {
         : []
     );
 
-    const blockedReasons = [...missingInputs, ...unsafeOutputs, ...missingModelRoutes];
+    const readinessBlockedReasons = workflowDraft.steps.flatMap((step, index) =>
+      readinessByStep[index].blockedReasons.map((reason) => `${step.name}: ${reason}`)
+    );
+
+    const blockedReasons = Array.from(
+      new Set([...missingInputs, ...unsafeOutputs, ...missingModelRoutes, ...readinessBlockedReasons])
+    );
 
     const estimatedCost = workflowDraft.steps.reduce((sum, step) => {
       if (step.processorType === "tool") return sum + 0.05;
@@ -757,8 +1019,10 @@ export default function WorkflowRunsPage() {
         reviewRequired: step.reviewRequired,
         modelRoute: step.processorType === "model_call" ? getModelRouteSummary(step.processor) : null,
         modelRouteWarnings: getModelRouteWarnings(step, getModelRouteSummary(step.processor)),
+        readiness: readinessByStep[index],
         result:
-          step.visibility === "customer_visible" && !step.reviewRequired
+          readinessByStep[index].status === "blocked" ||
+          (step.visibility === "customer_visible" && !step.reviewRequired)
             ? "blocked"
             : "passed",
       })),
@@ -961,6 +1225,7 @@ export default function WorkflowRunsPage() {
                 onChange={updateStep}
                 onToggleInput={updateStepInput}
                 onDelete={removeStep}
+                readinessContext={readinessContext}
               />
             ) : (
               <p className="empty">لا توجد خطوة محددة.</p>
@@ -1017,7 +1282,7 @@ export default function WorkflowRunsPage() {
                 <strong>المعالجة: {step.name}</strong>
                 <span>{processorLabel}</span>
                 <small>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</small>
-                <ModelRoutingSummary step={step} compact />
+                <ModelRoutingSummary step={step} readinessContext={readinessContext} compact />
               </div>
 
               <div className="flow-arrow">←</div>
@@ -1508,20 +1773,25 @@ export default function WorkflowRunsPage() {
 }
 
 
-function ModelRoutingSummary({ step, compact = false }) {
+function ModelRoutingSummary({ step, readinessContext = {}, compact = false }) {
   if (step.processorType !== "model_call") return null;
 
+  const readiness = buildStepReadiness(step, readinessContext);
   const route = getModelRouteSummary(step.processor);
-  const warnings = getModelRouteWarnings(step, route);
+  const warnings = [
+    ...getModelRouteWarnings(step, route),
+    ...readiness.warnings,
+    ...readiness.blockedReasons,
+  ];
 
   if (!route) {
     return (
       <div className={`model-route-summary missing ${compact ? "compact" : ""}`}>
         <div className="model-route-title">
           <CircleAlert size={15} />
-          <strong>ملخص توجيه النموذج</strong>
+          <strong>مسار النموذج</strong>
         </div>
-        <p>لا يوجد مسار توجيه مطابق لهذا المعالج. يجب ربطه من شاشة توجيه النماذج قبل أي تنفيذ حقيقي.</p>
+        <p>لا يوجد مسار نموذج مطابق لهذه الخطوة. يجب ربطها قبل التشغيل عند التنفيذ.</p>
       </div>
     );
   }
@@ -1530,13 +1800,13 @@ function ModelRoutingSummary({ step, compact = false }) {
     <div className={`model-route-summary ${warnings.length ? "has-warning" : "safe"} ${compact ? "compact" : ""}`}>
       <div className="model-route-title">
         <GitBranch size={15} />
-        <strong>ملخص توجيه النموذج</strong>
+        <strong>مسار النموذج</strong>
       </div>
 
       <div className="model-route-lines">
         <span>المسار الأساسي: <b>{route.primaryModel}</b></span>
         <span>المسار البديل: <b>{route.fallback.length ? route.fallback.join(" → ") : "لا يوجد"}</b></span>
-        <span>حد التكلفة: <b>${route.maxCostPerRun}</b></span>
+        <span>حد التكلفة: <b>{getCostLimitLabel(readiness.route, readiness.costRow) || `$${route.maxCostPerRun}`}</b></span>
         <span>المراجعة: <b>{route.humanReviewRequired ? "مطلوبة" : "غير مطلوبة"}</b></span>
       </div>
 
@@ -1553,7 +1823,71 @@ function ModelRoutingSummary({ step, compact = false }) {
   );
 }
 
-function StepEditor({ step, index, onChange, onToggleInput, onDelete }) {
+function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
+  const readiness = buildStepReadiness(step, readinessContext);
+  const statusLabel = {
+    ready: "جاهز",
+    warning: "يحتاج مراجعة",
+    blocked: "محظور",
+  }[readiness.status];
+  const routeLabel =
+    readiness.primaryModel?.displayName ||
+    readiness.staticRoute?.primaryModel ||
+    (step.processorType === "model_call" ? "غير مرتبط" : "لا يحتاج مسار نموذج");
+  const promptLabel = readiness.prompt
+    ? `${readiness.prompt.name} · ${readiness.prompt.version}`
+    : step.processorType === "model_call"
+      ? "لا يوجد ربط مطالبة معتمد"
+      : "لا يحتاج مطالبة";
+  const reviewLabel = step.reviewRequired ? "مطلوبة" : "غير مطلوبة";
+
+  return (
+    <section className={`step-readiness-panel ${readiness.status} ${compact ? "compact" : ""}`}>
+      <div className="step-readiness-head">
+        <div>
+          <strong>جاهزية الخطوة</strong>
+          <span>حالة الجاهزية: {statusLabel} · {readiness.score}%</span>
+        </div>
+        <Status value={readiness.status} />
+      </div>
+
+      <div className="step-readiness-grid">
+        <Info label="مسار النموذج" value={routeLabel} />
+        <Info label="المطالبة المرتبطة" value={promptLabel} />
+        <Info label="حد التكلفة" value={getCostLimitLabel(readiness.route, readiness.costRow)} />
+        <Info label="المراجعة" value={reviewLabel} />
+      </div>
+
+      {readiness.blockedReasons.length ? (
+        <div className="readiness-notes blocked-notes">
+          <strong>أسباب الحظر</strong>
+          {readiness.blockedReasons.map((reason) => (
+            <span key={reason}>{reason}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {readiness.warnings.length ? (
+        <div className="readiness-notes warning-notes">
+          <strong>تحذيرات</strong>
+          {readiness.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {!readiness.blockedReasons.length && !readiness.warnings.length ? (
+        <div className="readiness-notes safe-notes">
+          {readiness.checks.slice(0, 3).map((check) => (
+            <span key={check}>{check}</span>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function StepEditor({ step, index, onChange, onToggleInput, onDelete, readinessContext }) {
   return (
     <div className="step-editor">
       <label className="field">
@@ -1591,7 +1925,9 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete }) {
         onChange={(value) => onChange(index, "processor", value)}
       />
 
-      <ModelRoutingSummary step={step} />
+      <StepReadinessPanel step={step} readinessContext={readinessContext} />
+
+      <ModelRoutingSummary step={step} readinessContext={readinessContext} />
 
       <label className="field">
         <span>المخرج</span>
@@ -1685,23 +2021,23 @@ function ContractKpi({ title, value }) {
 
 function getContractSchema(step) {
   const base = {
-    required: ["output_key", "output_type", "destination", "visibility", "review_required"],
+    required: ["مفتاح المخرج", "نوع المخرج", "الوجهة", "مستوى الظهور", "حالة المراجعة"],
   };
 
   const map = {
-    raw_store_snapshot: ["crawl_id", "source_url", "raw_summary", "captured_at", "confidence_score"],
-    product_candidates: ["product_id", "name", "price", "url", "source", "confidence_score"],
-    asset_candidates: ["asset_id", "type", "source_url", "usage_rights", "review_status"],
-    brand_insights: ["tone", "keywords", "audience_guess", "confidence_score", "sources"],
-    audience_insights: ["segments", "motives", "objections", "confidence_score"],
-    campaign_strategy: ["goal", "message_angle", "channels", "offer", "risk_notes"],
-    customer_visible_brief: ["title", "description", "cta", "constraints", "review_status"],
-    internal_prompt: ["prompt_id", "prompt_text_redacted", "model_route", "visibility"],
-    content_draft: ["content_id", "channel", "text", "status", "review_required"],
-    risk_report: ["risk_level", "claims_to_verify", "blocked_terms", "recommendation"],
-    generated_asset: ["asset_id", "asset_type", "url", "usage_rights", "review_status"],
-    analytics_recommendation: ["metric_source", "recommendations", "confidence", "estimated_labels"],
-    publishing_item: ["content_id", "channel", "scheduled_at", "approval_status", "publishing_mode"],
+    raw_store_snapshot: ["مرجع الفحص", "رابط المصدر", "ملخص الالتقاط", "وقت الالتقاط", "درجة الثقة"],
+    product_candidates: ["مرجع المنتج", "الاسم", "السعر", "الرابط", "المصدر", "درجة الثقة"],
+    asset_candidates: ["مرجع الأصل", "النوع", "رابط المصدر", "حقوق الاستخدام", "حالة المراجعة"],
+    brand_insights: ["النبرة", "الكلمات المفتاحية", "تقدير الجمهور", "درجة الثقة", "المصادر"],
+    audience_insights: ["الشرائح", "الدوافع", "الملاحظات", "درجة الثقة"],
+    campaign_strategy: ["الهدف", "زاوية الرسالة", "القنوات", "العرض", "ملاحظات المخاطر"],
+    customer_visible_brief: ["العنوان", "الوصف", "دعوة الإجراء", "القيود", "حالة المراجعة"],
+    internal_prompt: ["مرجع المطالبة", "وصف محجوب", "مسار النموذج", "مستوى الظهور"],
+    content_draft: ["مرجع المحتوى", "القناة", "النص", "الحالة", "حالة المراجعة"],
+    risk_report: ["مستوى المخاطر", "الادعاءات المطلوبة", "العبارات المحظورة", "التوصية"],
+    generated_asset: ["مرجع الأصل", "نوع الأصل", "الرابط", "حقوق الاستخدام", "حالة المراجعة"],
+    analytics_recommendation: ["مصدر القياس", "التوصيات", "درجة الثقة", "التسميات المقدرة"],
+    publishing_item: ["مرجع المحتوى", "القناة", "وقت الجدولة", "حالة الاعتماد", "وضع النشر"],
   };
 
   return {
@@ -1774,6 +2110,9 @@ function Status({ value }) {
     waiting_for_review: ["بانتظار مراجعة", "amber"],
     completed: ["مكتمل", "green"],
     success: ["مكتمل", "green"],
+    ready: ["جاهز", "green"],
+    warning: ["يحتاج مراجعة", "amber"],
+    blocked: ["محظور", "red"],
     failed: ["فشل", "red"],
     queued: ["في الطابور", "slate"],
     cancelled: ["ملغي", "slate"],
@@ -2174,6 +2513,81 @@ const styles = `
   margin-top: 8px;
   color: #176b2c;
   font-weight: 800;
+}
+
+.step-readiness-panel {
+  border: 1px solid #d9ead7;
+  background: #fbfdf9;
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.step-readiness-panel.warning {
+  border-color: #fde68a;
+  background: #fffaf0;
+}
+
+.step-readiness-panel.blocked {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.step-readiness-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.step-readiness-head strong,
+.readiness-notes strong {
+  display: block;
+  color: #1f241d;
+  font-size: 13px;
+}
+
+.step-readiness-head span {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.step-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.readiness-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.readiness-notes span {
+  border-radius: 12px;
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.blocked-notes span {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.warning-notes span {
+  color: #92400e;
+  background: #ffedd5;
+}
+
+.safe-notes span {
+  color: #166534;
+  background: #ecfdf5;
 }
 
 .step-editor {
