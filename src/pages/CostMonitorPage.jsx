@@ -122,6 +122,9 @@ const statusMap = {
   watch: ["مراقبة", "amber"],
   risk: ["مرتفع", "red"],
   blocked: ["موقوف", "slate"],
+  ready: ["جاهز", "green"],
+  warning: ["يحتاج متابعة", "amber"],
+  approval: ["يحتاج اعتماد", "red"],
 };
 
 const policyMap = {
@@ -170,8 +173,152 @@ function getRowWarnings(row) {
   return warnings;
 }
 
+function getLinkedRoute(row, routes = []) {
+  if (!row) return null;
+  const rowKeys = [row.task, row.route].filter(Boolean);
+
+  return (
+    routes.find((route) => rowKeys.includes(route.taskType) || rowKeys.includes(route.id) || rowKeys.includes(route.routeId)) ||
+    null
+  );
+}
+
+function getLinkedModel(route, models = []) {
+  if (!route?.primaryModelId) return null;
+  return models.find((model) => model.id === route.primaryModelId || model.modelId === route.primaryModelId) || null;
+}
+
+function getCostHealthLabel(status) {
+  const labels = {
+    ready: "جاهز",
+    warning: "يحتاج متابعة",
+    approval: "يحتاج اعتماد",
+    blocked: "محظور",
+  };
+
+  return labels[status] || "يحتاج متابعة";
+}
+
+function buildCostRouteHealth(row, routes = [], models = []) {
+  const checks = [];
+  const warnings = [];
+  const blockedReasons = [];
+
+  if (!row) {
+    return {
+      status: "blocked",
+      score: 0,
+      checks: [],
+      warnings: [],
+      blockedReasons: ["لا يوجد صف تكلفة محدد."],
+      linkedRoute: null,
+      linkedModel: null,
+    };
+  }
+
+  const linkedRoute = getLinkedRoute(row, routes);
+  const linkedModel = getLinkedModel(linkedRoute, models);
+  const usage = getUsage(row);
+  const forecastUsage = getForecastUsage(row);
+  const avgRunCost = Number(row.avgRunCost ?? 0);
+  const approvalAbove = Number(row.approvalAbove ?? Number.POSITIVE_INFINITY);
+  const forecast = Number(row.forecast ?? 0);
+  const cap = Number(row.cap ?? 0);
+  const routeMaxCost = Number(linkedRoute?.cost?.maxCostPerRun ?? avgRunCost);
+  const routeApproval = Number(linkedRoute?.cost?.requireApprovalAboveCost ?? approvalAbove);
+  const highCost = Math.max(avgRunCost, routeMaxCost) >= 1;
+
+  checks.push("صف التكلفة موجود.");
+
+  if (linkedRoute) {
+    checks.push("مرتبطة بتوجيه النماذج.");
+    if (linkedRoute.primaryModelId) {
+      checks.push("المسار يحتوي نموذجًا أساسيًا.");
+    } else {
+      blockedReasons.push("المسار المرتبط لا يحتوي نموذجًا أساسيًا.");
+    }
+  } else {
+    blockedReasons.push("لا يوجد مسار تشغيل مرتبط بتوجيه النماذج.");
+  }
+
+  if (linkedModel) {
+    checks.push("النموذج الأساسي موجود.");
+    if (linkedModel.status === "active") {
+      checks.push("النموذج الأساسي نشط.");
+    } else {
+      blockedReasons.push("النموذج الأساسي غير نشط.");
+    }
+  } else if (linkedRoute) {
+    blockedReasons.push("النموذج الأساسي غير موجود في سجل النماذج.");
+  }
+
+  if (Number.isFinite(avgRunCost) && avgRunCost > 0) {
+    checks.push("متوسط تكلفة التشغيل متوفر.");
+  } else {
+    warnings.push("متوسط تكلفة التشغيل غير مكتمل.");
+  }
+
+  if (Number.isFinite(approvalAbove) && approvalAbove > 0) {
+    checks.push("حد الموافقة متوفر.");
+  } else {
+    warnings.push("حد الموافقة غير محدد.");
+  }
+
+  if (avgRunCost > approvalAbove * 2) {
+    blockedReasons.push("متوسط تكلفة التشغيل يتجاوز حد الموافقة بشكل كبير.");
+  } else if (avgRunCost > approvalAbove || routeMaxCost > routeApproval) {
+    warnings.push("متوسط تكلفة التشغيل أعلى من حد الموافقة ويحتاج اعتمادًا قبل التشغيل.");
+  }
+
+  if (cap > 0 && forecast > cap * 1.25) {
+    blockedReasons.push("التوقع الشهري يتجاوز الحد بشكل كبير.");
+  } else if (forecastUsage > 100) {
+    warnings.push("التوقع الشهري يتجاوز الحد المحدد.");
+  }
+
+  if (usage >= 80) warnings.push("الاستهلاك الحالي تجاوز 80% من الحد.");
+  if (!row.autoThrottle && usage >= 70) warnings.push("الخفض التلقائي غير مفعل مع اقتراب الاستهلاك من الحد.");
+
+  if (row.task === "video_generation") {
+    if (linkedRoute?.governance?.humanReviewRequired || row.approvalAbove > 0) {
+      checks.push("توليد الفيديو يحتاج اعتمادًا قبل التشغيل.");
+    } else {
+      blockedReasons.push("توليد الفيديو يجب أن يتطلب مراجعة أو اعتمادًا قبل التشغيل.");
+    }
+  }
+
+  if (highCost) {
+    if (approvalAbove > 0 || routeApproval > 0) {
+      warnings.push("مسار عالي التكلفة يحتاج اعتمادًا قبل التشغيل.");
+    } else {
+      blockedReasons.push("مسار عالي التكلفة بدون حد موافقة.");
+    }
+  }
+
+  const score = Math.max(0, 100 - blockedReasons.length * 35 - warnings.length * 8);
+  const status = blockedReasons.length
+    ? "blocked"
+    : warnings.some((warning) => warning.includes("اعتماد"))
+      ? "approval"
+      : warnings.length
+        ? "warning"
+        : "ready";
+
+  return {
+    status,
+    score,
+    checks,
+    warnings,
+    blockedReasons,
+    linkedRoute,
+    linkedModel,
+  };
+}
+
 export default function CostMonitorPage() {
   const [rows, setRows] = useState(() => readCostRows(initialRows));
+  const [routes, setRoutes] = useState(() => readModelRoutes([]));
+  const [models, setModels] = useState(() => readModelRegistry([]));
   const [period, setPeriod] = useState("هذا الشهر");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -213,6 +360,8 @@ export default function CostMonitorPage() {
   useEffect(() => {
     const reloadCosts = () => {
       setRows(readCostRows(initialRows));
+      setRoutes(readModelRoutes([]));
+      setModels(readModelRegistry([]));
     };
     const reloadFromRouting = () => {
       const routes = readModelRoutes([]);
@@ -221,11 +370,15 @@ export default function CostMonitorPage() {
 
       if (!routes.length) {
         setRows(storedRows);
+        setRoutes(routes);
+        setModels(models);
         return;
       }
 
       const next = deriveCostRowsFromRoutes(routes, storedRows, models);
       writeCostRows(next);
+      setRoutes(routes);
+      setModels(models);
       setRows(readCostRows(initialRows));
     };
 
@@ -358,6 +511,7 @@ export default function CostMonitorPage() {
   };
 
   const selectedWarnings = getRowWarnings(selected);
+  const selectedHealth = buildCostRouteHealth(selected, routes, models);
 
   return (
     <main className="cost-page" dir="rtl">
@@ -398,10 +552,10 @@ export default function CostMonitorPage() {
       <section className="governance-strip">
         <ShieldCheck size={19} />
         <div>
-          <strong>Cost Governance Guardrail</strong>
+          <strong>حوكمة تكلفة التشغيل</strong>
           <span>
-            أي مسار يتجاوز حد الموافقة أو يتوقع تجاوز الميزانية يجب أن ينتقل إلى
-            مراجعة بشرية أو خفض تلقائي قبل السماح بالاستخدام التجاري.
+            صفوف التكلفة مرتبطة بتوجيه النماذج وتؤثر على جاهزية التشغيل. أي مسار
+            يتجاوز حد الموافقة أو يتوقع تجاوز الميزانية يحتاج اعتمادًا قبل التشغيل.
           </span>
         </div>
       </section>
@@ -463,27 +617,32 @@ export default function CostMonitorPage() {
               <span>الحد</span>
               <span>التوقع</span>
               <span>الحالة</span>
+              <span>جاهزية التكلفة</span>
             </div>
 
-            {filteredRows.map((row) => (
-              <button
-                key={row.task}
-                type="button"
-                className={`row ${selected.task === row.task ? "selected" : ""}`}
-                onClick={() => setSelectedTask(row.task)}
-              >
-                <span>
-                  <strong>{row.label}</strong>
-                  <small>{row.task}</small>
-                </span>
-                <span>{row.provider}</span>
-                <span>{row.runs}</span>
-                <span>${row.cost}</span>
-                <span>${row.cap}</span>
-                <span>{getForecastUsage(row)}%</span>
-                <Status value={row.status} />
-              </button>
-            ))}
+            {filteredRows.map((row) => {
+              const health = buildCostRouteHealth(row, routes, models);
+              return (
+                <button
+                  key={row.task}
+                  type="button"
+                  className={`row ${selected?.task === row.task ? "selected" : ""}`}
+                  onClick={() => setSelectedTask(row.task)}
+                >
+                  <span>
+                    <strong>{row.label}</strong>
+                    <small>{policyMap[row.policy] || "تشغيلي"}</small>
+                  </span>
+                  <span>{row.provider}</span>
+                  <span>{row.runs}</span>
+                  <span>${row.cost}</span>
+                  <span>${row.cap}</span>
+                  <span>{getForecastUsage(row)}%</span>
+                  <Status value={row.status} />
+                  <CostHealthBadge status={health.status} />
+                </button>
+              );
+            })}
           </div>
         </article>
 
@@ -535,13 +694,15 @@ export default function CostMonitorPage() {
           </div>
 
           <div className="detail-grid">
-            <Info label="Task Key" value={selected.task} />
-            <Info label="Workflow Route" value={selected.route} />
+            <Info label="مفتاح المهمة" value={selected.task} />
+            <Info label="مسار التشغيل" value={selected.route} />
             <Info label="المجال التشغيلي" value={selected.owner} />
-            <Info label="Policy" value={policyMap[selected.policy]} />
+            <Info label="السياسة" value={policyMap[selected.policy]} />
             <Info label="آخر تحديث" value={selected.last} />
             <Info label="متوسط تكلفة التشغيل" value={`$${selected.avgRunCost}`} />
           </div>
+
+          <CostRouteHealthPanel row={selected} health={selectedHealth} />
 
           <div className="edit-grid">
             <label>
@@ -670,7 +831,7 @@ export default function CostMonitorPage() {
             <PlayCircle size={20} />
           </div>
 
-          <SimulationBox selected={selected} />
+          <SimulationBox selected={selected} routes={routes} models={models} />
         </article>
 
         <article className="card">
@@ -699,14 +860,92 @@ export default function CostMonitorPage() {
   );
 }
 
-function SimulationBox({ selected }) {
+function CostHealthBadge({ status }) {
+  return <span className={`cost-health-badge ${status}`}>{getCostHealthLabel(status)}</span>;
+}
+
+function CostRouteHealthPanel({ row, health }) {
+  const routeLabel = health.linkedRoute
+    ? row.route || row.label
+    : "غير مرتبط";
+  const modelLabel = health.linkedModel?.displayName || "غير محدد";
+  const impact =
+    health.status === "blocked"
+      ? "محظور حتى معالجة أسباب الحظر."
+      : health.status === "approval"
+        ? "يحتاج اعتمادًا قبل التشغيل."
+        : health.status === "warning"
+          ? "يؤثر على جاهزية التشغيل ويحتاج متابعة."
+          : "جاهز ضمن حدود التكلفة الحالية.";
+
+  return (
+    <section className={`cost-route-health-panel ${health.status}`}>
+      <div className="cost-health-head">
+        <div>
+          <strong>جاهزية التكلفة للمسار</strong>
+          <span>مرتبطة بتوجيه النماذج · تؤثر على جاهزية التشغيل</span>
+        </div>
+        <CostHealthBadge status={health.status} />
+      </div>
+
+      <div className="cost-health-grid">
+        <Info label="حالة التكلفة" value={`${getCostHealthLabel(health.status)} · ${health.score}%`} />
+        <Info label="المسار المرتبط" value={routeLabel} />
+        <Info label="النموذج الأساسي" value={modelLabel} />
+        <Info label="متوسط تكلفة التشغيل" value={`$${row.avgRunCost ?? 0}`} />
+        <Info label="حد الموافقة" value={`$${row.approvalAbove ?? "غير محدد"}`} />
+        <Info label="التوقع الشهري" value={`$${row.forecast ?? 0} · ${getForecastUsage(row)}%`} />
+        <Info label="الخفض التلقائي" value={row.autoThrottle ? "مفعل" : "غير مفعل"} />
+        <Info label="أثر التكلفة على التشغيل" value={impact} />
+      </div>
+
+      {health.blockedReasons.length ? (
+        <div className="cost-health-notes blocked-notes">
+          <strong>أسباب الحظر</strong>
+          {health.blockedReasons.map((reason) => (
+            <span key={reason}>{reason}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {health.warnings.length ? (
+        <div className="cost-health-notes warning-notes">
+          <strong>تحذيرات</strong>
+          {health.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="cost-health-notes check-notes">
+        {health.checks.slice(0, 5).map((check) => (
+          <span key={check}>{check}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SimulationBox({ selected, routes = [], models = [] }) {
+  const health = buildCostRouteHealth(selected, routes, models);
   const warnings = getRowWarnings(selected);
-  const blocked = selected.status === "blocked";
+  const blocked = selected.status === "blocked" || health.status === "blocked";
   const requiresApproval =
+    health.status === "approval" ||
     selected.avgRunCost > selected.approvalAbove ||
     getUsage(selected) >= 80 ||
     getForecastUsage(selected) > 100 ||
     selected.task === "video_generation";
+  const approvalReason =
+    selected.avgRunCost > selected.approvalAbove
+      ? "متوسط تكلفة التشغيل أعلى من حد الموافقة."
+      : selected.task === "video_generation"
+        ? "توليد الفيديو يحتاج اعتمادًا قبل التشغيل."
+        : "توجد عتبة تكلفة أو توقع تحتاج اعتمادًا.";
+  const forecastReason =
+    getForecastUsage(selected) > 100
+      ? "التوقع الشهري يتجاوز الحد المحدد."
+      : "التوقع الشهري داخل الحد الحالي.";
 
   return (
     <div className="simulation">
@@ -715,16 +954,16 @@ function SimulationBox({ selected }) {
         <div>
           <strong>
             {blocked
-              ? "التشغيل موقوف محليًا"
+              ? "محظور"
               : requiresApproval
-                ? "يتطلب موافقة قبل التشغيل"
-                : "مسموح كتشغيل منخفض المخاطر"}
+                ? "يحتاج اعتماد"
+                : "allowed"}
           </strong>
           <span>
             {blocked
-              ? "هذا المسار لن يظهر كمسموح في البروتوتايب."
+              ? health.blockedReasons[0] || "هذا المسار لن يظهر كمسموح في البروتوتايب."
               : requiresApproval
-                ? "السبب: تكلفة أو توقع أو سياسة حوكمة تتطلب تدخلًا بشريًا."
+                ? approvalReason
                 : "لا توجد عتبات حرجة حسب البيانات الحالية."}
           </span>
         </div>
@@ -735,8 +974,10 @@ function SimulationBox({ selected }) {
         <Info label="المزود" value={selected.provider} />
         <Info label="متوسط التشغيل" value={`$${selected.avgRunCost}`} />
         <Info label="حد الموافقة" value={`$${selected.approvalAbove}`} />
+        <Info label="سبب التوقع" value={forecastReason} />
+        <Info label="سبب الاعتماد" value={requiresApproval ? approvalReason : "لا يحتاج اعتمادًا حاليًا"} />
         <Info label="التحذيرات" value={warnings.length || "لا يوجد"} />
-        <Info label="نوع القرار" value={requiresApproval ? "Human Approval" : "Auto Allow"} />
+        <Info label="نوع القرار" value={blocked ? "blocked" : requiresApproval ? "needs approval" : "allowed"} />
       </div>
     </div>
   );
@@ -1044,7 +1285,7 @@ const styles = `
 .head,
 .row{
   display:grid;
-  grid-template-columns:1.35fr .75fr .6fr .65fr .65fr .65fr .65fr;
+  grid-template-columns:1.25fr .7fr .55fr .6fr .6fr .6fr .6fr .75fr;
   gap:10px;
   padding:13px 14px;
   align-items:center;
@@ -1107,6 +1348,35 @@ const styles = `
 .slate{
   background:#f8fafc;
   color:#475569;
+}
+
+.cost-health-badge{
+  width:fit-content;
+  min-height:28px;
+  border-radius:999px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:1000;
+  white-space:nowrap;
+}
+
+.cost-health-badge.ready{
+  color:#166534;
+  background:#dcfce7;
+}
+
+.cost-health-badge.warning{
+  color:#92400e;
+  background:#fef3c7;
+}
+
+.cost-health-badge.approval,
+.cost-health-badge.blocked{
+  color:#991b1b;
+  background:#fee2e2;
 }
 
 .alerts{
@@ -1199,6 +1469,88 @@ const styles = `
   grid-template-columns:repeat(3,1fr);
   gap:10px;
   margin-bottom:14px;
+}
+
+.cost-route-health-panel{
+  border:1px solid #d9ead7;
+  background:#fbfdf9;
+  border-radius:18px;
+  padding:13px;
+  margin-bottom:14px;
+}
+
+.cost-route-health-panel.warning{
+  border-color:#fde68a;
+  background:#fffaf0;
+}
+
+.cost-route-health-panel.approval,
+.cost-route-health-panel.blocked{
+  border-color:#fecaca;
+  background:#fff5f5;
+}
+
+.cost-health-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.cost-health-head strong{
+  display:block;
+  color:#1f241d;
+  font-size:15px;
+}
+
+.cost-health-head span{
+  display:block;
+  margin-top:4px;
+  color:#6f746b;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.cost-health-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.cost-health-notes{
+  display:grid;
+  gap:6px;
+  margin-top:10px;
+}
+
+.cost-health-notes strong{
+  display:block;
+  color:#1f241d;
+  font-size:12px;
+}
+
+.cost-health-notes span{
+  border-radius:12px;
+  padding:7px 9px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.6;
+}
+
+.blocked-notes span{
+  color:#991b1b;
+  background:#fee2e2;
+}
+
+.warning-notes span{
+  color:#92400e;
+  background:#ffedd5;
+}
+
+.check-notes span{
+  color:#166534;
+  background:#ecfdf5;
 }
 
 .info{
@@ -1395,6 +1747,7 @@ const styles = `
 
   .detail-grid,
   .simulation-grid,
+  .cost-health-grid,
   .edit-grid{
     grid-template-columns:1fr;
   }
