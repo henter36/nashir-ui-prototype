@@ -422,7 +422,7 @@ export default function CampaignWizardPage() {
     setAvailableAssets(nextAssets);
     setSelectedAssetKeys((prev) => Array.from(new Set([...prev, asset.id])));
     setAssetDraft({ name: "", type: "image", url: "" });
-    setAssetNotice("تمت إضافة الأصل وربطه بالمنتج الحالي. تم ربطه بالمنتج الحالي.");
+    setAssetNotice("تمت إضافة الأصل وربطه بالمنتج الحالي.");
   };
 
   const regenerateOutputText = (output) => {
