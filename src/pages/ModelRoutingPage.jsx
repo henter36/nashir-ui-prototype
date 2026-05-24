@@ -952,22 +952,22 @@ export default function ModelRoutingPage() {
 
             <div className="editor-grid">
               <Field
-                label="Max retries"
+                label="عدد المحاولات"
                 value={selectedRoute.policy?.maxRetries || 0}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "maxRetries", Number(value))}
               />
               <Field
-                label="Timeout seconds"
+                label="مهلة التشغيل"
                 value={selectedRoute.policy?.timeoutSeconds || 0}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "timeoutSeconds", Number(value))}
               />
               <Field
-                label="Max cost/run"
+                label="حد التكلفة لكل تشغيل"
                 value={selectedRoute.cost?.maxCostPerRun || ""}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "cost", "maxCostPerRun", value)}
               />
               <Field
-                label="Monthly budget"
+                label="الميزانية الشهرية"
                 value={selectedRoute.cost?.monthlyBudgetLimit || ""}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "cost", "monthlyBudgetLimit", value)}
               />
@@ -975,32 +975,32 @@ export default function ModelRoutingPage() {
 
             <div className="toggle-list">
               <Toggle
-                label="Use cheapest first"
+                label="استخدام الأقل تكلفة أولًا"
                 checked={Boolean(selectedRoute.policy?.useCheapestFirst)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "useCheapestFirst", value)}
               />
               <Toggle
-                label="Use best quality"
+                label="تفضيل أعلى جودة"
                 checked={Boolean(selectedRoute.policy?.useBestQuality)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "useBestQuality", value)}
               />
               <Toggle
-                label="Retry on failure"
+                label="إعادة المحاولة عند الفشل"
                 checked={Boolean(selectedRoute.policy?.retryOnFailure)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "policy", "retryOnFailure", value)}
               />
               <Toggle
-                label="Human review required"
+                label="المراجعة البشرية مطلوبة"
                 checked={Boolean(selectedRoute.governance?.humanReviewRequired)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "humanReviewRequired", value)}
               />
               <Toggle
-                label="Block auto publish"
+                label="منع النشر التلقائي"
                 checked={Boolean(selectedRoute.governance?.blockAutoPublish)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "blockAutoPublish", value)}
               />
               <Toggle
-                label="Redact sensitive data"
+                label="إخفاء البيانات الحساسة"
                 checked={Boolean(selectedRoute.governance?.redactSensitiveData)}
                 onChange={(value) => updateRouteNested(selectedRoute.id, "governance", "redactSensitiveData", value)}
               />
@@ -1068,10 +1068,10 @@ export default function ModelRoutingPage() {
                     <h3>{task?.[1]}</h3>
                     <RouteHealthBadge status={health.status} />
                   </div>
-                  <Info label="Max cost/run" value={`${route.cost?.maxCostPerRun || "—"}$`} />
-                  <Info label="Monthly budget" value={`${route.cost?.monthlyBudgetLimit || "—"}$`} />
-                  <Info label="Approval above" value={`${route.cost?.requireApprovalAboveCost || "—"}$`} />
-                  <Info label="Timeout" value={`${route.policy?.timeoutSeconds || "—"}s`} />
+                  <Info label="حد التكلفة لكل تشغيل" value={`${route.cost?.maxCostPerRun || "—"}$`} />
+                  <Info label="الميزانية الشهرية" value={`${route.cost?.monthlyBudgetLimit || "—"}$`} />
+                  <Info label="حد الموافقة" value={`${route.cost?.requireApprovalAboveCost || "—"}$`} />
+                  <Info label="مهلة التشغيل" value={`${route.policy?.timeoutSeconds || "—"}s`} />
                 </article>
               );
             })}
@@ -1201,7 +1201,7 @@ function RouteHealthPanel({ route, models, costRows }) {
       <div className="route-health-head">
         <div>
           <strong>جاهزية المسار</strong>
-          <span>{getRouteHealthLabel(health.status)} · {health.score}%</span>
+          <span>جاهزية المسار تحدد قابلية استخدامه في تشغيلات النظام. · {health.score}%</span>
         </div>
         <RouteHealthBadge status={health.status} />
       </div>
@@ -1215,26 +1215,26 @@ function RouteHealthPanel({ route, models, costRows }) {
         <Info label="مستخدم في التشغيلات" value={health.usage.length ? `${health.usage.length} مسار` : "غير مستخدم"} />
       </div>
 
-      {health.blockedReasons.length ? (
-        <div className="health-notes blocked-notes">
-          <strong>أسباب الحظر</strong>
-          {health.blockedReasons.map((reason) => (
-            <span key={reason}>{reason}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="health-notes blocked-notes">
+        <strong>أسباب الحظر</strong>
+        {health.blockedReasons.length
+          ? health.blockedReasons.map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))
+          : <span>لا توجد أسباب حظر</span>}
+      </div>
 
-      {health.warnings.length ? (
-        <div className="health-notes warning-notes">
-          <strong>تحذيرات</strong>
-          {health.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="health-notes warning-notes">
+        <strong>تحذيرات</strong>
+        {health.warnings.length
+          ? health.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))
+          : <span>لا توجد تحذيرات</span>}
+      </div>
 
       <div className="health-notes check-notes">
-        <strong>الفحوصات</strong>
+        <strong>الفحوصات الناجحة</strong>
         {health.checks.slice(0, 5).map((check) => (
           <span key={check}>{check}</span>
         ))}

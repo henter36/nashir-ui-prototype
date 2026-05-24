@@ -123,7 +123,7 @@ const statusMap = {
   risk: ["مرتفع", "red"],
   blocked: ["موقوف", "slate"],
   ready: ["جاهز", "green"],
-  warning: ["يحتاج متابعة", "amber"],
+  warning: ["يحتاج ضبط", "amber"],
   approval: ["يحتاج اعتماد", "red"],
 };
 
@@ -191,12 +191,12 @@ function getLinkedModel(route, models = []) {
 function getCostHealthLabel(status) {
   const labels = {
     ready: "جاهز",
-    warning: "يحتاج متابعة",
+    warning: "يحتاج ضبط",
     approval: "يحتاج اعتماد",
     blocked: "محظور",
   };
 
-  return labels[status] || "يحتاج متابعة";
+  return labels[status] || "يحتاج ضبط";
 }
 
 function buildCostRouteHealth(row, routes = [], models = []) {
@@ -875,7 +875,7 @@ function CostRouteHealthPanel({ row, health }) {
       : health.status === "approval"
         ? "يحتاج اعتمادًا قبل التشغيل."
         : health.status === "warning"
-          ? "يؤثر على جاهزية التشغيل ويحتاج متابعة."
+          ? "يؤثر على جاهزية التشغيل ويحتاج ضبط."
           : "جاهز ضمن حدود التكلفة الحالية.";
 
   return (
@@ -883,7 +883,7 @@ function CostRouteHealthPanel({ row, health }) {
       <div className="cost-health-head">
         <div>
           <strong>جاهزية التكلفة للمسار</strong>
-          <span>مرتبطة بتوجيه النماذج · تؤثر على جاهزية التشغيل</span>
+          <span>التكلفة تؤثر على جاهزية التشغيل وحاجة الاعتماد. · {health.score}%</span>
         </div>
         <CostHealthBadge status={health.status} />
       </div>
@@ -899,25 +899,26 @@ function CostRouteHealthPanel({ row, health }) {
         <Info label="أثر التكلفة على التشغيل" value={impact} />
       </div>
 
-      {health.blockedReasons.length ? (
-        <div className="cost-health-notes blocked-notes">
-          <strong>أسباب الحظر</strong>
-          {health.blockedReasons.map((reason) => (
-            <span key={reason}>{reason}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="cost-health-notes blocked-notes">
+        <strong>أسباب الحظر</strong>
+        {health.blockedReasons.length
+          ? health.blockedReasons.map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))
+          : <span>لا توجد أسباب حظر</span>}
+      </div>
 
-      {health.warnings.length ? (
-        <div className="cost-health-notes warning-notes">
-          <strong>تحذيرات</strong>
-          {health.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="cost-health-notes warning-notes">
+        <strong>تحذيرات</strong>
+        {health.warnings.length
+          ? health.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))
+          : <span>لا توجد تحذيرات</span>}
+      </div>
 
       <div className="cost-health-notes check-notes">
+        <strong>الفحوصات الناجحة</strong>
         {health.checks.slice(0, 5).map((check) => (
           <span key={check}>{check}</span>
         ))}

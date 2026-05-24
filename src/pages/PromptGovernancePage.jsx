@@ -249,12 +249,12 @@ function getGovernanceFindings(prompt) {
 
 function getPromptReadinessLabel(status) {
   const labels = {
-    ready: "جاهزة",
-    warning: "تحتاج ضبط",
-    blocked: "محظورة",
+    ready: "جاهز",
+    warning: "يحتاج ضبط",
+    blocked: "محظور",
   };
 
-  return labels[status] || "تحتاج ضبط";
+  return labels[status] || "يحتاج ضبط";
 }
 
 function buildPromptStepReadiness(prompt) {
@@ -695,8 +695,8 @@ export default function PromptGovernancePage() {
                 </label>
 
                 <TextAreaField label="الوصف" value={selected.description} rows={3} onChange={(value) => updatePrompt({ description: value })} />
-                <TextAreaField label="Customer-safe Summary" value={selected.customerFacingSummary} rows={3} onChange={(value) => updatePrompt({ customerFacingSummary: value })} />
-                <TextAreaField label="Internal Prompt Preview" value={selected.internalPromptPreview} rows={4} onChange={(value) => updatePrompt({ internalPromptPreview: value })} />
+                <TextAreaField label="ملخص آمن للعميل" value={selected.customerFacingSummary} rows={3} onChange={(value) => updatePrompt({ customerFacingSummary: value })} />
+                <TextAreaField label="معاينة داخلية محجوبة" value={selected.internalPromptPreview} rows={4} onChange={(value) => updatePrompt({ internalPromptPreview: value })} />
               </div>
 
               <div className="score-card">
@@ -994,7 +994,7 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
       <div className="prompt-readiness-head">
         <div>
           <strong>جاهزية المطالبة للخطوة</strong>
-          <span>حالة الجاهزية: {getPromptReadinessLabel(readiness.status)} · الدرجة: {readiness.score}%</span>
+          <span>روابط الاستخدام تؤثر على جاهزية الخطوة في تشغيلات النظام. · {readiness.score}%</span>
         </div>
         <PromptReadinessBadge status={readiness.status} />
       </div>
@@ -1008,25 +1008,26 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
         <Info label="المخرجات المسموحة" value={allowedOutputs} />
       </div>
 
-      {readiness.blockedReasons.length ? (
-        <div className="prompt-readiness-notes blocked-notes">
-          <strong>أسباب الحظر</strong>
-          {readiness.blockedReasons.map((reason) => (
-            <span key={reason}>{reason}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="prompt-readiness-notes blocked-notes">
+        <strong>أسباب الحظر</strong>
+        {readiness.blockedReasons.length
+          ? readiness.blockedReasons.map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))
+          : <span>لا توجد أسباب حظر</span>}
+      </div>
 
-      {readiness.warnings.length ? (
-        <div className="prompt-readiness-notes warning-notes">
-          <strong>تحذيرات</strong>
-          {readiness.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="prompt-readiness-notes warning-notes">
+        <strong>تحذيرات</strong>
+        {readiness.warnings.length
+          ? readiness.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))
+          : <span>لا توجد تحذيرات</span>}
+      </div>
 
       <div className="prompt-readiness-notes check-notes">
+        <strong>الفحوصات الناجحة</strong>
         {readiness.checks.slice(0, 5).map((check) => (
           <span key={check}>{check}</span>
         ))}

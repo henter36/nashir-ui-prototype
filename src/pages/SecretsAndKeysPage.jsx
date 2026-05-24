@@ -1233,7 +1233,7 @@ function ProviderReadinessPanel({ provider }) {
       <div className="readiness-head">
         <div>
           <strong>جاهزية المزود</strong>
-          <span>حالة الجاهزية: {getReadinessLabel(readiness.status)} · الدرجة: {readiness.score}%</span>
+          <span>جاهزية المزود تكمل جاهزية المسار والتكلفة والمطالبة. · {readiness.score}%</span>
         </div>
         <ReadinessBadge status={readiness.status} />
       </div>
@@ -1251,25 +1251,26 @@ function ProviderReadinessPanel({ provider }) {
         <Info label="أثره على توجيه النماذج" value="يؤثر على جاهزية المسار قبل التشغيل" />
       </div>
 
-      {readiness.blockedReasons.length ? (
-        <div className="readiness-notes blocked-notes">
-          <strong>أسباب الحظر</strong>
-          {readiness.blockedReasons.map((reason) => (
-            <span key={reason}>{reason}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="readiness-notes blocked-notes">
+        <strong>أسباب الحظر</strong>
+        {readiness.blockedReasons.length
+          ? readiness.blockedReasons.map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))
+          : <span>لا توجد أسباب حظر</span>}
+      </div>
 
-      {readiness.warnings.length ? (
-        <div className="readiness-notes warning-notes">
-          <strong>تحذيرات</strong>
-          {readiness.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="readiness-notes warning-notes">
+        <strong>تحذيرات</strong>
+        {readiness.warnings.length
+          ? readiness.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))
+          : <span>لا توجد تحذيرات</span>}
+      </div>
 
       <div className="readiness-notes check-notes">
+        <strong>الفحوصات الناجحة</strong>
         {readiness.checks.slice(0, 5).map((check) => (
           <span key={check}>{check}</span>
         ))}

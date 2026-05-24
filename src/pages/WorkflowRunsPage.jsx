@@ -1827,7 +1827,7 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   const readiness = buildStepReadiness(step, readinessContext);
   const statusLabel = {
     ready: "جاهز",
-    warning: "يحتاج مراجعة",
+    warning: "يحتاج ضبط",
     blocked: "محظور",
   }[readiness.status];
   const routeLabel =
@@ -1846,7 +1846,7 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
       <div className="step-readiness-head">
         <div>
           <strong>جاهزية الخطوة</strong>
-          <span>حالة الجاهزية: {statusLabel} · {readiness.score}%</span>
+          <span>جاهزية الخطوة تجمع المسار والمطالبة والتكلفة والمراجعة. · {readiness.score}%</span>
         </div>
         <Status value={readiness.status} />
       </div>
@@ -1858,26 +1858,27 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
         <Info label="المراجعة" value={reviewLabel} />
       </div>
 
-      {readiness.blockedReasons.length ? (
-        <div className="readiness-notes blocked-notes">
-          <strong>أسباب الحظر</strong>
-          {readiness.blockedReasons.map((reason) => (
-            <span key={reason}>{reason}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="readiness-notes blocked-notes">
+        <strong>أسباب الحظر</strong>
+        {readiness.blockedReasons.length
+          ? readiness.blockedReasons.map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))
+          : <span>لا توجد أسباب حظر</span>}
+      </div>
 
-      {readiness.warnings.length ? (
-        <div className="readiness-notes warning-notes">
-          <strong>تحذيرات</strong>
-          {readiness.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </div>
-      ) : null}
+      <div className="readiness-notes warning-notes">
+        <strong>تحذيرات</strong>
+        {readiness.warnings.length
+          ? readiness.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))
+          : <span>لا توجد تحذيرات</span>}
+      </div>
 
-      {!readiness.blockedReasons.length && !readiness.warnings.length ? (
+      {readiness.checks.length ? (
         <div className="readiness-notes safe-notes">
+          <strong>الفحوصات الناجحة</strong>
           {readiness.checks.slice(0, 3).map((check) => (
             <span key={check}>{check}</span>
           ))}
@@ -2111,7 +2112,7 @@ function Status({ value }) {
     completed: ["مكتمل", "green"],
     success: ["مكتمل", "green"],
     ready: ["جاهز", "green"],
-    warning: ["يحتاج مراجعة", "amber"],
+    warning: ["يحتاج ضبط", "amber"],
     blocked: ["محظور", "red"],
     failed: ["فشل", "red"],
     queued: ["في الطابور", "slate"],

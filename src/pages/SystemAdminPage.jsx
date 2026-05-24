@@ -232,12 +232,12 @@ function getFlag(flags, key) {
 
 function getPolicyStatusLabel(status) {
   const labels = {
-    ready: "جاهزة",
-    warning: "تحتاج ضبط",
-    blocked: "محظورة",
+    ready: "جاهز",
+    warning: "يحتاج ضبط",
+    blocked: "محظور",
   };
 
-  return labels[status] || "تحتاج ضبط";
+  return labels[status] || "يحتاج ضبط";
 }
 
 function buildAiOpsPolicyHealth(flags = [], roles = [], integrations = [], auditLogs = []) {
@@ -406,10 +406,7 @@ export default function SystemAdminPage() {
         <div className="sys-card-header">
           <div>
             <h2>سياسات تشغيل الذكاء الاصطناعي</h2>
-            <p>
-              هذه السياسات تحدد السلوك المطلوب عند تنفيذ تشغيلات الذكاء الاصطناعي.
-              أي تعطيل للمراجعة البشرية أو تفعيل للنشر التلقائي يؤثر على جاهزية التشغيل.
-            </p>
+            <p>هذه السياسات تؤثر على جاهزية التشغيل.</p>
           </div>
           <PolicyBadge status={aiOpsHealth.status} />
         </div>
@@ -442,17 +439,24 @@ export default function SystemAdminPage() {
           <InfoBox label="هل يوجد حدث حرج؟" value={adminAuditLogs.some((log) => (log.level || log.severity) === "critical") ? "نعم" : "لا"} />
         </div>
 
-        {aiOpsHealth.blockedReasons.length ? (
-          <div className="policy-notes blocked-notes">
-            <strong>أسباب الحظر</strong>
-            {aiOpsHealth.blockedReasons.map((reason) => <span key={reason}>{reason}</span>)}
-          </div>
-        ) : null}
+        <div className="policy-notes blocked-notes">
+          <strong>أسباب الحظر</strong>
+          {aiOpsHealth.blockedReasons.length
+            ? aiOpsHealth.blockedReasons.map((reason) => <span key={reason}>{reason}</span>)
+            : <span>لا توجد أسباب حظر</span>}
+        </div>
 
-        {aiOpsHealth.warnings.length ? (
-          <div className="policy-notes warning-notes">
-            <strong>تحذيرات</strong>
-            {aiOpsHealth.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+        <div className="policy-notes warning-notes">
+          <strong>تحذيرات</strong>
+          {aiOpsHealth.warnings.length
+            ? aiOpsHealth.warnings.map((warning) => <span key={warning}>{warning}</span>)
+            : <span>لا توجد تحذيرات</span>}
+        </div>
+
+        {aiOpsHealth.checks.length ? (
+          <div className="policy-notes check-notes">
+            <strong>الفحوصات الناجحة</strong>
+            {aiOpsHealth.checks.slice(0, 5).map((check) => <span key={check}>{check}</span>)}
           </div>
         ) : null}
       </section>
