@@ -349,6 +349,14 @@ export default function ContentReviewPreviewPage() {
         </div>
       </section>
 
+      <section className="screen-guidance-card">
+        <div><span>هدف الشاشة</span><strong>مراجعة ومعاينة مخرجات الحملة قبل أي جدولة أو نشر.</strong></div>
+        <div><span>المدخلات</span><strong>محتوى الحملة، حالة المراجعة، الملاحظات.</strong></div>
+        <div><span>المخرجات</span><strong>قرار مراجعة واجهي: اعتماد، طلب تعديل، أو رفض.</strong></div>
+        <div><span>الإجراء التالي</span><strong>اعتماد المحتوى أو إعادته للتحرير.</strong></div>
+        <div><span>ما لا يحدث هنا</span><strong>الاعتماد هنا لا يعني نشرًا فعليًا.</strong></div>
+      </section>
+
       <section className="review-flow-note">
         <div>
           <h2>مراجعة ومعاينة مخرجات الحملة</h2>
@@ -1325,5 +1333,43 @@ const styles = `
   .phone-preview {
     min-height: auto;
   }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.screen-guidance-card span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.screen-guidance-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .screen-guidance-card { grid-template-columns: 1fr; }
 }
 `;

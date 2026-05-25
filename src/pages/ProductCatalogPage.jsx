@@ -361,6 +361,14 @@ export default function ProductCatalogPage() {
         </div>
       </section>
 
+      <section className="screen-guidance-card">
+        <div><span>هدف الشاشة</span><strong>إدارة المنتجات وتحديد أولوية التسويق لكل منتج.</strong></div>
+        <div><span>المدخلات</span><strong>اسم المنتج، التصنيف، السعر، الصورة، الفيديو، الوصف.</strong></div>
+        <div><span>المخرجات</span><strong>جاهزية المنتج، أولوية تسويقية، سبب الترشيح.</strong></div>
+        <div><span>الإجراء التالي</span><strong>استكمال بيانات المنتج أو إنشاء حملة.</strong></div>
+        <div><span>ما لا يحدث هنا</span><strong>لا يتم استيراد منتجات من منصة خارجية فعليًا.</strong></div>
+      </section>
+
       <section className="stats-grid">
         <Stat title="إجمالي المنتجات" value={stats.total} />
         <Stat title="جاهزة للحملات" value={stats.ready} />
@@ -1094,5 +1102,43 @@ const styles = `
   .row {
     min-width: 980px;
   }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.screen-guidance-card span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.screen-guidance-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .screen-guidance-card { grid-template-columns: 1fr; }
 }
 `;

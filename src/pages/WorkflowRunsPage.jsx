@@ -1242,6 +1242,14 @@ export default function WorkflowRunsPage() {
         </div>
       </section>
 
+      <section className="screen-guidance-card">
+        <div><span>هدف الشاشة</span><strong>متابعة مسار التشغيل ومعرفة أين توقفت العملية.</strong></div>
+        <div><span>المدخلات</span><strong>Workflow، الموصلات، النماذج، المطالبات، حدود التكلفة.</strong></div>
+        <div><span>المخرجات</span><strong>جاهزية التشغيل، أسباب الحظر، حزمة الأدلة، مخرجات قابلة لإعادة الاستخدام.</strong></div>
+        <div><span>الإجراء التالي</span><strong>إصلاح سبب الحظر أو إرسال المخرج للمراجعة.</strong></div>
+        <div><span>ما لا يحدث هنا</span><strong>لا يتم تنفيذ Backend أو إرسال بيانات فعلية للنماذج.</strong></div>
+      </section>
+
       <section className="governance-alert">
         <ShieldCheck size={20} />
           <div>
@@ -3790,6 +3798,50 @@ const styles = `
   .pipeline-step-grid,
   .pipeline-support-grid,
   .readiness-check-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #edf0e8;
+  background: #f8faf5;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.screen-guidance-card strong,
+.screen-guidance-card span {
+  display: block;
+}
+
+.screen-guidance-card strong {
+  color: #176b2c;
+  font-size: 12px;
+  font-weight: 950;
+  margin-bottom: 6px;
+}
+
+.screen-guidance-card span {
+  color: #384333;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .screen-guidance-card {
     grid-template-columns: 1fr;
   }
 }

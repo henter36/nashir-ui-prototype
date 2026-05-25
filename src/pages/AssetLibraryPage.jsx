@@ -276,6 +276,14 @@ export default function AssetLibraryPage() {
         </button>
       </section>
 
+      <section className="screen-guidance-card">
+        <div><span>هدف الشاشة</span><strong>إدارة الأصول وربطها بالمنتجات وفهم فجوات المحتوى.</strong></div>
+        <div><span>المدخلات</span><strong>صور، فيديوهات، حقوق، ارتباط بالمنتج، جودة الأصل.</strong></div>
+        <div><span>المخرجات</span><strong>أصول جاهزة أو فجوات أصول تحتاج استكمال.</strong></div>
+        <div><span>الإجراء التالي</span><strong>ربط أصل بمنتج أو استكمال أصل ناقص.</strong></div>
+        <div><span>ما لا يحدث هنا</span><strong>لا يتم اعتماد الحقوق تلقائيًا.</strong></div>
+      </section>
+
       {uploadOpen ? (
         <section className="upload-panel">
           <div className="upload-box">
@@ -1004,5 +1012,43 @@ const styles = `
   .asset-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.screen-guidance-card span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.screen-guidance-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .screen-guidance-card { grid-template-columns: 1fr; }
 }
 `;

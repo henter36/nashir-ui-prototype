@@ -281,6 +281,14 @@ export default function ContentStudioPage() {
             </span>
           </div>
 
+          <section className="screen-guidance-card">
+            <div><span>هدف الشاشة</span><strong>تحرير مخرجات الحملة وتجهيزها للمراجعة.</strong></div>
+            <div><span>المدخلات</span><strong>مخرجات الحملة، القناة، نوع المحتوى، الملاحظات.</strong></div>
+            <div><span>المخرجات</span><strong>نسخة محتوى قابلة للمراجعة.</strong></div>
+            <div><span>الإجراء التالي</span><strong>حفظ التعديل أو إرسال المحتوى للمراجعة.</strong></div>
+            <div><span>ما لا يحدث هنا</span><strong>لا توجد جدولة أو اعتماد نهائي هنا.</strong></div>
+          </section>
+
           <div className="campaign-output-note">
             <strong>مخرجات الحملة</strong>
             <span>هذه مخرجات واجهية تجريبية، وهي مخرجات أولية قابلة للمراجعة وليست نتيجة توليد أو تنفيذ حقيقي.</span>
@@ -1111,5 +1119,41 @@ textarea:focus {
   .secondary-button {
     width: 100%;
   }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 14px;
+  padding: 9px;
+}
+
+.screen-guidance-card span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.screen-guidance-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .screen-guidance-card { grid-template-columns: 1fr; }
 }
 `;

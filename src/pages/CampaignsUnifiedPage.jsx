@@ -221,6 +221,14 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
         </button>
       </section>
 
+      <section className="screen-guidance-card">
+        <div><span>هدف الشاشة</span><strong>عرض الحملات وحالتها وربطها بالمحتوى والمراجعة.</strong></div>
+        <div><span>المدخلات</span><strong>الحملات المحفوظة، المنتج، الحالة، مخرجات المحتوى.</strong></div>
+        <div><span>المخرجات</span><strong>حالة الحملة والإجراء التالي.</strong></div>
+        <div><span>الإجراء التالي</span><strong>فتح التفاصيل أو المحتوى أو المراجعة.</strong></div>
+        <div><span>ما لا يحدث هنا</span><strong>لا يتم تنفيذ حملة فعلية.</strong></div>
+      </section>
+
       <section className="stats-grid">
         <Stat title="إجمالي الحملات" value={stats.total} icon={Megaphone} tone="green" />
         <Stat title="النشطة" value={stats.active} icon={Sparkles} tone="blue" />
@@ -1179,5 +1187,43 @@ const styles = `
   .output-row {
     grid-template-columns: 1fr;
   }
+}
+
+.screen-guidance-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.screen-guidance-card div {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.screen-guidance-card span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.screen-guidance-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1f241d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .screen-guidance-card { grid-template-columns: 1fr; }
 }
 `;
