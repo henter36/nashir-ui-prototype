@@ -22,6 +22,9 @@ import {
   getDashboardSnapshot,
   refreshDashboardSummary,
 } from "../utils/campaignAnalyticsStore.js";
+import {
+  readLatestStoreStrategicPlan,
+} from "../utils/storeStrategicPlanStore.js";
 
 const periodLabels = ["اليوم", "آخر 7 أيام", "هذا الشهر"];
 
@@ -129,11 +132,15 @@ export default function DashboardPage({
 }) {
   const [period, setPeriod] = useState("آخر 7 أيام");
   const [dashboardSnapshot, setDashboardSnapshot] = useState(() => getDashboardSnapshot());
+  const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
+    readLatestStoreStrategicPlan(null)
+  );
 
   useEffect(() => {
     const reloadDashboard = () => {
       refreshDashboardSummary();
       setDashboardSnapshot(getDashboardSnapshot());
+      setLatestStrategicPlan(readLatestStoreStrategicPlan(null));
     };
 
     window.addEventListener("focus", reloadDashboard);
@@ -141,6 +148,7 @@ export default function DashboardPage({
     window.addEventListener("nashir-campaigns-updated", reloadDashboard);
     window.addEventListener("nashir-campaign-metrics-updated", reloadDashboard);
     window.addEventListener("nashir-dashboard-summary-updated", reloadDashboard);
+    window.addEventListener("nashir-store-strategic-plan-updated", reloadDashboard);
 
     return () => {
       window.removeEventListener("focus", reloadDashboard);
@@ -148,6 +156,7 @@ export default function DashboardPage({
       window.removeEventListener("nashir-campaigns-updated", reloadDashboard);
       window.removeEventListener("nashir-campaign-metrics-updated", reloadDashboard);
       window.removeEventListener("nashir-dashboard-summary-updated", reloadDashboard);
+      window.removeEventListener("nashir-store-strategic-plan-updated", reloadDashboard);
     };
   }, []);
 
@@ -235,18 +244,45 @@ export default function DashboardPage({
       icon: Store,
     },
   ];
-  const strategicSummary = {
-    growthReadiness: summary.avgReadiness >= 80 ? "مرتفعة" : summary.avgReadiness >= 65 ? "متوسطة" : "تحتاج استكمال",
-    opportunity: recentCampaigns[0]?.product
-      ? `تحويل ${recentCampaigns[0].product} إلى حملة اختبارية مركزة.`
-      : "بدء حملة اختبارية من المنتج الأعلى جاهزية.",
-    risk: Number(summary.reviewCampaigns || 0) > 0
-      ? "وجود محتوى أو حملات تحتاج مراجعة قبل التوسع."
-      : "الأصول والقنوات تحتاج متابعة قبل زيادة النشر.",
-    nextAction: Number(summary.reviewCampaigns || 0) > 0
-      ? "راجع المحتوى المنتظر قبل الجدولة."
-      : "ابدأ من المنتج الأعلى جاهزية في معالج الحملة.",
-  };
+  const strategicSummary = useMemo(() => {
+    const planJson = latestStrategicPlan?.planJson || {};
+    const findFact = (rows, label) => {
+      const found = Array.isArray(rows)
+        ? rows.find(([candidate]) => candidate === label)
+        : null;
+      return found?.[1] || "";
+    };
+    const topProduct = Array.isArray(planJson.priorityProducts)
+      ? planJson.priorityProducts[0]
+      : null;
+    const risks = Array.isArray(planJson.risks) ? planJson.risks : [];
+
+    if (latestStrategicPlan) {
+      return {
+        growthReadiness: findFact(planJson.summary, "مرحلة جاهزية المتجر") || "آخر خطة استراتيجية محفوظة",
+        opportunity: topProduct?.name
+          ? `تحويل ${topProduct.name} إلى حملة اختبارية مركزة.`
+          : "آخر خطة استراتيجية محفوظة متاحة للمراجعة.",
+        risk: risks[0] || "لا توجد فجوة حرجة في آخر خطة محفوظة.",
+        nextAction: planJson.nextAction || "راجع آخر خطة استراتيجية محفوظة قبل إنشاء حملة.",
+        status: latestStrategicPlan.status === "ready_for_review" ? "جاهزة للمراجعة" : "مسودة",
+      };
+    }
+
+    return {
+      growthReadiness: summary.avgReadiness >= 80 ? "مرتفعة" : summary.avgReadiness >= 65 ? "متوسطة" : "تحتاج استكمال",
+      opportunity: recentCampaigns[0]?.product
+        ? `تحويل ${recentCampaigns[0].product} إلى حملة اختبارية مركزة.`
+        : "لا توجد خطة استراتيجية محفوظة بعد.",
+      risk: Number(summary.reviewCampaigns || 0) > 0
+        ? "وجود محتوى أو حملات تحتاج مراجعة قبل التوسع."
+        : "الأصول والقنوات تحتاج متابعة قبل زيادة النشر.",
+      nextAction: Number(summary.reviewCampaigns || 0) > 0
+        ? "راجع المحتوى المنتظر قبل الجدولة."
+        : "ابدأ من إعداد المتجر لحفظ خطة استراتيجية.",
+      status: "لا توجد خطة استراتيجية محفوظة بعد.",
+    };
+  }, [latestStrategicPlan, recentCampaigns, summary.avgReadiness, summary.reviewCampaigns]);
 
   return (
     <main className="dashboard-grid-page" dir="rtl">
@@ -311,9 +347,9 @@ export default function DashboardPage({
       <article className="card strategic-summary-card">
         <CardHeader
           title="ملخص الخطة الاستراتيجية"
-          description="الملخص يعرض أهم نتيجة من خطة المتجر، والتفاصيل الكاملة تبقى في إعداد المتجر."
+          description={latestStrategicPlan ? "يعرض أهم نتيجة من آخر خطة استراتيجية محفوظة، والتفاصيل الكاملة تبقى في إعداد المتجر." : "لا توجد خطة استراتيجية محفوظة بعد."}
           icon={Sparkles}
-          action={<span className="prototype-note">توصيات واجهية</span>}
+          action={<span className="prototype-note">{latestStrategicPlan ? "آخر خطة استراتيجية محفوظة" : "بدون خطة محفوظة"}</span>}
         />
         <p className="strategy-note">هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
         <div className="strategy-summary-grid">
@@ -321,6 +357,7 @@ export default function DashboardPage({
           <Mini title="أهم فرصة" value={strategicSummary.opportunity} />
           <Mini title="أهم خطر" value={strategicSummary.risk} />
           <Mini title="الإجراء التالي" value={strategicSummary.nextAction} />
+          <Mini title="حالة الخطة" value={strategicSummary.status} />
         </div>
       </article>
 

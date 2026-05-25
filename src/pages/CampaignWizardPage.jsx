@@ -36,6 +36,10 @@ import {
   upsertCampaignContentItem,
 } from "../utils/campaignContentStore.js";
 
+import {
+  readLatestStoreStrategicPlan,
+} from "../utils/storeStrategicPlanStore.js";
+
 const goals = [
   "زيادة المبيعات",
   "إطلاق منتج جديد",
@@ -259,6 +263,9 @@ export default function CampaignWizardPage({
 
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [saveNotice, setSaveNotice] = useState("");
+  const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
+    readLatestStoreStrategicPlan(null)
+  );
 
   useEffect(() => {
     const refreshProducts = () => {
@@ -293,6 +300,22 @@ export default function CampaignWizardPage({
     };
   }, []);
 
+  useEffect(() => {
+    const refreshStrategicPlan = () => {
+      setLatestStrategicPlan(readLatestStoreStrategicPlan(null));
+    };
+
+    window.addEventListener("focus", refreshStrategicPlan);
+    window.addEventListener("storage", refreshStrategicPlan);
+    window.addEventListener("nashir-store-strategic-plan-updated", refreshStrategicPlan);
+
+    return () => {
+      window.removeEventListener("focus", refreshStrategicPlan);
+      window.removeEventListener("storage", refreshStrategicPlan);
+      window.removeEventListener("nashir-store-strategic-plan-updated", refreshStrategicPlan);
+    };
+  }, []);
+
   const selectedProduct = products.find((product) => product.id === selectedProductKey) || products[0];
 
   const sortedAssets = useMemo(() => {
@@ -324,6 +347,13 @@ export default function CampaignWizardPage({
   const selectedHasImage = selectedAssets.some((asset) => asset.type === "image");
   const selectedHasVideo = selectedAssets.some((asset) => asset.type === "video");
   const storePlanSuggestions = useMemo(() => {
+    const planJson = latestStrategicPlan?.planJson || {};
+    const planPriorityProducts = Array.isArray(planJson.priorityProducts) ? planJson.priorityProducts : [];
+    const planMessaging = Array.isArray(planJson.messaging) ? planJson.messaging : [];
+    const planChannels = planJson.channels || {};
+    const planTopProduct = planPriorityProducts[0];
+    const planProductMatch = planPriorityProducts.find((product) => product.name === selectedProduct?.name) || planTopProduct;
+    const planCta = planMessaging.find((row) => Array.isArray(row) && row[0] === "CTA مقترح")?.[1];
     const flags = selectedProduct?.flags || [];
     const productAssets = availableAssets.filter(
       (asset) => asset.linkedType === "product" && asset.linkedName === selectedProduct?.name
@@ -352,13 +382,14 @@ export default function CampaignWizardPage({
           : "لا يوجد نقص أصول واضح كبداية.";
 
     return {
-      product: selectedProduct?.name || "غير محدد",
-      channel: suggestedChannel,
-      contentType: suggestedContentType,
-      cta: suggestedCta,
-      assetGap,
+      product: planProductMatch?.name || selectedProduct?.name || "غير محدد",
+      channel: planProductMatch?.bestChannel || planChannels.primary?.[0] || suggestedChannel,
+      contentType: planProductMatch?.contentType || suggestedContentType,
+      cta: planCta || suggestedCta,
+      assetGap: planProductMatch?.gap && planProductMatch.gap !== "لا يوجد نقص واضح" ? planProductMatch.gap : assetGap,
+      hasSavedPlan: Boolean(latestStrategicPlan),
     };
-  }, [availableAssets, channels, cta, selectedProduct]);
+  }, [availableAssets, channels, cta, latestStrategicPlan, selectedProduct]);
 
   const readiness = useMemo(() => {
     const checks = [
@@ -567,6 +598,17 @@ export default function CampaignWizardPage({
         type: asset.type,
         linkedName: asset.linkedName,
       })),
+      strategicPlanSnapshot: latestStrategicPlan
+        ? {
+            version: latestStrategicPlan.version,
+            recommendations: {
+              channel: storePlanSuggestions.channel,
+              contentType: storePlanSuggestions.contentType,
+              cta: storePlanSuggestions.cta,
+              assetGap: storePlanSuggestions.assetGap,
+            },
+          }
+        : null,
       channels,
       channel: channels[0] || "عام",
       outputs: campaignOutputs,
@@ -709,9 +751,9 @@ export default function CampaignWizardPage({
                   <div className="suggestion-head">
                     <div>
                       <h3>اقتراحات مبنية على خطة المتجر</h3>
-                      <p>هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
+                      <p>{storePlanSuggestions.hasSavedPlan ? "هذه اقتراحات من آخر خطة استراتيجية محفوظة. يمكن تعديلها داخل الحملة، ولا يتم تعديل الخطة تلقائيًا." : "لا توجد خطة استراتيجية محفوظة؛ يمكن إنشاء الحملة يدويًا."}</p>
                     </div>
-                    <Badge tone="blue">اقتراحات فقط</Badge>
+                    <Badge tone="blue">{storePlanSuggestions.hasSavedPlan ? "آخر خطة استراتيجية محفوظة" : "اقتراحات فقط"}</Badge>
                   </div>
                   <div className="asset-readiness-summary compact">
                     <Info label="المنتج المقترح" value={storePlanSuggestions.product} />
@@ -720,7 +762,7 @@ export default function CampaignWizardPage({
                     <Info label="CTA مقترح" value={storePlanSuggestions.cta} />
                     <Info label="تنبيه نقص الأصول إن وجد" value={storePlanSuggestions.assetGap} />
                   </div>
-                  <small>يمكن تعديل هذه الاقتراحات داخل الحملة. لا يتم تعديل خطة المتجر تلقائيًا.</small>
+                  <small>لا تعدل الحملات الخطة تلقائيًا. عند إنشاء الحملة لاحقًا، يجب حفظ نسخة من توصيات الخطة وقت الإنشاء.</small>
                 </div>
 
                 <div className="store-plan-suggestions social-campaign-suggestions">

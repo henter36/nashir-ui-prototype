@@ -40,6 +40,11 @@ import {
   upsertIntegrationConnection,
 } from "../utils/integrationConnectionsStore.js";
 
+import {
+  readLatestStoreStrategicPlan,
+  upsertStoreStrategicPlan,
+} from "../utils/storeStrategicPlanStore.js";
+
 const steps = [
   [1, "بيانات المتجر", "البيانات الأساسية والهوية التشغيلية."],
   [2, "المنتجات", "جدول المنتجات والخدمات المستخدمة في الحملات."],
@@ -344,6 +349,9 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     "راجع المنتجات المسحوبة قبل استخدامها في أي حملة.",
     "أي أصل مكتشف من المتجر يحتاج تأكيد حقوق قبل النشر.",
   ]);
+  const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
+    readLatestStoreStrategicPlan(null)
+  );
 
   useEffect(() => {
     const refreshProducts = () => {
@@ -394,6 +402,22 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       window.removeEventListener("focus", refreshConnections);
       window.removeEventListener("storage", refreshConnections);
       window.removeEventListener("nashir-integration-connections-updated", refreshConnections);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshStrategicPlan = () => {
+      setLatestStrategicPlan(readLatestStoreStrategicPlan(null));
+    };
+
+    window.addEventListener("focus", refreshStrategicPlan);
+    window.addEventListener("storage", refreshStrategicPlan);
+    window.addEventListener("nashir-store-strategic-plan-updated", refreshStrategicPlan);
+
+    return () => {
+      window.removeEventListener("focus", refreshStrategicPlan);
+      window.removeEventListener("storage", refreshStrategicPlan);
+      window.removeEventListener("nashir-store-strategic-plan-updated", refreshStrategicPlan);
     };
   }, []);
 
@@ -843,6 +867,39 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     ]);
   };
 
+  const saveStrategicPlanDraft = () => {
+    const currentVersion = Number(latestStrategicPlan?.version || 0);
+    const sourceInputs = [
+      "بيانات المتجر",
+      "المنتجات",
+      "الأصول",
+      "السياسات",
+      "القنوات",
+      storeSource.status === "scan_completed" || storeSource.status === "approved"
+        ? "محاكاة فحص المتجر"
+        : "بيانات إعداد يدوية",
+    ];
+    const nextPlans = upsertStoreStrategicPlan({
+      id: latestStrategicPlan?.id,
+      storeRef: form.storeName || "prototype_store_profile",
+      workspaceRef: "prototype_workspace",
+      version: currentVersion + 1,
+      status: readinessIssues.length ? "draft" : "ready_for_review",
+      planJson: strategicPlan,
+      sourceInputs,
+      confidence: Math.min(95, Math.max(35, completion)),
+      limitations: [
+        "حفظ واجهي تجريبي داخل المتصفح.",
+        "الخطة مبنية على بيانات الإعداد الحالية ومحاكاة فحص المتجر.",
+        "تحتاج Backend لاحقًا قبل الاعتماد التشغيلي.",
+      ],
+    });
+
+    setLatestStrategicPlan(nextPlans.find((plan) => plan.id === (latestStrategicPlan?.id || nextPlans[0]?.id)) || nextPlans[0]);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2200);
+  };
+
   const saveDraft = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
@@ -1207,6 +1264,28 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                 <Notice>
                   هذه الخطة مخرج واجهي مبني على بيانات الإعداد الحالية ومحاكاة فحص المتجر. التنفيذ الفعلي لاحقًا يحتاج Backend وتحليل بيانات حقيقي.
                 </Notice>
+
+                <div className="strategy-section plan-status-section">
+                  <div className="strategy-section-head">
+                    <div>
+                      <h3>حالة الخطة الاستراتيجية</h3>
+                      <p className="strategy-helper">حفظ واجهي تجريبي؛ تستخدمها الصفحات الأخرى كمرجع واجهي. لا تعدل الحملات الخطة تلقائيًا.</p>
+                    </div>
+                    <Badge tone={latestStrategicPlan ? "green" : "amber"}>
+                      {latestStrategicPlan ? "محفوظ كمسودة واجهية" : "غير محفوظة"}
+                    </Badge>
+                  </div>
+                  <div className="strategy-facts">
+                    <Info label="حالة الخطة" value={latestStrategicPlan?.status === "ready_for_review" ? "جاهزة للمراجعة" : latestStrategicPlan ? "مسودة" : "غير محفوظة"} />
+                    <Info label="رقم النسخة" value={latestStrategicPlan ? `V${latestStrategicPlan.version}` : "V0"} />
+                    <Info label="آخر تحديث" value={latestStrategicPlan?.updatedAt ? new Date(latestStrategicPlan.updatedAt).toLocaleString("ar-SA") : "لا يوجد"} />
+                    <Info label="مصدر البيانات المستخدمة" value={(latestStrategicPlan?.sourceInputs || ["بيانات الإعداد الحالية"]).join("، ")} />
+                    <Info label="الإجراء التالي" value={readinessIssues.length ? "استكمال النواقص ثم حفظ الخطة كمسودة." : "حفظ الخطة كمسودة ثم استخدامها في الحملة."} />
+                  </div>
+                  <div className="plan-status-actions">
+                    <Button onClick={saveStrategicPlanDraft}><Save size={16} /> حفظ الخطة كمسودة</Button>
+                  </div>
+                </div>
 
                 <div className="strategy-section">
                   <div className="strategy-section-head">
