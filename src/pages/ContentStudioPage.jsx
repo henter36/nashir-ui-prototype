@@ -285,6 +285,18 @@ export default function ContentStudioPage() {
             <strong>مخرجات الحملة</strong>
             <span>هذه مخرجات واجهية تجريبية، وهي مخرجات أولية قابلة للمراجعة وليست نتيجة توليد أو تنفيذ حقيقي.</span>
           </div>
+
+          <div className="campaign-output-note social-format-note">
+            <strong>صيغ محتوى اجتماعي مقترحة</strong>
+            <span>الصيغ هنا مسودات واجهية قابلة للتحرير، وليست توليدًا أو نشرًا حقيقيًا.</span>
+            <div className="social-format-grid">
+              <span>Instagram Reel</span>
+              <span>TikTok short video</span>
+              <span>Story caption</span>
+              <span>UGC-style hook</span>
+              <span>comment reply draft concept</span>
+            </div>
+          </div>
         </div>
 
         <div className="stats-card">
@@ -603,6 +615,24 @@ const styles = `
   line-height: 1.7;
   font-size: 13px;
   font-weight: 800;
+}
+
+.social-format-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.social-format-grid span {
+  margin: 0;
+  border: 1px solid #bfdbfe;
+  background: #fff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .stats-card {

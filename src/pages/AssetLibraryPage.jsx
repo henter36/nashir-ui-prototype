@@ -419,6 +419,15 @@ export default function AssetLibraryPage() {
             <Info label="أولوية الاستكمال" value={selectedAssetGap.priority} />
           </div>
 
+          <div className="detail-section asset-gap-section social-asset-gap-section">
+            <h3>فجوات الأصول الاجتماعية</h3>
+            <p>هذه الفجوات مشتقة كتصميم واجهي من خطة المتجر والتحليل الاجتماعي المتوقع، وليست نتيجة سحب بيانات فعلي.</p>
+            <Info label="Reels / TikTok short video gap" value="فيديو قصير للمنتج أو طريقة الاستخدام." />
+            <Info label="UGC-style asset gap" value="لقطة عميل/تجربة بشكل قابل للمراجعة." />
+            <Info label="product usage image gap" value="صورة استخدام واضحة للمنتج." />
+            <Info label="caption/thumbnail gap" value="غلاف مختصر ونص افتتاحي للمنصة." />
+          </div>
+
           <div className="detail-actions">
             <button type="button" className="secondary-action full">
               <Eye size={16} />

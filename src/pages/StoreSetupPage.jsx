@@ -1035,6 +1035,18 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                   </div>
                 </div>
 
+                <div className="strategy-section social-signal-section">
+                  <h3>إشارات التحليل الاجتماعي</h3>
+                  <p className="strategy-helper">هذه إشارات واجهية مرتبطة بتصميم موصلات التحليل الاجتماعي. لا يتم سحب بيانات فعلية دون Backend وتكاملات مصرح بها.</p>
+                  <div className="strategy-facts">
+                    <Info label="أقوى قناة اجتماعية" value={strategicPlan.channels.primary[0] || "Instagram"} />
+                    <Info label="فرصة محتوى اجتماعي" value="Reels أو TikTok قصير للمنتج الأعلى أولوية." />
+                    <Info label="خطر اجتماعي" value="استخدام مؤشرات اجتماعية دون موافقة أو مراجعة امتثال." />
+                    <Info label="فجوة أصول اجتماعية" value="فيديو قصير وصورة استخدام للمنتج." />
+                    <Info label="الإجراء التالي" value="تجهيز موصل مصرح به قبل الاعتماد على أي تحليل اجتماعي." />
+                  </div>
+                </div>
+
                 <div className="strategy-section">
                   <div className="strategy-section-head">
                     <h3>المنتجات ذات الأولوية</h3>

@@ -715,6 +715,23 @@ export default function CampaignWizardPage({
                   <small>يمكن تعديل هذه الاقتراحات داخل الحملة. لا يتم تعديل خطة المتجر تلقائيًا.</small>
                 </div>
 
+                <div className="store-plan-suggestions social-campaign-suggestions">
+                  <div className="suggestion-head">
+                    <div>
+                      <h3>اقتراحات اجتماعية للحملة</h3>
+                      <p>هذه اقتراحات قابلة للتعديل ولا تعني سحب بيانات أو نشرًا تلقائيًا.</p>
+                    </div>
+                    <Badge tone="blue">UI فقط</Badge>
+                  </div>
+                  <div className="asset-readiness-summary compact">
+                    <Info label="القناة الاجتماعية المقترحة" value={storePlanSuggestions.channel} />
+                    <Info label="صيغة المحتوى المقترحة" value={storePlanSuggestions.contentType} />
+                    <Info label="Hook مقترح" value={`ابدأ بسؤال قصير عن ${selectedProduct?.name || "المنتج"}.`} />
+                    <Info label="CTA اجتماعي مقترح" value={storePlanSuggestions.cta} />
+                    <Info label="تنبيه نقص الأصول الاجتماعية" value={storePlanSuggestions.assetGap} />
+                  </div>
+                </div>
+
                 <Field label="تاريخ البداية" value={startDate} onChange={setStartDate} />
                 <Field label="تاريخ النهاية" value={endDate} onChange={setEndDate} />
                 <Field label="الميزانية" value={budget} onChange={setBudget} />
