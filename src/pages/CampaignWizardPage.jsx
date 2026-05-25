@@ -553,6 +553,21 @@ export default function CampaignWizardPage({
     if (!canGenerate) return;
 
     const campaignId = `campaign_${Date.now()}`;
+    const productSnapshot = selectedProduct
+      ? {
+          name: selectedProduct.name || "غير محدد",
+          price: selectedProduct.price || "",
+          category: selectedProduct.category || "",
+          imageUrl: selectedProduct.imageUrl || "",
+          readiness: selectedProduct.readiness ?? "",
+        }
+      : null;
+    const campaignSnapshot = {
+      name: campaignName,
+      goal,
+      status: "draft",
+      product: productSnapshot?.name || selectedProduct?.name || "غير محدد",
+    };
     const campaignOutputs = outputs.map((output) => {
       const generated = generatedTexts[output];
 
@@ -581,6 +596,8 @@ export default function CampaignWizardPage({
       campaignId,
       name: campaignName,
       product: selectedProduct?.name || "غير محدد",
+      productId: selectedProduct?.id || "",
+      productSnapshot,
       goal,
       status: "draft",
       stage: "مخرجات أولية قابلة للمراجعة",
@@ -628,10 +645,17 @@ export default function CampaignWizardPage({
           status: "needs_review",
           content,
           campaign: campaignName,
+          campaignId,
+          campaignSnapshot,
+          productId: selectedProduct?.id || "",
+          productSnapshot,
           approval: "needs_review",
           risk: "medium",
           metadata: {
             campaignId,
+            productId: selectedProduct?.id || "",
+            campaignSnapshot,
+            productSnapshot,
             product: selectedProduct?.name || "غير محدد",
           },
         },
@@ -763,6 +787,7 @@ export default function CampaignWizardPage({
                     <Info label="تنبيه نقص الأصول إن وجد" value={storePlanSuggestions.assetGap} />
                   </div>
                   <small>لا تعدل الحملات الخطة تلقائيًا. عند إنشاء الحملة لاحقًا، يجب حفظ نسخة من توصيات الخطة وقت الإنشاء.</small>
+                  <small>تحفظ الحملة معرف المنتج ونسخة من بيانات المنتج وقت الإنشاء كمرجع واجهي. لا يتم تعديل المنتج أو الخطة تلقائيًا.</small>
                 </div>
 
                 <div className="store-plan-suggestions social-campaign-suggestions">

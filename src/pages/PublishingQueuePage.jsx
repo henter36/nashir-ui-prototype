@@ -156,6 +156,10 @@ function getQueueKey(item) {
   return String(item?.scheduleId || item?.id || "");
 }
 
+function getQueueCampaignName(item = {}) {
+  return item.campaignSnapshot?.name || item.campaign || "حملة غير محددة";
+}
+
 function getItemWarnings(item, allItems) {
   const warnings = [];
   const checklist = item.checklist || {};
@@ -267,7 +271,7 @@ export default function PublishingQueuePage() {
     return items.filter((item) => {
       const matchesQuery =
         item.title.includes(query) ||
-        item.campaign.includes(query) ||
+        getQueueCampaignName(item).includes(query) ||
         item.channel.toLowerCase().includes(query.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
@@ -357,11 +361,22 @@ export default function PublishingQueuePage() {
       return;
     }
 
-    const selectedCampaign =
+    const selectedCampaignName =
       newItem.campaign || sourceContent.campaign || campaignOptions[0] || "حملة تجريبية";
+    const linkedCampaign =
+      campaignList.find((campaign) => campaign.name === selectedCampaignName) ||
+      campaignList.find((campaign) => campaign.campaignId === sourceContent.campaignId || campaign.id === sourceContent.campaignId);
     const item = createQueueItemFromContent(sourceContent, {
       title: newItem.title.trim() || sourceContent.title,
-      campaign: selectedCampaign,
+      campaign: selectedCampaignName,
+      campaignId: linkedCampaign?.campaignId || linkedCampaign?.id || sourceContent.campaignId || "",
+      campaignSnapshot: sourceContent.campaignSnapshot || (linkedCampaign ? {
+        name: linkedCampaign.name,
+        status: linkedCampaign.status,
+        product: linkedCampaign.productSnapshot?.name || linkedCampaign.product,
+      } : null),
+      productId: sourceContent.productId || linkedCampaign?.productId || "",
+      productSnapshot: sourceContent.productSnapshot || linkedCampaign?.productSnapshot || null,
       channel: newItem.channel,
       date: newItem.date,
       time: newItem.time,
@@ -557,7 +572,7 @@ export default function PublishingQueuePage() {
           {selected ? (
             <>
               <h2>{selected.title}</h2>
-              <p>{selected.campaign}</p>
+              <p>{getQueueCampaignName(selected)}</p>
 
               <div className="readiness-block">
                 <div>
@@ -575,6 +590,7 @@ export default function PublishingQueuePage() {
               <Info label="الحالة" value={statusMap[selected.status]?.[0] || selected.status} />
               <Info label="الاعتماد" value={approvalMap[selected.approval]?.[0] || selected.approval} />
               <Info label="المخاطر" value={riskMap[selected.risk]?.[0] || selected.risk} />
+              <Info label="مرجع واجهي" value={selected.campaignId ? "مرتبط بالحملة المحفوظة" : "مرجع المنتج غير متوفر"} />
 
               <div className="actions">
                 <button type="button">

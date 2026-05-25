@@ -161,6 +161,17 @@ function normalizeCampaign(item = {}) {
   const campaignId = String(item.campaignId || item.id || makeId("campaign"));
   const status = normalizeStatus(item.status);
   const performance = item.performance || {};
+  const productSnapshot =
+    item.productSnapshot && typeof item.productSnapshot === "object"
+      ? {
+          name: item.productSnapshot.name || item.product || "منتج غير محدد",
+          price: item.productSnapshot.price || "",
+          category: item.productSnapshot.category || "",
+          imageUrl: item.productSnapshot.imageUrl || "",
+          readiness: item.productSnapshot.readiness ?? "",
+        }
+      : null;
+  const productLabel = productSnapshot?.name || item.product || "منتج غير محدد";
 
   return {
     ...item,
@@ -168,7 +179,9 @@ function normalizeCampaign(item = {}) {
     campaignId,
     name: item.name || "حملة بدون اسم",
     goal: item.goal || "Awareness",
-    product: item.product || "منتج غير محدد",
+    product: productLabel,
+    productId: item.productId || "",
+    productSnapshot,
     status,
     stage: item.stage || getCampaignStatusLabel(status),
     readiness: Number(item.readiness ?? 0),

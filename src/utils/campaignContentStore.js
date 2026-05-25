@@ -17,16 +17,33 @@ function makeId(prefix) {
  */
 function normalizeContentItem(item = {}) {
   const id = String(item.contentId || item.id || makeId("content"));
+  const metadata = item.metadata || {};
+  const campaignSnapshot =
+    item.campaignSnapshot && typeof item.campaignSnapshot === "object"
+      ? item.campaignSnapshot
+      : metadata.campaignSnapshot && typeof metadata.campaignSnapshot === "object"
+        ? metadata.campaignSnapshot
+        : null;
+  const productSnapshot =
+    item.productSnapshot && typeof item.productSnapshot === "object"
+      ? item.productSnapshot
+      : metadata.productSnapshot && typeof metadata.productSnapshot === "object"
+        ? metadata.productSnapshot
+        : null;
 
   return {
     id,
     contentId: id,
+    campaignId: item.campaignId || metadata.campaignId || "",
+    campaignSnapshot,
+    productId: item.productId || metadata.productId || "",
+    productSnapshot,
     title: item.title || "محتوى بدون عنوان",
     type: item.type || item.contentType || "محتوى",
     channel: item.channel || "عام",
     status: item.status || "draft",
     content: item.content || item.preview || "",
-    campaign: item.campaign || "حملة تجريبية",
+    campaign: item.campaign || campaignSnapshot?.name || "حملة تجريبية",
     owner: item.owner || "فريق المحتوى",
     approval: item.approval || (item.status === "ready" ? "approved" : "needs_review"),
     risk: item.risk || "medium",
@@ -37,24 +54,42 @@ function normalizeContentItem(item = {}) {
     // Internal-only fields. Never display these as user-facing labels.
     source: item.source || "content_studio",
     sourceSurface: item.sourceSurface || "ContentStudioPage",
-    metadata: item.metadata || {},
+    metadata: {
+      ...metadata,
+      campaignId: item.campaignId || metadata.campaignId || "",
+      productId: item.productId || metadata.productId || "",
+      campaignSnapshot,
+      productSnapshot,
+    },
   };
 }
 
 function normalizeQueueItem(item = {}) {
   const scheduleId = String(item.scheduleId || item.id || makeId("schedule"));
+  const campaignSnapshot =
+    item.campaignSnapshot && typeof item.campaignSnapshot === "object"
+      ? item.campaignSnapshot
+      : null;
+  const productSnapshot =
+    item.productSnapshot && typeof item.productSnapshot === "object"
+      ? item.productSnapshot
+      : null;
 
   return {
     id: scheduleId,
     scheduleId,
     contentId: item.contentId || "",
+    campaignId: item.campaignId || "",
+    campaignSnapshot,
+    productId: item.productId || "",
+    productSnapshot,
     title: item.title || "عنصر نشر بدون عنوان",
     channel: item.channel || "عام",
     date: item.date || "",
     time: item.time || "",
     status: item.status || "draft",
     approval: item.approval || "needs_review",
-    campaign: item.campaign || "حملة تجريبية",
+    campaign: item.campaign || campaignSnapshot?.name || "حملة تجريبية",
     owner: item.owner || "فريق النشر",
     contentType: item.contentType || item.type || "منشور",
     risk: item.risk || "medium",
@@ -81,6 +116,8 @@ function normalizeReadinessItem(item = {}) {
     id: readinessId,
     readinessId,
     contentId: item.contentId || "",
+    campaignId: item.campaignId || "",
+    productId: item.productId || "",
     name: item.name || item.title || item.platform || "مخرج قناة",
     platform: item.platform || item.channel || "عام",
     size: item.size || "",
@@ -260,9 +297,13 @@ export function createQueueItemFromContent(contentItem, overrides = {}) {
 
   return normalizeQueueItem({
     contentId: content.contentId,
+    campaignId: overrides.campaignId || content.campaignId,
+    campaignSnapshot: overrides.campaignSnapshot || content.campaignSnapshot,
+    productId: overrides.productId || content.productId,
+    productSnapshot: overrides.productSnapshot || content.productSnapshot,
     title: content.title,
     channel: overrides.channel || content.channel,
-    campaign: content.campaign,
+    campaign: overrides.campaign || content.campaign,
     contentType: overrides.contentType || content.type,
     preview: content.content,
     approval: content.approval,

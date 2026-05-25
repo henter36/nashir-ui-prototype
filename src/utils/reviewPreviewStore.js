@@ -51,6 +51,14 @@ function normalizeReviewStatus(status) {
 
 function normalizeReviewItem(item = {}) {
   const reviewItemId = String(item.reviewItemId || item.id || item.contentId || makeId("review"));
+  const campaignSnapshot =
+    item.campaignSnapshot && typeof item.campaignSnapshot === "object"
+      ? item.campaignSnapshot
+      : null;
+  const productSnapshot =
+    item.productSnapshot && typeof item.productSnapshot === "object"
+      ? item.productSnapshot
+      : null;
 
   return {
     ...item,
@@ -58,6 +66,9 @@ function normalizeReviewItem(item = {}) {
     reviewItemId,
     contentId: item.contentId || item.id || reviewItemId,
     campaignId: item.campaignId || item.metadata?.campaignId || "",
+    campaignSnapshot,
+    productId: item.productId || item.metadata?.productId || "",
+    productSnapshot,
     title: item.title || "محتوى بدون عنوان",
     type: item.type || item.contentType || "محتوى",
     channel: item.channel || "عام",
@@ -160,6 +171,13 @@ export function deriveReviewItemsFromContent(contentItems = [], campaigns = [], 
       id: content.contentId || content.id,
       contentId: content.contentId || content.id,
       campaignId: campaign?.id || seedItem?.campaignId || "",
+      campaignSnapshot: content.campaignSnapshot || seedItem?.campaignSnapshot || (campaign ? {
+        name: campaign.name,
+        status: campaign.status,
+        product: campaign.productSnapshot?.name || campaign.product,
+      } : null),
+      productId: content.productId || campaign?.productId || seedItem?.productId || "",
+      productSnapshot: content.productSnapshot || campaign?.productSnapshot || seedItem?.productSnapshot || null,
       title: content.title,
       type: content.type || content.contentType,
       channel: content.channel,

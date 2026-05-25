@@ -191,6 +191,14 @@ function getSafeContentIcon(item = {}) {
   return FileText;
 }
 
+function getCampaignDisplayName(item = {}, campaign = {}) {
+  return item.campaignSnapshot?.name || campaign?.name || item.campaign || "حملة غير محددة";
+}
+
+function getProductDisplayName(item = {}, campaign = {}) {
+  return item.productSnapshot?.name || campaign?.productSnapshot?.name || campaign?.product || "غير محدد";
+}
+
 export default function ContentReviewPreviewPage() {
   const [campaignList, setCampaignList] = useState(() => readCampaigns(CAMPAIGNS));
   const [contentItems, setContentItems] = useState(() =>
@@ -240,7 +248,7 @@ export default function ContentReviewPreviewPage() {
   const filteredContent = useMemo(() => {
     return contentItems.filter((item) => {
       const campaign = campaignList.find((c) => c.id === item.campaignId);
-      const text = `${item.title} ${item.type} ${item.channel} ${campaign?.name || ""} ${campaign?.product || ""}`
+      const text = `${item.title} ${item.type} ${item.channel} ${getCampaignDisplayName(item, campaign)} ${getProductDisplayName(item, campaign)}`
         .toLowerCase();
 
       const matchesCampaign =
@@ -464,7 +472,7 @@ export default function ContentReviewPreviewPage() {
                     </div>
                     <div>
                       <strong>{item.title}</strong>
-                      <span>{campaign?.name} · {item.channel}</span>
+                      <span>{getCampaignDisplayName(item, campaign)} · {item.channel}</span>
                     </div>
                   </div>
 
@@ -483,7 +491,7 @@ export default function ContentReviewPreviewPage() {
             <div>
               <h2>{selectedContent.title}</h2>
               <p>
-                {selectedCampaign.name} · {selectedContent.type} · {selectedContent.channel}
+                {getCampaignDisplayName(selectedContent, selectedCampaign)} · {selectedContent.type} · {selectedContent.channel}
               </p>
             </div>
             <div className="header-actions">
@@ -534,6 +542,10 @@ export default function ContentReviewPreviewPage() {
 
           <div className="source-notes">
             <h3>ملاحظات ومخاطر</h3>
+            <div>
+              <AlertTriangle size={15} />
+              <span>{selectedContent?.campaignId ? "مرتبط بالحملة المحفوظة كمرجع واجهي." : "مرجع المنتج غير متوفر."}</span>
+            </div>
             {(selectedContent.notes || []).map((note) => (
               <div key={note}>
                 <AlertTriangle size={15} />

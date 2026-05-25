@@ -136,6 +136,14 @@ const TABS = [
   ["changes", "التعديلات"],
 ];
 
+function getCampaignProductName(campaign = {}) {
+  return campaign.productSnapshot?.name || campaign.product || "غير محدد";
+}
+
+function getProductReferenceLabel(campaign = {}) {
+  return campaign.productId ? "مرتبط بمنتج محفوظ" : "مرجع المنتج غير متوفر";
+}
+
 export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
   const [campaignList, setCampaignList] = useState(() => readCampaigns(CAMPAIGNS));
   const [query, setQuery] = useState("");
@@ -168,7 +176,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
 
   const filteredCampaigns = useMemo(() => {
     return campaignList.filter((campaign) => {
-      const searchText = `${campaign.name} ${campaign.product} ${campaign.goal} ${campaign.owner}`.toLowerCase();
+      const searchText = `${campaign.name} ${getCampaignProductName(campaign)} ${campaign.goal} ${campaign.owner}`.toLowerCase();
       const matchesQuery = searchText.includes(query.toLowerCase());
       const matchesFilter = filter === "all" || campaign.status === filter;
       return matchesQuery && matchesFilter;
@@ -247,11 +255,12 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
         {latestWizardCampaign ? (
           <div className="wizard-reflection-grid">
             <Info label="اسم الحملة" value={latestWizardCampaign.name} />
-            <Info label="المنتج" value={latestWizardCampaign.product} />
+            <Info label="المنتج" value={getCampaignProductName(latestWizardCampaign)} />
             <Info label="الهدف" value={latestWizardCampaign.goal} />
             <Info label="القنوات" value={(latestWizardCampaign.channels || []).join("، ") || "غير محدد"} />
             <Info label="حالة المحتوى" value={(latestWizardCampaign.outputs || []).length ? "مخرجات أولية قابلة للمراجعة" : "لم يتم تجهيز مخرجات"} />
             <Info label="جاهزية المراجعة" value={latestWizardCampaign.readiness >= 60 ? "جاهزة مبدئيًا" : "تحتاج استكمال"} />
+            <Info label="مرجع واجهي" value={getProductReferenceLabel(latestWizardCampaign)} />
             <Info label="الإجراء التالي" value="فتح استوديو المحتوى أو المراجعة والمعاينة." />
           </div>
         ) : (
@@ -316,7 +325,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
                       </div>
                       <div>
                         <strong>{campaign.name}</strong>
-                        <small>{campaign.product} · {campaign.goal}</small>
+                        <small>{getCampaignProductName(campaign)} · {campaign.goal}</small>
                       </div>
                     </div>
 
@@ -357,7 +366,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
 
               <div>
                 <h2>{selectedCampaign.name}</h2>
-                <p>{selectedCampaign.product} · {selectedCampaign.period}</p>
+                <p>{getCampaignProductName(selectedCampaign)} · {selectedCampaign.period}</p>
               </div>
             </div>
 

@@ -249,7 +249,7 @@ export default function ContentStudioPage() {
   const ActiveIcon = getSafeContentIcon(activeItem);
   const activeStatus = getSafeStatusConfig(activeItem?.status);
   const StatusIcon = activeStatus.icon;
-  const activeCampaignName = activeItem?.campaign || "حملة غير محددة";
+  const activeCampaignName = activeItem?.campaignSnapshot?.name || activeItem?.campaign || "حملة غير محددة";
   const activeReviewReadiness =
     activeItem?.status === "ready" || activeItem?.status === "needs_review"
       ? "جاهزة للمراجعة"
@@ -420,7 +420,9 @@ export default function ContentStudioPage() {
             <div><span>الحملة</span><strong>{activeCampaignName}</strong></div>
             <div><span>حالة المحتوى</span><strong>{getSafeStatusConfig(activeItem.status).label}</strong></div>
             <div><span>جاهزية المراجعة</span><strong>{activeReviewReadiness}</strong></div>
+            <div><span>مرجع واجهي</span><strong>{activeItem?.campaignId ? "مرتبط بالحملة المحفوظة" : "مرجع المنتج غير متوفر"}</strong></div>
           </div>
+          <p className="identity-helper">يرتبط هذا المحتوى بالحملة المحفوظة كمرجع واجهي.</p>
 
           <div className="editor-grid">
             <section className="text-editor-card">
