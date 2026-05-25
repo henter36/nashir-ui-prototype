@@ -148,6 +148,139 @@ const FILTERS = [
   ["disabled", "معطل"],
 ];
 
+const SOCIAL_CONNECTORS = [
+  {
+    platform: "Instagram",
+    status: "غير متصل",
+    provider: "Official API",
+    lastSync: "لم تتم مزامنة بعد",
+    confidence: "غير متاح",
+    risk: "متوسط",
+    nextAction: "تحديد صلاحيات Meta ومراجعة سياسة الامتثال.",
+  },
+  {
+    platform: "TikTok",
+    status: "مهيأ فقط",
+    provider: "Apify",
+    lastSync: "موعد تجريبي لاحق",
+    confidence: "تقديري لاحقًا",
+    risk: "مرتفع",
+    nextAction: "تصميم تشغيل Actor مع موافقة واضحة وشروط المنصة.",
+  },
+  {
+    platform: "TikTok Shop",
+    status: "يحتاج Backend",
+    provider: "Official API",
+    lastSync: "غير مفعّل",
+    confidence: "غير متاح",
+    risk: "متوسط",
+    nextAction: "تعريف نطاق التجارة والصلاحيات قبل أي مزامنة.",
+  },
+  {
+    platform: "Instagram Shop / Meta",
+    status: "جاهز للمزامنة لاحقًا",
+    provider: "Custom Connector",
+    lastSync: "Placeholder",
+    confidence: "0%",
+    risk: "متوسط",
+    nextAction: "ربط كتالوج Meta لاحقًا عبر خدمة آمنة.",
+  },
+];
+
+const SOCIAL_PROVIDERS = [
+  {
+    name: "Official API",
+    bestFor: "الحسابات التي تملك صلاحيات رسمية.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "منخفض",
+    notes: "الخيار المفضل عندما تكون الأذونات متاحة.",
+  },
+  {
+    name: "Apify",
+    bestFor: "Actor / Run / Dataset style connector.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "متوسط",
+    notes: "يحتاج ضبط حدود التشغيل وسياسة استخدام واضحة.",
+  },
+  {
+    name: "PhantomBuster",
+    bestFor: "social automation connector.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "مرتفع",
+    notes: "يجب احترام شروط المنصات ونطاق الموافقة.",
+  },
+  {
+    name: "Firecrawl",
+    bestFor: "website / page crawl.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "متوسط",
+    notes: "ليس الخيار الأساسي لبيانات اجتماعية مغلقة.",
+  },
+  {
+    name: "Browserless",
+    bestFor: "browser rendering / screenshot / content extraction.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "مرتفع",
+    notes: "يستخدم فقط مع ضوابط امتثال صارمة.",
+  },
+  {
+    name: "Bright Data / Enterprise",
+    bestFor: "enterprise data collection.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "مرتفع",
+    notes: "يتطلب حوكمة وموافقات مؤسسية عالية.",
+  },
+  {
+    name: "Custom Connector",
+    bestFor: "تنفيذ لاحق مخصص داخل خدمات المنصة.",
+    requiredBackend: "نعم",
+    secretReference: "مرجع سر فقط",
+    risk: "حسب التصميم",
+    notes: "يستخدم عند تثبيت العقود وقواعد الامتثال.",
+  },
+];
+
+const CONNECTOR_CONFIG_PREVIEW = [
+  ["المنصة", "Instagram / TikTok"],
+  ["مزود السحب", "Official API أو مزود خارجي محدد"],
+  ["مرجع السر", "اسم مرجع السر فقط، وليس قيمة المفتاح."],
+  ["نوع العملية", "تحليل حساب / منتجات / محتوى"],
+  ["Actor / Agent / Endpoint", "اسم تكوين تشغيلي فقط"],
+  ["طريقة التشغيل", "يدوي لاحقًا / مجدول لاحقًا"],
+  ["جدول المزامنة", "يومي / أسبوعي / عند الطلب"],
+  ["مخرجات البيانات", "حساب، منتجات، محتوى، أسئلة، فرص"],
+  ["Webhook للحالة", "اختياري لتحديث حالة التشغيل لاحقًا"],
+  ["مستوى الامتثال", "مراجعة مطلوبة قبل التفعيل"],
+];
+
+const SOCIAL_OUTPUTS = [
+  "قوة الحساب",
+  "وضوح البايو والرابط",
+  "المنتجات الأكثر ظهورًا",
+  "أفضل أنواع المحتوى",
+  "الأسئلة المتكررة",
+  "الاعتراضات المتكررة",
+  "فجوات الأصول",
+  "فرص الحملات",
+  "توصية القناة",
+  "خطة محتوى 30 يوم",
+  "مستوى الثقة",
+  "حدود البيانات",
+];
+
+const SOCIAL_GOVERNANCE_WARNINGS = [
+  "لا يتم تنفيذ أي سحب بيانات من الواجهة الحالية.",
+  "التنفيذ الحقيقي يحتاج Backend آمن وتخزين أسرار ومراعاة شروط المنصات.",
+  "استخدام مزودات خارجية لا يلغي الحاجة إلى موافقة وصلاحيات واضحة.",
+  "التحليل لا يعتمد على scraping غير مصرح.",
+];
+
 function buildGovernanceWarnings(source) {
   const warnings = [...(source.warnings || [])];
 
@@ -402,6 +535,90 @@ export default function DataSourcesHubPage() {
             الفحص والربط هنا محليان لتثبيت تجربة المنتج. المستخدم يتعامل مع حالة
             المصدر ومخرجاته فقط، أما توزيع البيانات على الشاشات فيدار داخليًا.
           </span>
+        </div>
+      </section>
+
+      <section className="social-intelligence-section">
+        <div className="social-section-head">
+          <div>
+            <h2>تحليل المتاجر الاجتماعية</h2>
+            <p>
+              مصادر آلية لتحليل حسابات Instagram وTikTok عبر مزودات تكامل.
+              التنفيذ الحقيقي يحتاج Backend وواجهات API وصلاحيات امتثال.
+            </p>
+          </div>
+          <span>تصميم جاهز / تنفيذ غير مفعّل</span>
+        </div>
+
+        <div className="social-source-grid">
+          {SOCIAL_CONNECTORS.map((connector) => (
+            <div key={connector.platform} className="social-source-card">
+              <div className="social-card-top">
+                <strong>{connector.platform}</strong>
+                <span>{connector.status}</span>
+              </div>
+              <Info label="مزود السحب" value={connector.provider} />
+              <Info label="آخر مزامنة" value={connector.lastSync} />
+              <Info label="الثقة" value={connector.confidence} />
+              <Info label="مستوى مخاطر الامتثال" value={connector.risk} />
+              <Info label="الإجراء التالي" value={connector.nextAction} />
+            </div>
+          ))}
+        </div>
+
+        <div className="social-subsection">
+          <h3>مزود السحب الآلي</h3>
+          <div className="provider-matrix">
+            {SOCIAL_PROVIDERS.map((provider) => (
+              <div key={provider.name} className="provider-card">
+                <strong>{provider.name}</strong>
+                <Info label="Best for" value={provider.bestFor} />
+                <Info label="Required backend" value={provider.requiredBackend} />
+                <Info label="Secret reference only" value={provider.secretReference} />
+                <Info label="Risk level" value={provider.risk} />
+                <p>{provider.notes}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="social-two-column">
+          <div className="social-subsection">
+            <h3>إعداد موصل البيانات</h3>
+            <div className="connector-config-grid">
+              {CONNECTOR_CONFIG_PREVIEW.map(([label, value]) => (
+                <Info key={label} label={label} value={value} />
+              ))}
+            </div>
+          </div>
+
+          <div className="social-subsection">
+            <h3>مخرجات التحليل الاجتماعي المتوقعة</h3>
+            <div className="output-chip-grid">
+              {SOCIAL_OUTPUTS.map((output) => (
+                <span key={output}>{output}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="social-two-column">
+          <div className="social-subsection warning-subsection">
+            <h3>تحذيرات الحوكمة</h3>
+            {SOCIAL_GOVERNANCE_WARNINGS.map((warning) => (
+              <p key={warning}><AlertTriangle size={15} /> {warning}</p>
+            ))}
+          </div>
+
+          <div className="social-subsection readiness-subsection">
+            <h3>جاهزية تحليل المتجر الاجتماعي</h3>
+            <Info label="موصل رسمي أو مزود خارجي محدد" value="محدد على مستوى التصميم" />
+            <Info label="مرجع سر موجود" value="اسم مرجع فقط، دون قيمة" />
+            <Info label="سياسة امتثال محددة" value="مطلوبة قبل التفعيل" />
+            <Info label="خريطة مخرجات محددة" value="محددة في واجهة التصميم" />
+            <Info label="Backend مطلوب" value="نعم" />
+            <Info label="حالة الجاهزية" value="تصميم جاهز / تنفيذ غير مفعّل" />
+          </div>
         </div>
       </section>
 
@@ -699,6 +916,6 @@ function Info({ label, value }) {
 
 const styles = `
 .data-sources-page{min-height:calc(100vh - 80px);padding:24px;background:#f7f8f4;color:#1f241d;font-family:Inter,"Segoe UI",Tahoma,Arial,sans-serif}
-.page-hero,.governance-strip,.stat-card,.panel,.tools-row{background:#fff;border:1px solid #e4e7df;border-radius:24px;box-shadow:0 8px 26px rgba(24,38,18,.035)}
-.page-hero{padding:22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}.eyebrow{width:fit-content;min-height:30px;padding:0 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:#176b2c;background:#eef7e9;font-size:12px;font-weight:900;margin-bottom:10px}.page-hero h1{margin:0;font-size:34px;letter-spacing:-.04em}.page-hero p{color:#6f746b;line-height:1.8;max-width:760px;margin:10px 0 0}.hero-actions,.action-row,.toggle-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.primary-button,.secondary-button,.danger-button,.danger-soft{min-height:42px;border-radius:16px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-family:inherit;cursor:pointer}.primary-button{border:0;background:#176b2c;color:#fff}.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:not-allowed}.secondary-button{border:1px solid #e4e7df;background:#fff;color:#1f241d}.danger-button{border:0;background:#991b1b;color:#fff}.danger-soft{border:1px solid #fecaca;background:#fff5f5;color:#991b1b}.governance-strip{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;color:#176b2c;margin-bottom:14px}.governance-strip strong{display:block;font-size:14px}.governance-strip span{display:block;margin-top:4px;color:#6f746b;line-height:1.7;font-size:13px}.stats-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}.stat-card{padding:16px}.stat-card span{color:#6f746b;font-size:12px;font-weight:900}.stat-card strong{display:block;margin-top:8px;font-size:28px}.stat-card.warn strong{color:#92400e}.stat-card.ok strong{color:#176b2c}.tools-row{padding:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:14px}.search-box{display:grid;gap:6px;min-width:320px}.search-box span,.field span{color:#6f746b;font-size:12px;font-weight:900}.search-box input,.field input,.field select,.field textarea{border:1px solid #e4e7df;border-radius:14px;padding:11px 12px;font-family:inherit;background:#fff;color:#1f241d;outline:none}.field textarea{resize:vertical}.filter-pills{display:flex;gap:8px;flex-wrap:wrap}.filter-pills button{border:1px solid #e4e7df;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;font-family:inherit;color:#6f746b}.filter-pills button.active{background:#176b2c;border-color:#176b2c;color:#fff}.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}.panel{padding:18px}.panel-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.panel h2,.panel h3{margin:0}.panel-header p,.usage-box p{margin:6px 0 0;color:#6f746b;line-height:1.7;font-size:13px}.panel-header span{background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px}.source-list{display:grid;gap:10px}.source-list button{border:1px solid #e4e7df;background:#fff;border-radius:18px;padding:14px;text-align:right;display:flex;justify-content:space-between;gap:12px;font-family:inherit;cursor:pointer}.source-list button.selected{border-color:#176b2c;background:#eef7e9}.source-main strong{display:block}.source-main span{display:block;color:#6f746b;margin-top:4px;font-size:12px}.source-main small{display:block;color:#176b2c;margin-top:6px;font-weight:900}.source-meta{display:grid;justify-items:end;gap:8px}.source-meta b{font-size:13px;color:#176b2c}.status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;height:fit-content;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.green{background:#f0fdf4;color:#166534}.amber{background:#fffbeb;color:#92400e}.slate{background:#f8fafc;color:#475569}.red{background:#fef2f2;color:#991b1b}.detail-panel{position:sticky;top:18px}.source-icon{width:54px;height:54px;background:#176b2c;color:#fff;display:grid;place-items:center;border-radius:18px;margin-bottom:12px}.detail-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.detail-title p{color:#6f746b;margin:5px 0 0}.health-card{border:1px solid #e4e7df;border-radius:18px;padding:12px;margin-bottom:14px}.health-card div:first-child{display:flex;justify-content:space-between;color:#6f746b;font-weight:900;font-size:12px}.health-card strong{color:#176b2c;font-size:20px}.meter{height:8px;background:#eef0ea;border-radius:999px;overflow:hidden;margin-top:10px}.meter i{display:block;height:100%;background:#176b2c;border-radius:999px}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px;margin-bottom:10px}.field.wide{margin-top:4px}.toggle{min-height:38px;border:1px solid #e4e7df;border-radius:14px;background:#fff;padding:0 12px;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:900;color:#6f746b}.toggle.active{background:#eef7e9;border-color:#176b2c;color:#176b2c}.toggle.active.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}.info-row{min-height:44px;border-bottom:1px solid #e4e7df;display:flex;justify-content:space-between;gap:12px;align-items:center}.info-row span{color:#6f746b;font-size:12px;font-weight:900}.info-row strong{text-align:left;font-size:13px;line-height:1.7}.usage-box,.warnings-box,.scan-log{border:1px solid #e4e7df;border-radius:18px;padding:13px;margin-top:14px}.usage-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.usage-summary span{border:1px solid #d9ead7;background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900}.warnings-box{background:#fffaf0;border-color:#fde68a}.warnings-box h3{display:flex;align-items:center;gap:7px;color:#92400e;margin-bottom:8px}.warnings-box p{margin:7px 0;color:#92400e;font-size:12px;line-height:1.8;font-weight:800}.warnings-box .safe{color:#166534}.log-row{display:flex;gap:10px;border-bottom:1px solid #eef0ea;padding:8px 0}.log-row:last-child{border-bottom:0}.log-row span{width:24px;height:24px;background:#eef7e9;color:#176b2c;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:900;flex:0 0 auto}.log-row p{margin:0;color:#4d5549;line-height:1.7;font-size:12px;font-weight:700}.empty{color:#6f746b;line-height:1.8;font-weight:800}.action-row{margin-top:14px}@media(max-width:1180px){.stats-grid{grid-template-columns:repeat(3,1fr)}.main-layout{grid-template-columns:1fr}.detail-panel{position:static}}@media(max-width:760px){.page-hero,.tools-row{flex-direction:column;align-items:stretch}.stats-grid,.editor-grid{grid-template-columns:1fr}.search-box{min-width:0}}
+.page-hero,.governance-strip,.social-intelligence-section,.stat-card,.panel,.tools-row{background:#fff;border:1px solid #e4e7df;border-radius:24px;box-shadow:0 8px 26px rgba(24,38,18,.035)}
+.page-hero{padding:22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}.eyebrow{width:fit-content;min-height:30px;padding:0 11px;border-radius:999px;display:inline-flex;align-items:center;gap:7px;color:#176b2c;background:#eef7e9;font-size:12px;font-weight:900;margin-bottom:10px}.page-hero h1{margin:0;font-size:34px;letter-spacing:-.04em}.page-hero p{color:#6f746b;line-height:1.8;max-width:760px;margin:10px 0 0}.hero-actions,.action-row,.toggle-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.primary-button,.secondary-button,.danger-button,.danger-soft{min-height:42px;border-radius:16px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-family:inherit;cursor:pointer}.primary-button{border:0;background:#176b2c;color:#fff}.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:not-allowed}.secondary-button{border:1px solid #e4e7df;background:#fff;color:#1f241d}.danger-button{border:0;background:#991b1b;color:#fff}.danger-soft{border:1px solid #fecaca;background:#fff5f5;color:#991b1b}.governance-strip{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;color:#176b2c;margin-bottom:14px}.governance-strip strong{display:block;font-size:14px}.governance-strip span{display:block;margin-top:4px;color:#6f746b;line-height:1.7;font-size:13px}.social-intelligence-section{padding:18px;margin-bottom:14px}.social-section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px}.social-section-head h2,.social-subsection h3{margin:0}.social-section-head p{margin:7px 0 0;color:#6f746b;line-height:1.8;font-size:13px;max-width:880px}.social-section-head>span{background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;white-space:nowrap}.social-source-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.social-source-card,.provider-card,.social-subsection{border:1px solid #e4e7df;background:#f7f8f4;border-radius:18px;padding:13px}.social-card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}.social-card-top strong,.provider-card strong{font-size:14px}.social-card-top span{background:#fff;border:1px solid #e4e7df;border-radius:999px;padding:5px 8px;color:#475569;font-size:11px;font-weight:900}.social-subsection{margin-top:14px}.provider-matrix{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.provider-card p{margin:9px 0 0;color:#52604c;line-height:1.7;font-size:12px;font-weight:800}.social-two-column{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.connector-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.output-chip-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.output-chip-grid span{border:1px solid #d9ead7;background:#fff;color:#176b2c;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}.warning-subsection{background:#fffaf0;border-color:#fde68a}.warning-subsection p{display:flex;gap:7px;align-items:flex-start;margin:10px 0 0;color:#92400e;line-height:1.7;font-size:12px;font-weight:900}.readiness-subsection{background:#eef7e9;border-color:#d9ead7}.stats-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:14px}.stat-card{padding:16px}.stat-card span{color:#6f746b;font-size:12px;font-weight:900}.stat-card strong{display:block;margin-top:8px;font-size:28px}.stat-card.warn strong{color:#92400e}.stat-card.ok strong{color:#176b2c}.tools-row{padding:14px;display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:14px}.search-box{display:grid;gap:6px;min-width:320px}.search-box span,.field span{color:#6f746b;font-size:12px;font-weight:900}.search-box input,.field input,.field select,.field textarea{border:1px solid #e4e7df;border-radius:14px;padding:11px 12px;font-family:inherit;background:#fff;color:#1f241d;outline:none}.field textarea{resize:vertical}.filter-pills{display:flex;gap:8px;flex-wrap:wrap}.filter-pills button{border:1px solid #e4e7df;background:#fff;border-radius:999px;padding:8px 12px;font-weight:900;font-family:inherit;color:#6f746b}.filter-pills button.active{background:#176b2c;border-color:#176b2c;color:#fff}.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}.panel{padding:18px}.panel-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.panel h2,.panel h3{margin:0}.panel-header p,.usage-box p{margin:6px 0 0;color:#6f746b;line-height:1.7;font-size:13px}.panel-header span{background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px}.source-list{display:grid;gap:10px}.source-list button{border:1px solid #e4e7df;background:#fff;border-radius:18px;padding:14px;text-align:right;display:flex;justify-content:space-between;gap:12px;font-family:inherit;cursor:pointer}.source-list button.selected{border-color:#176b2c;background:#eef7e9}.source-main strong{display:block}.source-main span{display:block;color:#6f746b;margin-top:4px;font-size:12px}.source-main small{display:block;color:#176b2c;margin-top:6px;font-weight:900}.source-meta{display:grid;justify-items:end;gap:8px}.source-meta b{font-size:13px;color:#176b2c}.status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;height:fit-content;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.green{background:#f0fdf4;color:#166534}.amber{background:#fffbeb;color:#92400e}.slate{background:#f8fafc;color:#475569}.red{background:#fef2f2;color:#991b1b}.detail-panel{position:sticky;top:18px}.source-icon{width:54px;height:54px;background:#176b2c;color:#fff;display:grid;place-items:center;border-radius:18px;margin-bottom:12px}.detail-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.detail-title p{color:#6f746b;margin:5px 0 0}.health-card{border:1px solid #e4e7df;border-radius:18px;padding:12px;margin-bottom:14px}.health-card div:first-child{display:flex;justify-content:space-between;color:#6f746b;font-weight:900;font-size:12px}.health-card strong{color:#176b2c;font-size:20px}.meter{height:8px;background:#eef0ea;border-radius:999px;overflow:hidden;margin-top:10px}.meter i{display:block;height:100%;background:#176b2c;border-radius:999px}.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:6px;margin-bottom:10px}.field.wide{margin-top:4px}.toggle{min-height:38px;border:1px solid #e4e7df;border-radius:14px;background:#fff;padding:0 12px;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-weight:900;color:#6f746b}.toggle.active{background:#eef7e9;border-color:#176b2c;color:#176b2c}.toggle.active.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}.info-row{min-height:44px;border-bottom:1px solid #e4e7df;display:flex;justify-content:space-between;gap:12px;align-items:center}.info-row span{color:#6f746b;font-size:12px;font-weight:900}.info-row strong{text-align:left;font-size:13px;line-height:1.7}.usage-box,.warnings-box,.scan-log{border:1px solid #e4e7df;border-radius:18px;padding:13px;margin-top:14px}.usage-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.usage-summary span{border:1px solid #d9ead7;background:#eef7e9;color:#176b2c;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900}.warnings-box{background:#fffaf0;border-color:#fde68a}.warnings-box h3{display:flex;align-items:center;gap:7px;color:#92400e;margin-bottom:8px}.warnings-box p{margin:7px 0;color:#92400e;font-size:12px;line-height:1.8;font-weight:800}.warnings-box .safe{color:#166534}.log-row{display:flex;gap:10px;border-bottom:1px solid #eef0ea;padding:8px 0}.log-row:last-child{border-bottom:0}.log-row span{width:24px;height:24px;background:#eef7e9;color:#176b2c;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:900;flex:0 0 auto}.log-row p{margin:0;color:#4d5549;line-height:1.7;font-size:12px;font-weight:700}.empty{color:#6f746b;line-height:1.8;font-weight:800}.action-row{margin-top:14px}@media(max-width:1180px){.social-source-grid,.provider-matrix{grid-template-columns:repeat(2,1fr)}.social-two-column,.stats-grid{grid-template-columns:repeat(3,1fr)}.main-layout{grid-template-columns:1fr}.detail-panel{position:static}}@media(max-width:760px){.page-hero,.tools-row,.social-section-head{flex-direction:column;align-items:stretch}.social-source-grid,.provider-matrix,.social-two-column,.connector-config-grid,.stats-grid,.editor-grid{grid-template-columns:1fr}.search-box{min-width:0}}
 `;
