@@ -23,6 +23,7 @@ import {
   getAssetTypeLabel,
   readAssetLibrary,
 } from "../utils/assetLibraryStore.js";
+import { readProductCatalog } from "../utils/productCatalogStore.js";
 
 const assetsSeed = [
   {
@@ -125,8 +126,57 @@ const filters = [
   ["design", "تصاميم"],
 ];
 
+function buildAssetGaps(products = [], assets = []) {
+  const gaps = [];
+
+  products.slice(0, 6).forEach((product) => {
+    const flags = product.flags || [];
+    const linkedAssets = assets.filter(
+      (asset) => asset.linkedType === "product" && asset.linkedName === product.name
+    );
+    const hasImageAsset = linkedAssets.some((asset) => asset.type === "image") || Boolean(product.imageUrl);
+    const hasVideoAsset = linkedAssets.some((asset) => asset.type === "video") || Boolean(product.videoUrl);
+    const videoReady = flags.includes("يصلح للفيديو") || flags.includes("يحتاج شرحًا") || Boolean(product.videoUrl);
+
+    if (!hasImageAsset) {
+      gaps.push({
+        productName: product.name || "منتج غير محدد",
+        missingType: "صورة منتج",
+        reason: "الصورة تساعد في تجهيز حملة أو معاينة منتج واضحة.",
+        priority: Number(product.readiness || 0) >= 70 ? "مرتفعة" : "متوسطة",
+      });
+    }
+
+    if (videoReady && !hasVideoAsset) {
+      gaps.push({
+        productName: product.name || "منتج غير محدد",
+        missingType: "فيديو قصير",
+        reason: "المنتج مناسب للشرح أو العرض المرئي ويحتاج أصل فيديو قبل التوسع.",
+        priority: "مرتفعة",
+      });
+    }
+  });
+
+  if (!gaps.length) {
+    assets
+      .filter((asset) => asset.linkedType !== "product")
+      .slice(0, 2)
+      .forEach((asset) => {
+        gaps.push({
+          productName: "أصل عام يمكن ربطه لاحقًا",
+          missingType: getAssetTypeLabel(asset.type),
+          reason: "الأصل متاح كخيار عام ويمكن ربطه بمنتج أو حملة لاحقًا.",
+          priority: asset.rightsStatus === "allowed" ? "منخفضة" : "متوسطة",
+        });
+      });
+  }
+
+  return gaps;
+}
+
 export default function AssetLibraryPage() {
   const [assets, setAssets] = useState(() => readAssetLibrary(assetsSeed));
+  const [products, setProducts] = useState(() => readProductCatalog([]));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(() => readAssetLibrary(assetsSeed)[0]?.id || assetsSeed[0].id);
@@ -147,6 +197,22 @@ export default function AssetLibraryPage() {
       window.removeEventListener("focus", refreshAssets);
       window.removeEventListener("storage", refreshAssets);
       window.removeEventListener("nashir-asset-library-updated", refreshAssets);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshProducts = () => {
+      setProducts(readProductCatalog([]));
+    };
+
+    window.addEventListener("focus", refreshProducts);
+    window.addEventListener("storage", refreshProducts);
+    window.addEventListener("nashir-product-catalog-updated", refreshProducts);
+
+    return () => {
+      window.removeEventListener("focus", refreshProducts);
+      window.removeEventListener("storage", refreshProducts);
+      window.removeEventListener("nashir-product-catalog-updated", refreshProducts);
     };
   }, []);
 
@@ -172,6 +238,20 @@ export default function AssetLibraryPage() {
   }, [assets]);
 
   const SelectedIcon = typeMap[selectedAsset.type]?.icon || FileText;
+  const assetGaps = useMemo(() => buildAssetGaps(products, assets), [products, assets]);
+  const selectedAssetGap = selectedAsset?.linkedType === "product"
+    ? assetGaps.find((gap) => gap.productName === selectedAsset.linkedName) || {
+      productName: selectedAsset.linkedName || "منتج غير محدد",
+      missingType: "لا يوجد نقص واضح",
+      reason: "الأصل الحالي مرتبط بمنتج ويمكن استخدامه بعد مراجعة الحالة والحقوق.",
+      priority: selectedAsset.rightsStatus === "allowed" ? "متوسطة" : "مرتفعة",
+    }
+    : {
+      productName: "أصل عام يمكن ربطه لاحقًا",
+      missingType: "ربط بمنتج",
+      reason: "الأصل غير مرتبط بمنتج محدد ويمكن اختياره لاحقًا حسب الحملة.",
+      priority: "منخفضة",
+    };
 
   return (
     <main className="asset-library-page" dir="rtl">
@@ -328,6 +408,15 @@ export default function AssetLibraryPage() {
                 <span key={tag}>#{tag}</span>
               ))}
             </div>
+          </div>
+
+          <div className="detail-section asset-gap-section">
+            <h3>فجوات الأصول المطلوبة</h3>
+            <p>هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
+            <Info label="المنتج المرتبط أو العام" value={selectedAssetGap.productName} />
+            <Info label="نوع الأصل الناقص" value={selectedAssetGap.missingType} />
+            <Info label="سبب الحاجة" value={selectedAssetGap.reason} />
+            <Info label="أولوية الاستكمال" value={selectedAssetGap.priority} />
           </div>
 
           <div className="detail-actions">
@@ -803,6 +892,25 @@ const styles = `
 .detail-section h3 {
   margin: 0 0 10px;
   font-size: 15px;
+}
+
+.asset-gap-section {
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.asset-gap-section p {
+  margin: 0 0 8px;
+  color: #52604c;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.asset-gap-section .info-row {
+  border-bottom-color: #d9ead7;
 }
 
 .usage-list,

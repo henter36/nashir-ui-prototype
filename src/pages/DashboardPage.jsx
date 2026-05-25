@@ -235,6 +235,18 @@ export default function DashboardPage({
       icon: Store,
     },
   ];
+  const strategicSummary = {
+    growthReadiness: summary.avgReadiness >= 80 ? "مرتفعة" : summary.avgReadiness >= 65 ? "متوسطة" : "تحتاج استكمال",
+    opportunity: recentCampaigns[0]?.product
+      ? `تحويل ${recentCampaigns[0].product} إلى حملة اختبارية مركزة.`
+      : "بدء حملة اختبارية من المنتج الأعلى جاهزية.",
+    risk: Number(summary.reviewCampaigns || 0) > 0
+      ? "وجود محتوى أو حملات تحتاج مراجعة قبل التوسع."
+      : "الأصول والقنوات تحتاج متابعة قبل زيادة النشر.",
+    nextAction: Number(summary.reviewCampaigns || 0) > 0
+      ? "راجع المحتوى المنتظر قبل الجدولة."
+      : "ابدأ من المنتج الأعلى جاهزية في معالج الحملة.",
+  };
 
   return (
     <main className="dashboard-grid-page" dir="rtl">
@@ -287,6 +299,22 @@ export default function DashboardPage({
           );
         })}
       </section>
+
+      <article className="card strategic-summary-card">
+        <CardHeader
+          title="ملخص الخطة الاستراتيجية"
+          description="الملخص يعرض أهم نتيجة من خطة المتجر، والتفاصيل الكاملة تبقى في إعداد المتجر."
+          icon={Sparkles}
+          action={<span className="prototype-note">توصيات واجهية</span>}
+        />
+        <p className="strategy-note">هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
+        <div className="strategy-summary-grid">
+          <Mini title="درجة جاهزية النمو" value={strategicSummary.growthReadiness} />
+          <Mini title="أهم فرصة" value={strategicSummary.opportunity} />
+          <Mini title="أهم خطر" value={strategicSummary.risk} />
+          <Mini title="الإجراء التالي" value={strategicSummary.nextAction} />
+        </div>
+      </article>
 
       <SectionTitle title="أداء الحملات" description="آخر الحملات التي تحتاج متابعة أو قرار." />
 
@@ -758,6 +786,35 @@ const styles = `
   margin-bottom: 12px;
 }
 
+.strategic-summary-card {
+  margin-bottom: 16px;
+}
+
+.strategy-note {
+  margin: -4px 0 12px;
+  color: #66715f;
+  font-size: 12px;
+  line-height: 1.7;
+  font-weight: 800;
+}
+
+.strategy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prototype-note {
+  width: fit-content;
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .kpi-card {
   height: 88px;
   padding: 12px;
@@ -1026,7 +1083,8 @@ const styles = `
   .support-row,
   .bottom-row,
   .quick-actions-grid { grid-template-columns: 1fr; }
-  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-grid,
+  .strategy-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .campaign-row { grid-template-columns: 1fr; }
   .small-card { min-height: auto; }
   .priority-row { grid-template-columns: 48px minmax(0, 1fr); }
@@ -1040,6 +1098,7 @@ const styles = `
   .button-row { align-items: stretch; flex-direction: column; }
   .hero h1 { font-size: 27px; }
   .kpi-grid,
+  .strategy-summary-grid,
   .box-grid,
   .split-buttons { grid-template-columns: 1fr; }
   .primary-button,

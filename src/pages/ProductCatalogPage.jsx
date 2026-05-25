@@ -109,6 +109,38 @@ function hasUrl(value) {
   }
 }
 
+function buildMarketingPriority(product = {}) {
+  const flags = product.flags || [];
+  const readiness = Number(product.readiness || 0);
+  const hasImage = hasUrl(product.imageUrl);
+  const hasVideo = hasUrl(product.videoUrl);
+  const gaps = [];
+
+  if (!String(product.description || "").trim()) gaps.push("وصف المنتج");
+  if (!hasImage) gaps.push("صورة المنتج");
+  if (!hasVideo && flags.includes("يصلح للفيديو")) gaps.push("فيديو قصير");
+  if (!String(product.price || "").trim()) gaps.push("السعر");
+
+  const videoReady = flags.includes("يصلح للفيديو") || hasVideo;
+  const giftReady = flags.includes("مناسب للهدايا") || flags.includes("موسمي");
+  const highPriority = readiness >= 80 || flags.includes("الأكثر مبيعًا") || videoReady || giftReady;
+  const mediumPriority = readiness >= 55 || flags.includes("جديد") || flags.includes("يحتاج شرحًا");
+
+  return {
+    level: highPriority ? "مرتفعة" : mediumPriority ? "متوسطة" : "منخفضة",
+    reason: videoReady
+      ? "المنتج مناسب لمحتوى مرئي قصير ويمكن تحويله لحملة اختبارية."
+      : giftReady
+        ? "المنتج مناسب للمواسم والهدايا ويمكن اختباره في عروض اجتماعية."
+        : readiness >= 80
+          ? "جاهزية المنتج عالية مقارنة ببقية الكتالوج."
+          : "يحتاج استكمالًا قبل رفع أولوية التسويق.",
+    channel: videoReady ? "Instagram / TikTok" : giftReady ? "WhatsApp Business / Email" : "Instagram",
+    contentType: videoReady ? "فيديو قصير / Reels" : giftReady ? "منشور عرض أو رسالة مباشرة" : "منشور تعريفي",
+    gap: gaps.length ? gaps.join("، ") : "لا يوجد نقص واضح",
+  };
+}
+
 export default function ProductCatalogPage() {
   const [products, setProducts] = useState(() => readProductCatalog(initialProducts));
   const [query, setQuery] = useState("");
@@ -155,6 +187,7 @@ export default function ProductCatalogPage() {
 
   const selectedProduct =
     products.find((product) => product.id === selectedId) || products[0] || initialProducts[0];
+  const selectedMarketingPriority = buildMarketingPriority(selectedProduct);
 
   const stats = useMemo(() => {
     return {
@@ -529,6 +562,16 @@ export default function ProductCatalogPage() {
           <Info label="المصدر" value={selectedProduct.source} />
           <Info label="الأصول المرتبطة" value={String(selectedProduct.assets)} />
           <Info label="جاهزية الحملات" value={`${selectedProduct.readiness}%`} />
+
+          <div className="marketing-priority-card">
+            <h3>أولوية تسويقية</h3>
+            <p>هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
+            <Info label="مستوى الأولوية" value={selectedMarketingPriority.level} />
+            <Info label="سبب الترشيح" value={selectedMarketingPriority.reason} />
+            <Info label="القناة الأنسب" value={selectedMarketingPriority.channel} />
+            <Info label="نوع المحتوى المناسب" value={selectedMarketingPriority.contentType} />
+            <Info label="النقص المطلوب استكماله" value={selectedMarketingPriority.gap} />
+          </div>
 
           <h3>خصائص المنتج</h3>
           <div className="chips">
@@ -979,6 +1022,30 @@ const styles = `
 
 .detail-card h3 {
   margin: 18px 0 10px;
+}
+
+.marketing-priority-card {
+  margin-top: 16px;
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.marketing-priority-card h3 {
+  margin-top: 0;
+}
+
+.marketing-priority-card p {
+  margin: 0 0 8px;
+  color: #52604c;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.marketing-priority-card .info {
+  border-bottom-color: #d9ead7;
 }
 
 .chips {

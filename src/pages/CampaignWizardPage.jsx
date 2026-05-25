@@ -315,6 +315,42 @@ export default function CampaignWizardPage() {
 
   const selectedHasImage = selectedAssets.some((asset) => asset.type === "image");
   const selectedHasVideo = selectedAssets.some((asset) => asset.type === "video");
+  const storePlanSuggestions = useMemo(() => {
+    const flags = selectedProduct?.flags || [];
+    const productAssets = availableAssets.filter(
+      (asset) => asset.linkedType === "product" && asset.linkedName === selectedProduct?.name
+    );
+    const hasImageAsset = productAssets.some((asset) => asset.type === "image");
+    const hasVideoAsset = productAssets.some((asset) => asset.type === "video");
+    const videoReady = flags.includes("يصلح للفيديو") || Boolean(selectedProduct?.videoUrl) || hasVideoAsset;
+    const giftReady = flags.includes("مناسب للهدايا") || flags.includes("موسمي");
+    const suggestedChannel = videoReady
+      ? "Instagram / TikTok"
+      : giftReady
+        ? "WhatsApp Business / Email"
+        : channels[0] || "Instagram";
+    const suggestedContentType = videoReady
+      ? "فيديو قصير / Reel"
+      : giftReady
+        ? "منشور عرض أو رسالة مباشرة"
+        : "منشور تعريفي";
+    const suggestedCta = channels.includes("WhatsApp Business") ? "تواصل معنا" : cta || "تسوق الآن";
+    const assetGap = !selectedProduct
+      ? "اختر المنتج أولًا لرؤية تنبيه الأصول."
+      : !hasImageAsset
+        ? "يحتاج صورة منتج واضحة قبل الحملة."
+        : !hasVideoAsset && videoReady
+          ? "يفضل إضافة أصل فيديو لهذا المنتج."
+          : "لا يوجد نقص أصول واضح كبداية.";
+
+    return {
+      product: selectedProduct?.name || "غير محدد",
+      channel: suggestedChannel,
+      contentType: suggestedContentType,
+      cta: suggestedCta,
+      assetGap,
+    };
+  }, [availableAssets, channels, cta, selectedProduct]);
 
   const readiness = useMemo(() => {
     const checks = [
@@ -628,6 +664,24 @@ export default function CampaignWizardPage() {
                     </button>
                   </div>
                 )}
+
+                <div className="store-plan-suggestions">
+                  <div className="suggestion-head">
+                    <div>
+                      <h3>اقتراحات مبنية على خطة المتجر</h3>
+                      <p>هذه توصيات واجهية مشتقة من بيانات الإعداد الحالية، وليست تحليلًا إنتاجيًا.</p>
+                    </div>
+                    <Badge tone="blue">اقتراحات فقط</Badge>
+                  </div>
+                  <div className="asset-readiness-summary compact">
+                    <Info label="المنتج المقترح" value={storePlanSuggestions.product} />
+                    <Info label="القناة المقترحة" value={storePlanSuggestions.channel} />
+                    <Info label="نوع المحتوى المقترح" value={storePlanSuggestions.contentType} />
+                    <Info label="CTA مقترح" value={storePlanSuggestions.cta} />
+                    <Info label="تنبيه نقص الأصول إن وجد" value={storePlanSuggestions.assetGap} />
+                  </div>
+                  <small>يمكن تعديل هذه الاقتراحات داخل الحملة. لا يتم تعديل خطة المتجر تلقائيًا.</small>
+                </div>
 
                 <Field label="تاريخ البداية" value={startDate} onChange={setStartDate} />
                 <Field label="تاريخ النهاية" value={endDate} onChange={setEndDate} />
@@ -1562,6 +1616,37 @@ const styles = `
   color: #176b2c;
 }
 
+.store-plan-suggestions {
+  grid-column: 1 / -1;
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  border-radius: 20px;
+  padding: 14px;
+}
+
+.suggestion-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.suggestion-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.suggestion-head p,
+.store-plan-suggestions small {
+  display: block;
+  margin-top: 5px;
+  color: #52604c;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .upload-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1593,6 +1678,11 @@ const styles = `
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.asset-readiness-summary.compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 8px;
 }
 
 .asset-info-cell {
