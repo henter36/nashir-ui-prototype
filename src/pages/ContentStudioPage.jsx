@@ -249,6 +249,11 @@ export default function ContentStudioPage() {
   const ActiveIcon = getSafeContentIcon(activeItem);
   const activeStatus = getSafeStatusConfig(activeItem?.status);
   const StatusIcon = activeStatus.icon;
+  const activeCampaignName = activeItem?.campaign || "حملة غير محددة";
+  const activeReviewReadiness =
+    activeItem?.status === "ready" || activeItem?.status === "needs_review"
+      ? "جاهزة للمراجعة"
+      : "تحتاج تحريرًا قبل المراجعة";
 
   return (
     <main className="content-studio-page" dir="rtl">
@@ -274,6 +279,11 @@ export default function ContentStudioPage() {
               لا يوجد نشر فعلي، ولا إرسال WhatsApp أو Email، ولا حفظ في قاعدة
               بيانات. كل ما يحدث هنا محلي وتجريبي للمراجعة البصرية.
             </span>
+          </div>
+
+          <div className="campaign-output-note">
+            <strong>مخرجات الحملة</strong>
+            <span>هذه مخرجات واجهية تجريبية، وهي مخرجات أولية قابلة للمراجعة وليست نتيجة توليد أو تنفيذ حقيقي.</span>
           </div>
         </div>
 
@@ -374,16 +384,22 @@ export default function ContentStudioPage() {
 
               <div>
                 <h2>{activeItem.title}</h2>
-                <p>
-                  {activeItem.type} · {activeItem.channel}
-                </p>
-              </div>
+              <p>
+                {activeItem.type} · {activeItem.channel}
+              </p>
             </div>
+          </div>
 
             <div className={`status-badge ${getSafeStatusConfig(activeItem.status).className}`}>
               <StatusIcon size={15} />
               {getSafeStatusConfig(activeItem.status).label}
             </div>
+          </div>
+
+          <div className="campaign-output-summary">
+            <div><span>الحملة</span><strong>{activeCampaignName}</strong></div>
+            <div><span>حالة المحتوى</span><strong>{getSafeStatusConfig(activeItem.status).label}</strong></div>
+            <div><span>جاهزية المراجعة</span><strong>{activeReviewReadiness}</strong></div>
           </div>
 
           <div className="editor-grid">
@@ -566,6 +582,27 @@ const styles = `
   padding: 13px 14px;
   font-size: 14px;
   line-height: 1.8;
+}
+
+.campaign-output-note {
+  margin-top: 12px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.campaign-output-note strong,
+.campaign-output-note span {
+  display: block;
+}
+
+.campaign-output-note span {
+  margin-top: 4px;
+  line-height: 1.7;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .stats-card {
@@ -796,6 +833,35 @@ const styles = `
   margin-bottom: 24px;
   padding-bottom: 18px;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.campaign-output-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.campaign-output-summary div {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 11px;
+}
+
+.campaign-output-summary span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.campaign-output-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .editor-title {

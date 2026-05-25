@@ -177,6 +177,12 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
 
   const selectedCampaign =
     campaignList.find((campaign) => campaign.id === selectedId) || campaignList[0];
+  const latestWizardCampaign = useMemo(
+    () => campaignList.find((campaign) =>
+      (campaign.edits || []).some(([action]) => String(action || "").includes("معالج إنشاء الحملة"))
+    ),
+    [campaignList]
+  );
 
   const stats = useMemo(
     () => ({
@@ -220,6 +226,29 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
         <Stat title="النشطة" value={stats.active} icon={Sparkles} tone="blue" />
         <Stat title="تحتاج مراجعة" value={stats.review} icon={AlertTriangle} tone="amber" />
         <Stat title="متوسط الجاهزية" value={`${stats.avgReadiness}%`} icon={BarChart3} tone="teal" />
+      </section>
+
+      <section className="wizard-reflection-card">
+        <div className="card-header">
+          <div>
+            <h2>آخر حملة من المعالج</h2>
+            <p>هذه مخرجات واجهية تجريبية تعكس آخر حملة محفوظة من معالج إنشاء الحملة.</p>
+          </div>
+          <span>{latestWizardCampaign ? "موجودة" : "فارغة"}</span>
+        </div>
+        {latestWizardCampaign ? (
+          <div className="wizard-reflection-grid">
+            <Info label="اسم الحملة" value={latestWizardCampaign.name} />
+            <Info label="المنتج" value={latestWizardCampaign.product} />
+            <Info label="الهدف" value={latestWizardCampaign.goal} />
+            <Info label="القنوات" value={(latestWizardCampaign.channels || []).join("، ") || "غير محدد"} />
+            <Info label="حالة المحتوى" value={(latestWizardCampaign.outputs || []).length ? "مخرجات أولية قابلة للمراجعة" : "لم يتم تجهيز مخرجات"} />
+            <Info label="جاهزية المراجعة" value={latestWizardCampaign.readiness >= 60 ? "جاهزة مبدئيًا" : "تحتاج استكمال"} />
+            <Info label="الإجراء التالي" value="فتح استوديو المحتوى أو المراجعة والمعاينة." />
+          </div>
+        ) : (
+          <div className="empty-wizard-state">لم يتم إنشاء حملة من المعالج بعد.</div>
+        )}
       </section>
 
       <section className="toolbar-card">
@@ -579,6 +608,31 @@ const styles = `
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.wizard-reflection-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(24, 38, 18, 0.04);
+  margin-bottom: 16px;
+}
+
+.wizard-reflection-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.empty-wizard-state {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 18px;
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .stat-card {
@@ -1090,6 +1144,7 @@ const styles = `
 
 @media (max-width: 1180px) {
   .stats-grid,
+  .wizard-reflection-grid,
   .campaigns-layout,
   .detail-grid {
     grid-template-columns: 1fr;
@@ -1118,6 +1173,7 @@ const styles = `
   }
 
   .stats-grid,
+  .wizard-reflection-grid,
   .summary-grid,
   .performance-grid,
   .output-row {

@@ -32,6 +32,10 @@ import {
   upsertAsset,
 } from "../utils/assetLibraryStore.js";
 
+import {
+  upsertCampaignContentItem,
+} from "../utils/campaignContentStore.js";
+
 const goals = [
   "زيادة المبيعات",
   "إطلاق منتج جديد",
@@ -204,7 +208,11 @@ function makeInternalPrompt({ output, productName, goal, offer, cta, ageGroup, g
   return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | cta=${cta} | age=${ageGroup} | gender=${gender} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
 }
 
-export default function CampaignWizardPage() {
+export default function CampaignWizardPage({
+  onOpenCampaign = () => {},
+  onOpenContentStudio = () => {},
+  onOpenReviewPreview = () => {},
+} = {}) {
   const [step, setStep] = useState(1);
 
   const [campaignName, setCampaignName] = useState("حملة عطر X - مارس");
@@ -513,6 +521,7 @@ export default function CampaignWizardPage() {
   const saveCampaignDraft = () => {
     if (!canGenerate) return;
 
+    const campaignId = `campaign_${Date.now()}`;
     const campaignOutputs = outputs.map((output) => {
       const generated = generatedTexts[output];
 
@@ -537,11 +546,13 @@ export default function CampaignWizardPage() {
     const numericBudget = Number(String(budget).replace(/[^0-9.]/g, "")) || 0;
 
     const campaign = {
+      id: campaignId,
+      campaignId,
       name: campaignName,
       product: selectedProduct?.name || "غير محدد",
       goal,
       status: "draft",
-      stage: "تم إنشاؤها من المعالج",
+      stage: "مخرجات أولية قابلة للمراجعة",
       owner: "أنت",
       budget,
       budgetValue: numericBudget,
@@ -564,11 +575,32 @@ export default function CampaignWizardPage() {
     };
 
     const nextCampaigns = upsertCampaign(campaign);
+    campaignOutputs.forEach(([output, , channel, content], index) => {
+      upsertCampaignContentItem(
+        {
+          id: `${campaignId}_content_${index}`,
+          contentId: `${campaignId}_content_${index}`,
+          title: `${output} - ${campaignName}`,
+          type: output,
+          channel: channel || channels[0] || "عام",
+          status: "needs_review",
+          content,
+          campaign: campaignName,
+          approval: "needs_review",
+          risk: "medium",
+          metadata: {
+            campaignId,
+            product: selectedProduct?.name || "غير محدد",
+          },
+        },
+        []
+      );
+    });
     const nextMetrics = deriveMetricsFromCampaigns(nextCampaigns);
     writeCampaignMetrics(nextMetrics);
     refreshDashboardSummary(nextCampaigns, nextMetrics);
 
-    setSaveNotice("تم حفظ الحملة كمسودة ويمكن متابعتها من صفحة الحملات.");
+    setSaveNotice("تم حفظ الحملة كحالة واجهية تجريبية، وتم تجهيز مخرجات أولية قابلة للمراجعة.");
   };
 
   return (
@@ -897,7 +929,7 @@ export default function CampaignWizardPage() {
                 </div>
 
                 <Notice tone="amber">
-                  النص الظاهر للعميل هو شرح عام للسيناريو أو الاتجاه الإبداعي. المطالبة الفعلية المستخدمة لتشغيل نموذج الذكاء الاصطناعي تعتبر من أسرار المنصة ولا تُعرض للعميل.
+                  هذه مخرجات واجهية تجريبية. النص الظاهر للعميل هو مخرجات أولية قابلة للمراجعة، وليس توليدًا أو تنفيذًا حقيقيًا. التوليد والتنفيذ الحقيقي يحتاج Backend وAI orchestration لاحقًا.
                 </Notice>
 
                 <div className="button-row">
@@ -911,9 +943,22 @@ export default function CampaignWizardPage() {
                 </div>
 
                 {saveNotice && (
-                  <Notice tone="amber">
-                    {saveNotice}
-                  </Notice>
+                  <div className="saved-flow-card">
+                    <Notice tone="amber">
+                      {saveNotice}
+                    </Notice>
+                    <div className="saved-flow-actions">
+                      <button type="button" className="button secondary" onClick={onOpenCampaign}>
+                        فتح الحملة
+                      </button>
+                      <button type="button" className="button secondary" onClick={onOpenContentStudio}>
+                        فتح استوديو المحتوى
+                      </button>
+                      <button type="button" className="button secondary" onClick={onOpenReviewPreview}>
+                        فتح المراجعة والمعاينة
+                      </button>
+                    </div>
+                  </div>
                 )}
               </Card>
 
@@ -1645,6 +1690,24 @@ const styles = `
   line-height: 1.7;
   font-size: 12px;
   font-weight: 800;
+}
+
+.saved-flow-card {
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  border-radius: 18px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.saved-flow-card .notice {
+  margin: 0 0 10px;
+}
+
+.saved-flow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .upload-grid {

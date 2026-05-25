@@ -181,6 +181,16 @@ const RISK_META = {
 
 const PLATFORMS = ["Instagram", "TikTok", "Snapchat", "WhatsApp", "Email"];
 
+function getSafeContentIcon(item = {}) {
+  if (typeof item.icon === "function") return item.icon;
+  const text = `${item.type || ""} ${item.channel || ""} ${item.title || ""}`.toLowerCase();
+  if (text.includes("video") || text.includes("reel") || text.includes("فيديو")) return PlayCircle;
+  if (text.includes("email") || text.includes("بريد")) return Mail;
+  if (text.includes("whatsapp") || text.includes("واتساب")) return MessageCircle;
+  if (text.includes("image") || text.includes("story") || text.includes("carousel") || text.includes("صورة")) return ImageIcon;
+  return FileText;
+}
+
 export default function ContentReviewPreviewPage() {
   const [campaignList, setCampaignList] = useState(() => readCampaigns(CAMPAIGNS));
   const [contentItems, setContentItems] = useState(() =>
@@ -243,11 +253,30 @@ export default function ContentReviewPreviewPage() {
   }, [campaignList, contentItems, query, selectedCampaignId, statusFilter]);
 
   const selectedContent =
-    contentItems.find((item) => item.id === selectedContentId) || contentItems[0];
+    contentItems.find((item) => item.id === selectedContentId) ||
+    contentItems[0] ||
+    {
+      id: "empty-review-content",
+      title: "لا توجد مخرجات حملة جاهزة للمراجعة بعد",
+      type: "محتوى",
+      channel: "عام",
+      platform: "Instagram",
+      status: "draft",
+      risk: "low",
+      content: "",
+      notes: ["لا توجد مخرجات حملة جاهزة للمراجعة بعد"],
+    };
 
   const selectedCampaign =
-    campaignList.find((campaign) => campaign.id === selectedContent.campaignId) ||
-    campaignList[0];
+    campaignList.find((campaign) => campaign.id === selectedContent?.campaignId) ||
+    campaignList[0] ||
+    {
+      id: "empty-campaign",
+      name: "حملة غير محددة",
+      product: "غير محدد",
+      readiness: 0,
+      channels: [],
+    };
 
   const stats = useMemo(() => {
     const scope =
@@ -317,6 +346,17 @@ export default function ContentReviewPreviewPage() {
             <Sparkles size={16} />
             توليد مخرجات جديدة
           </button>
+        </div>
+      </section>
+
+      <section className="review-flow-note">
+        <div>
+          <h2>مراجعة ومعاينة مخرجات الحملة</h2>
+          <p>هذه مخرجات واجهية تجريبية. الاعتماد هنا محلي داخل النموذج الأولي ولا يعني نشرًا أو إرسالًا تلقائيًا.</p>
+        </div>
+        <div className="review-flow-facts">
+          <span>حالة المراجعة: {STATUS_META[selectedContent.status]?.[0] || "مسودة"}</span>
+          <span>جاهزية المراجعة: {selectedContent.content ? "قابلة للمراجعة" : "لا توجد مخرجات حملة جاهزة للمراجعة بعد"}</span>
         </div>
       </section>
 
@@ -395,9 +435,12 @@ export default function ContentReviewPreviewPage() {
           </div>
 
           <div className="content-list">
+            {!filteredContent.length ? (
+              <div className="empty-review-state">لا توجد مخرجات حملة جاهزة للمراجعة بعد.</div>
+            ) : null}
             {filteredContent.map((item) => {
-              const Icon = item.icon;
-              const status = STATUS_META[item.status];
+              const Icon = getSafeContentIcon(item);
+              const status = STATUS_META[item.status] || STATUS_META.draft;
               const campaign = campaignList.find((c) => c.id === item.campaignId);
 
               return (
@@ -483,7 +526,7 @@ export default function ContentReviewPreviewPage() {
 
           <div className="source-notes">
             <h3>ملاحظات ومخاطر</h3>
-            {selectedContent.notes.map((note) => (
+            {(selectedContent.notes || []).map((note) => (
               <div key={note}>
                 <AlertTriangle size={15} />
                 <span>{note}</span>
@@ -592,11 +635,12 @@ function Stat({ title, value, icon: Icon, tone }) {
 }
 
 function StatusBadge({ meta }) {
-  return <span className={`status-badge ${meta[1]}`}>{meta[0]}</span>;
+  const safeMeta = meta || STATUS_META.draft;
+  return <span className={`status-badge ${safeMeta[1]}`}>{safeMeta[0]}</span>;
 }
 
 function RiskBadge({ risk }) {
-  const meta = RISK_META[risk];
+  const meta = RISK_META[risk] || RISK_META.low;
   return <span className={`risk-badge ${meta[1]}`}>خطر {meta[0]}</span>;
 }
 
@@ -612,6 +656,7 @@ const styles = `
 }
 
 .page-title,
+.review-flow-note,
 .toolbar,
 .stat-card,
 .content-list-card,
@@ -659,6 +704,45 @@ const styles = `
   color: #6f746b;
   line-height: 1.8;
   font-size: 14px;
+}
+
+.review-flow-note {
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.review-flow-note h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.review-flow-note p {
+  margin: 6px 0 0;
+  color: #6f746b;
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+.review-flow-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.review-flow-facts span {
+  width: fit-content;
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .title-actions,
@@ -884,6 +968,17 @@ const styles = `
 .content-list {
   display: grid;
   gap: 10px;
+}
+
+.empty-review-state {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 18px;
+  padding: 14px;
+  line-height: 1.7;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .content-item {
@@ -1212,6 +1307,7 @@ const styles = `
   }
 
   .page-title,
+  .review-flow-note,
   .title-actions,
   .card-header {
     align-items: stretch;
