@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -19,28 +19,29 @@ import {
 } from "lucide-react";
 
 import AppShell from "./components/layout/AppShell.jsx";
-import DashboardPage from "./pages/DashboardPage.jsx";
-import StoreSetupPage from "./pages/StoreSetupPage.jsx";
-import CampaignWizardPage from "./pages/CampaignWizardPage.jsx";
-import CampaignsUnifiedPage from "./pages/CampaignsUnifiedPage.jsx";
-import AnalyticsUnifiedPage from "./pages/AnalyticsUnifiedPage.jsx";
-import AssetLibraryPage from "./pages/AssetLibraryPage.jsx";
-import PublishingQueuePage from "./pages/PublishingQueuePage.jsx";
-import TemplateEnginePage from "./pages/TemplateEnginePage.jsx";
-import MultiPlatformPage from "./pages/MultiPlatformPage.jsx";
-import TeamCollaborationPage from "./pages/TeamCollaborationPage.jsx";
-import ContentStudioPage from "./pages/ContentStudioPage.jsx";
-import ContentReviewPreviewUnifiedPage from "./pages/ContentReviewPreviewUnifiedPage.jsx";
-import SystemAdminPage from "./pages/SystemAdminPage.jsx";
-import SecretsAndKeysPage from "./pages/SecretsAndKeysPage.jsx";
-import ModelRoutingPage from "./pages/ModelRoutingPage.jsx";
-import ProductCatalogPage from "./pages/ProductCatalogPage.jsx";
-import DataSourcesHubPage from "./pages/DataSourcesHubPage.jsx";
-import PromptGovernancePage from "./pages/PromptGovernancePage.jsx";
-import WorkflowRunsPage from "./pages/WorkflowRunsPage.jsx";
-import CostMonitorPage from "./pages/CostMonitorPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx";
 import "./styles.css";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage.jsx"));
+const StoreSetupPage = lazy(() => import("./pages/StoreSetupPage.jsx"));
+const CampaignWizardPage = lazy(() => import("./pages/CampaignWizardPage.jsx"));
+const CampaignsUnifiedPage = lazy(() => import("./pages/CampaignsUnifiedPage.jsx"));
+const AnalyticsUnifiedPage = lazy(() => import("./pages/AnalyticsUnifiedPage.jsx"));
+const AssetLibraryPage = lazy(() => import("./pages/AssetLibraryPage.jsx"));
+const PublishingQueuePage = lazy(() => import("./pages/PublishingQueuePage.jsx"));
+const TemplateEnginePage = lazy(() => import("./pages/TemplateEnginePage.jsx"));
+const MultiPlatformPage = lazy(() => import("./pages/MultiPlatformPage.jsx"));
+const TeamCollaborationPage = lazy(() => import("./pages/TeamCollaborationPage.jsx"));
+const ContentStudioPage = lazy(() => import("./pages/ContentStudioPage.jsx"));
+const ContentReviewPreviewUnifiedPage = lazy(() => import("./pages/ContentReviewPreviewUnifiedPage.jsx"));
+const SystemAdminPage = lazy(() => import("./pages/SystemAdminPage.jsx"));
+const SecretsAndKeysPage = lazy(() => import("./pages/SecretsAndKeysPage.jsx"));
+const ModelRoutingPage = lazy(() => import("./pages/ModelRoutingPage.jsx"));
+const ProductCatalogPage = lazy(() => import("./pages/ProductCatalogPage.jsx"));
+const DataSourcesHubPage = lazy(() => import("./pages/DataSourcesHubPage.jsx"));
+const PromptGovernancePage = lazy(() => import("./pages/PromptGovernancePage.jsx"));
+const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage.jsx"));
+const CostMonitorPage = lazy(() => import("./pages/CostMonitorPage.jsx"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage.jsx"));
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -75,6 +76,23 @@ function PlaceholderPage({ title, description }) {
           {description}
         </p>
       </div>
+    </section>
+  );
+}
+
+function PageLoadingFallback() {
+  return (
+    <section
+      dir="rtl"
+      style={{
+        minHeight: "50vh",
+        display: "grid",
+        placeItems: "center",
+        color: "#176b2c",
+        fontWeight: 900,
+      }}
+    >
+      جاري تحميل الصفحة...
     </section>
   );
 }
@@ -180,7 +198,9 @@ export default function App() {
       activeScreen={activeScreen}
       setActiveScreen={setActiveScreen}
     >
-      {pageContent}
+      <Suspense fallback={<PageLoadingFallback />}>
+        {pageContent}
+      </Suspense>
     </AppShell>
   );
 }
