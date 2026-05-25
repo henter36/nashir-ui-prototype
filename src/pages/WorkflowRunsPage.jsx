@@ -568,6 +568,124 @@ const STATUS_META = {
   cancelled: ["ملغي", "slate"],
 };
 
+const DATA_PROCESSING_PIPELINE = [
+  {
+    name: "تحديد مصدر البيانات",
+    status: "جاهز للتصميم",
+    input: "نوع المتجر وقناة البيع الأساسية",
+    output: "خطة جمع البيانات",
+    layer: "إعداد المتجر",
+    tool: "اختيار واجهي",
+    blocked: "لا يوجد حظر في النموذج الأولي",
+    warnings: "تحتاج مراجعة قبل التنفيذ الحقيقي",
+  },
+  {
+    name: "تشغيل الموصل",
+    status: "غير منفذ",
+    input: "إعداد الموصل ومرجع السر",
+    output: "تشغيل مجدول أو يدوي لاحقًا",
+    layer: "Data Sources Hub",
+    tool: "Official API / Firecrawl / Browserless / Apify",
+    blocked: "Backend مطلوب",
+    warnings: "لا توجد موصلات نشطة من الواجهة",
+  },
+  {
+    name: "حفظ البيانات الخام",
+    status: "غير منفذ",
+    input: "نتيجة الموصل",
+    output: "Raw Payload",
+    layer: "طبقة التخزين لاحقًا",
+    tool: "Queue + Storage",
+    blocked: "لا يوجد تخزين إنتاجي",
+    warnings: "يلزم تحديد سياسة الاحتفاظ",
+  },
+  {
+    name: "تطبيع البيانات",
+    status: "جاهز للتصميم",
+    input: "Raw Payload",
+    output: "Normalized Signals",
+    layer: "Processing Pipeline",
+    tool: "Rule engine + classifiers",
+    blocked: "لا يوجد Backend للمعالجة",
+    warnings: "الخرائط الحالية واجهية فقط",
+  },
+  {
+    name: "بناء حزمة أدلة للتحليل",
+    status: "جاهز للتصميم",
+    input: "البيانات المنظمة",
+    output: "Evidence Pack",
+    layer: "AI preparation",
+    tool: "Evidence builder",
+    blocked: "لا يوجد إنشاء حقيقي للحزمة",
+    warnings: "يجب فصل الحقائق عن الاستنتاجات",
+  },
+  {
+    name: "إرسال مهمة الذكاء الاصطناعي",
+    status: "غير منفذ",
+    input: "Evidence Pack + مخطط الإخراج",
+    output: "Structured AI result",
+    layer: "AI orchestration",
+    tool: "Model Route + Prompt Governance",
+    blocked: "لا يوجد استدعاء نموذج حقيقي",
+    warnings: "تحتاج مطالبة معتمدة وحد تكلفة",
+  },
+  {
+    name: "مراجعة المخرجات",
+    status: "مطلوبة",
+    input: "Structured AI result",
+    output: "ReviewFinding",
+    layer: "Review Preview",
+    tool: "Human review",
+    blocked: "لا يعتمد أي مخرج ظاهر دون مراجعة",
+    warnings: "النشر التلقائي غير مسموح",
+  },
+  {
+    name: "إعادة استخدام النتائج",
+    status: "جاهز للتصميم",
+    input: "مخرجات معتمدة",
+    output: "Strategy / Brief / Readiness",
+    layer: "Commercial journey",
+    tool: "Shared contracts",
+    blocked: "لا يوجد حفظ إنتاجي",
+    warnings: "إعادة الاستخدام يجب أن تحفظ المصدر والقيود",
+  },
+];
+
+const PROCESSING_READINESS_CHECKS = [
+  ["نوع المتجر محدد", "مخطط من إعداد المتجر"],
+  ["خطة جمع البيانات موجودة", "متوفرة كتصميم واجهي"],
+  ["الموصل مهيأ", "مهيأ فقط"],
+  ["مرجع السر موجود", "اسم مرجع لاحقًا فقط"],
+  ["Backend مطلوب", "نعم"],
+  ["مخطط المخرجات محدد", "محدد كعقد واجهي"],
+  ["مراجعة بشرية مطلوبة", "نعم"],
+  ["النشر التلقائي غير مسموح", "نعم"],
+];
+
+const EVIDENCE_PACK_ITEMS = [
+  "ملخص المتجر",
+  "المنتجات",
+  "الأصول",
+  "القنوات",
+  "السياسات",
+  "إشارات اجتماعية عند توفر موصل مصرح",
+  "حدود البيانات",
+  "مستوى الثقة",
+  "نوع المهمة",
+  "مخطط الإخراج",
+];
+
+const REUSABLE_OUTPUTS = [
+  ["StoreStrategicPlan", "إعداد المتجر، Dashboard، معالج الحملة"],
+  ["SocialStoreIntelligenceReport", "إعداد المتجر، Dashboard، معالج الحملة، استوديو المحتوى"],
+  ["ProductMarketingPriority", "كتالوج المنتجات، معالج الحملة"],
+  ["AssetGapReport", "مكتبة الأصول، استوديو المحتوى"],
+  ["CampaignBrief", "معالج الحملة، استوديو المحتوى"],
+  ["CampaignContentOutput", "استوديو المحتوى، المراجعة والمعاينة"],
+  ["ReviewFinding", "المراجعة والمعاينة، جدولة النشر"],
+  ["PublishingReadiness", "جدولة النشر، Dashboard"],
+];
+
 
 function getModelRouteSummary(processor) {
   return MODEL_ROUTE_CATALOG[processor] || null;
@@ -716,7 +834,7 @@ function buildStepReadiness(step, context = {}) {
     const approvalAbove = Number(route?.cost?.requireApprovalAboveCost ?? costRow?.approvalAbove ?? Number.POSITIVE_INFINITY);
 
     if (Number.isFinite(maxCost) && Number.isFinite(approvalAbove) && maxCost > approvalAbove) {
-      warnings.push("حد تكلفة التشغيل يتجاوز حد الموافقة.");
+      warnings.push("حد تكلفة التشغيل أعلى من حد الموافقة.");
     } else if (maxCost > 0) {
       checks.push("حد التكلفة ضمن سياسة الموافقة.");
     }
@@ -1146,6 +1264,73 @@ export default function WorkflowRunsPage() {
             {label}
           </button>
         ))}
+      </section>
+
+      <section className="pipeline-reflection-card">
+        <div className="card-header">
+          <div>
+            <h2>مسار معالجة البيانات</h2>
+            <p>
+              تشغيلات النظام هنا محاكاة واجهية. التنفيذ الحقيقي يحتاج Backend وQueue
+              وموصلات مصرح بها وتخزين أسرار آمن ومراجعة بشرية.
+            </p>
+          </div>
+          <span className="prototype-pill">تصميم واجهي</span>
+        </div>
+
+        <div className="pipeline-step-grid">
+          {DATA_PROCESSING_PIPELINE.map((step, index) => (
+            <div key={step.name} className="pipeline-step-card">
+              <div className="pipeline-step-head">
+                <span>{index + 1}</span>
+                <strong>{step.name}</strong>
+              </div>
+              <Info label="الحالة" value={step.status} />
+              <Info label="المدخل" value={step.input} />
+              <Info label="المخرج" value={step.output} />
+              <Info label="الطبقة المسؤولة" value={step.layer} />
+              <Info label="أداة/مزود محتمل" value={step.tool} />
+              <Info label="أسباب الحظر" value={step.blocked} />
+              <Info label="تحذيرات" value={step.warnings} />
+            </div>
+          ))}
+        </div>
+
+        <div className="pipeline-support-grid">
+          <div className="pipeline-support-card">
+            <h3>جاهزية خط المعالجة</h3>
+            <div className="readiness-check-grid">
+              {PROCESSING_READINESS_CHECKS.map(([label, value]) => (
+                <Info key={label} label={label} value={value} />
+              ))}
+            </div>
+          </div>
+
+          <div className="pipeline-support-card">
+            <h3>حزمة الأدلة قبل الذكاء الاصطناعي</h3>
+            <p className="pipeline-helper">
+              هذه الحزمة تمثل ما سيرسل لاحقًا لمهمة ذكاء اصطناعي بعد تنفيذ Backend والموصلات.
+              لا يتم إرسال بيانات فعلية من هذه الواجهة.
+            </p>
+            <div className="pipeline-chip-grid">
+              {EVIDENCE_PACK_ITEMS.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="pipeline-support-card reusable-output-card">
+            <h3>مخرجات قابلة لإعادة الاستخدام</h3>
+            <div className="reusable-output-list">
+              {REUSABLE_OUTPUTS.map(([name, reuse]) => (
+                <div key={name}>
+                  <strong>{name}</strong>
+                  <span>{reuse}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       {activeTab === "builder" && (
@@ -3472,6 +3657,139 @@ const styles = `
   }
 
   .expected-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pipeline-reflection-card {
+  background: #fff;
+  border: 1px solid #e4e7df;
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  margin-bottom: 16px;
+}
+
+.prototype-pill {
+  background: #eef7e9;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.pipeline-step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pipeline-step-card,
+.pipeline-support-card {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 18px;
+  padding: 13px;
+}
+
+.pipeline-step-head {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pipeline-step-head span {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #176b2c;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 950;
+  flex: 0 0 auto;
+}
+
+.pipeline-step-head strong,
+.pipeline-support-card h3 {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.pipeline-support-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.readiness-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pipeline-helper {
+  color: #52604c;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 8px 0 0;
+}
+
+.pipeline-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pipeline-chip-grid span {
+  border: 1px solid #d9ead7;
+  background: #fff;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.reusable-output-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reusable-output-list div {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.reusable-output-list strong,
+.reusable-output-list span {
+  display: block;
+}
+
+.reusable-output-list span {
+  margin-top: 4px;
+  color: #52604c;
+  line-height: 1.6;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 1180px) {
+  .pipeline-step-grid,
+  .pipeline-support-grid,
+  .readiness-check-grid {
     grid-template-columns: 1fr;
   }
 }
