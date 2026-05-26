@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Nashir V1 API
   version: 0.1.0
-  description: Contract-first API for Nashir V1. Slice 1 covers Products and Assets only.
+  description: Contract-first API for Nashir V1. Slice 1 covers Products and Assets. Slice 2 adds Campaign Content + Review/Preview metadata only.
 servers:
   - url: https://api.example.invalid
     description: Placeholder server. Not a production endpoint.
@@ -13,6 +13,8 @@ tags:
     description: Product catalog metadata. Product names are display fields only; productId is canonical.
   - name: Assets
     description: Asset library metadata. Asset names and file names are display fields only; assetId is canonical.
+  - name: Campaign Content
+    description: Campaign content drafts, review state, and preview metadata. Slice 2 does not execute AI, publish, schedule, upload binaries, or run external integrations.
 paths:
   /health:
     get:
@@ -297,6 +299,348 @@ paths:
           $ref: "#/components/responses/ValidationFailed"
         default:
           $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents:
+    get:
+      operationId: listCampaignContents
+      tags:
+        - Campaign Content
+      summary: List campaign content.
+      description: Lists campaign content records for a workspace. campaignContentId is canonical identity. Product and asset names may appear only as display snapshots; productId and assetId remain canonical links. This slice does not execute AI, publish, schedule, upload binary assets, or call connectors.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/LimitQuery"
+        - $ref: "#/components/parameters/CursorQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/UpdatedAfterQuery"
+        - $ref: "#/components/parameters/SortQuery"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Campaign content list response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+    post:
+      operationId: createCampaignContent
+      tags:
+        - Campaign Content
+      summary: Create campaign content draft.
+      description: Creates campaign content metadata and editable body content linked to an existing productId and optional existing assetIds. It does not execute AI, publish, schedule, upload binary assets, or approve asset rights.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignContentCreateRequest"
+      responses:
+        "201":
+          description: Campaign content created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents/{campaignContentId}:
+    get:
+      operationId: getCampaignContent
+      tags:
+        - Campaign Content
+      summary: Get campaign content.
+      description: Reads one campaign content record by campaignContentId. Names in snapshots are display-only and must not be used as identity.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Campaign content response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+    put:
+      operationId: updateCampaignContent
+      tags:
+        - Campaign Content
+      summary: Update campaign content.
+      description: Updates campaign content metadata or editable body content. Clients must send If-Match or X-Resource-Version for optimistic concurrency. Updating approved content should be handled by implementation policy and must not imply publishing.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/IfMatchHeader"
+        - $ref: "#/components/parameters/ResourceVersionHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignContentUpdateRequest"
+      responses:
+        "200":
+          description: Campaign content updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/submit-review:
+    post:
+      operationId: submitCampaignContentReview
+      tags:
+        - Campaign Content
+      summary: Submit campaign content for review.
+      description: Moves draft or ready content toward review using campaignContentId identity. This is a review transition only and does not execute AI, publish, schedule, or upload assets. Clients should send Idempotency-Key and a current If-Match or X-Resource-Version value.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/IfMatchHeader"
+        - $ref: "#/components/parameters/ResourceVersionHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSubmitRequest"
+      responses:
+        "200":
+          description: Campaign content submitted for review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/approve:
+    post:
+      operationId: approveCampaignContent
+      tags:
+        - Campaign Content
+      summary: Approve campaign content review.
+      description: Moves in-review content to approved as a review decision only. This does not publish, schedule, execute AI, or approve asset rights automatically. Clients should send Idempotency-Key and a current If-Match or X-Resource-Version value.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/IfMatchHeader"
+        - $ref: "#/components/parameters/ResourceVersionHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDecisionRequest"
+      responses:
+        "200":
+          description: Campaign content approved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/reject:
+    post:
+      operationId: rejectCampaignContent
+      tags:
+        - Campaign Content
+      summary: Reject campaign content review.
+      description: Moves in-review content to rejected and captures review feedback. This is a review decision only and does not publish, schedule, execute AI, or upload assets. Clients should send Idempotency-Key and a current If-Match or X-Resource-Version value.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/IfMatchHeader"
+        - $ref: "#/components/parameters/ResourceVersionHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDecisionRequest"
+      responses:
+        "200":
+          description: Campaign content rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignContentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/preview-artifacts:
+    get:
+      operationId: listCampaignContentPreviewArtifacts
+      tags:
+        - Campaign Content
+      summary: List preview artifacts.
+      description: Lists preview metadata for campaign content. PreviewArtifact is a metadata contract, not a rendered binary upload contract.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/LimitQuery"
+        - $ref: "#/components/parameters/CursorQuery"
+        - $ref: "#/components/parameters/StatusQuery"
+        - $ref: "#/components/parameters/UpdatedAfterQuery"
+        - $ref: "#/components/parameters/SortQuery"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Preview artifact list response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewArtifactListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+    post:
+      operationId: createCampaignContentPreviewArtifact
+      tags:
+        - Campaign Content
+      summary: Create preview artifact metadata.
+      description: Creates preview artifact metadata for campaign content. This does not upload binary assets, render final files, execute AI, publish, or schedule.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/CampaignContentIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewArtifactCreateRequest"
+      responses:
+        "201":
+          description: Preview artifact metadata created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewArtifactResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
 components:
   parameters:
     WorkspaceIdPath:
@@ -320,6 +664,14 @@ components:
       in: path
       required: true
       description: Stable opaque asset identifier. Asset names and file names are not identity.
+      schema:
+        type: string
+        minLength: 1
+    CampaignContentIdPath:
+      name: campaignContentId
+      in: path
+      required: true
+      description: Stable opaque campaign content identifier. Campaign content titles are not identity.
       schema:
         type: string
         minLength: 1
@@ -413,6 +765,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorModel"
+    Unauthorized:
+      description: Authentication is required or was not accepted.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorModel"
     PermissionDenied:
       description: Permission denied.
       content:
@@ -439,6 +797,12 @@ components:
             $ref: "#/components/schemas/ErrorModel"
     RateLimited:
       description: Rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorModel"
+    InternalServerError:
+      description: Internal server error.
       content:
         application/json:
           schema:
@@ -912,6 +1276,377 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Asset"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CampaignContentStatus:
+      type: string
+      enum:
+        - draft
+        - ready_for_review
+        - in_review
+        - approved
+        - rejected
+    ReviewStatus:
+      type: string
+      enum:
+        - draft
+        - ready_for_review
+        - in_review
+        - approved
+        - rejected
+    DisplayProductSnapshot:
+      type: object
+      description: Optional product display snapshot. productId remains canonical identity.
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+          description: Display-only product name snapshot. It is not identity.
+        category:
+          type:
+            - string
+            - "null"
+        price:
+          type:
+            - number
+            - "null"
+          minimum: 0
+    DisplayAssetSnapshot:
+      type: object
+      description: Optional asset display snapshot. assetId remains canonical identity.
+      properties:
+        assetId:
+          type: string
+        assetName:
+          type: string
+          description: Display-only asset name snapshot. It is not identity.
+        type:
+          $ref: "#/components/schemas/AssetType"
+        rightsStatus:
+          $ref: "#/components/schemas/RightsStatus"
+    ReviewState:
+      type: object
+      description: Review state for campaign content. It does not publish, schedule, execute AI, or approve asset rights automatically.
+      required:
+        - reviewStatus
+      properties:
+        reviewStatus:
+          $ref: "#/components/schemas/ReviewStatus"
+        submittedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        reviewedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        reviewerDisplayName:
+          type:
+            - string
+            - "null"
+          description: Display-only reviewer label. It is not identity.
+        rejectionReason:
+          type:
+            - string
+            - "null"
+        requiredChanges:
+          type: array
+          items:
+            type: string
+    CampaignContent:
+      type: object
+      description: Campaign content metadata and editable content. campaignContentId is canonical identity. productId and selectedAssetIds link to existing Product and Asset records. Display snapshots never replace canonical IDs. Slice 2 does not execute AI, publish, schedule, upload binary assets, or call connectors.
+      required:
+        - campaignContentId
+        - workspaceId
+        - productId
+        - title
+        - channel
+        - contentType
+        - status
+        - selectedAssetIds
+        - body
+        - reviewStatus
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        campaignContentId:
+          type: string
+        workspaceId:
+          type: string
+        productId:
+          type: string
+          description: Canonical product identifier. productName is only allowed inside display snapshots.
+        productSnapshot:
+          $ref: "#/components/schemas/DisplayProductSnapshot"
+        title:
+          type: string
+        channel:
+          type: string
+        contentType:
+          type: string
+        status:
+          $ref: "#/components/schemas/CampaignContentStatus"
+        selectedAssetIds:
+          type: array
+          description: Canonical asset identifiers for existing Asset records in the same workspace.
+          items:
+            type: string
+        assetSnapshots:
+          type: array
+          description: Optional display snapshots for selected assets. assetId remains canonical identity.
+          items:
+            $ref: "#/components/schemas/DisplayAssetSnapshot"
+        body:
+          type: string
+        cta:
+          type:
+            - string
+            - "null"
+        audienceSummary:
+          type:
+            - string
+            - "null"
+        offerSummary:
+          type:
+            - string
+            - "null"
+        reviewStatus:
+          $ref: "#/components/schemas/ReviewStatus"
+        reviewState:
+          $ref: "#/components/schemas/ReviewState"
+        version:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CampaignContentCreateRequest:
+      type: object
+      required:
+        - productId
+        - title
+        - channel
+        - contentType
+        - body
+      properties:
+        productId:
+          type: string
+          minLength: 1
+          description: Canonical product identifier for existing Product record in the same workspace.
+        productSnapshot:
+          $ref: "#/components/schemas/DisplayProductSnapshot"
+        title:
+          type: string
+          minLength: 1
+        channel:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          minLength: 1
+        status:
+          $ref: "#/components/schemas/CampaignContentStatus"
+        selectedAssetIds:
+          type: array
+          description: Canonical asset identifiers for existing Asset records in the same workspace.
+          items:
+            type: string
+        assetSnapshots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DisplayAssetSnapshot"
+        body:
+          type: string
+        cta:
+          type: string
+        audienceSummary:
+          type: string
+        offerSummary:
+          type: string
+    CampaignContentUpdateRequest:
+      type: object
+      minProperties: 1
+      properties:
+        productId:
+          type: string
+          description: Canonical product identifier for existing Product record in the same workspace.
+        productSnapshot:
+          $ref: "#/components/schemas/DisplayProductSnapshot"
+        title:
+          type: string
+          minLength: 1
+        channel:
+          type: string
+        contentType:
+          type: string
+        status:
+          $ref: "#/components/schemas/CampaignContentStatus"
+        selectedAssetIds:
+          type: array
+          description: Canonical asset identifiers for existing Asset records in the same workspace.
+          items:
+            type: string
+        assetSnapshots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DisplayAssetSnapshot"
+        body:
+          type: string
+        cta:
+          type: string
+        audienceSummary:
+          type: string
+        offerSummary:
+          type: string
+    ReviewSubmitRequest:
+      type: object
+      description: Optional submission metadata. submit-review moves draft or ready content toward review and does not execute AI or publish.
+      properties:
+        note:
+          type: string
+        reviewerId:
+          type: string
+          description: Optional reviewer reference if known. Display name is not identity.
+        reviewerDisplayName:
+          type: string
+          description: Display-only reviewer label.
+    ReviewDecisionRequest:
+      type: object
+      description: Review decision metadata for approve or reject actions. These actions do not publish, schedule, execute AI, or approve asset rights automatically.
+      properties:
+        reviewerId:
+          type: string
+          description: Optional reviewer reference if known. Display name is not identity.
+        reviewerDisplayName:
+          type: string
+          description: Display-only reviewer label.
+        decisionNote:
+          type: string
+        rejectionReason:
+          type: string
+        requiredChanges:
+          type: array
+          items:
+            type: string
+    CampaignContentResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/CampaignContent"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CampaignContentListResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - warnings
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignContent"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    PreviewArtifact:
+      type: object
+      description: Preview metadata for campaign content. This is not a rendered binary upload contract and does not execute AI, publish, or schedule.
+      required:
+        - previewArtifactId
+        - workspaceId
+        - campaignContentId
+        - channel
+        - format
+        - displaySummary
+        - assetIds
+        - reviewStatus
+        - createdAt
+      properties:
+        previewArtifactId:
+          type: string
+        workspaceId:
+          type: string
+        campaignContentId:
+          type: string
+        channel:
+          type: string
+        format:
+          type: string
+        displaySummary:
+          type: string
+        assetIds:
+          type: array
+          description: Canonical asset identifiers for existing Asset records in the same workspace.
+          items:
+            type: string
+        reviewStatus:
+          $ref: "#/components/schemas/ReviewStatus"
+        createdAt:
+          type: string
+          format: date-time
+    PreviewArtifactCreateRequest:
+      type: object
+      required:
+        - channel
+        - format
+        - displaySummary
+      properties:
+        channel:
+          type: string
+        format:
+          type: string
+        displaySummary:
+          type: string
+        assetIds:
+          type: array
+          description: Canonical asset identifiers for existing Asset records in the same workspace.
+          items:
+            type: string
+        reviewStatus:
+          $ref: "#/components/schemas/ReviewStatus"
+    PreviewArtifactResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/PreviewArtifact"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    PreviewArtifactListResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - warnings
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PreviewArtifact"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
         warnings:
