@@ -493,6 +493,37 @@ const TRANSITION_CONDITIONS = [
   ["valid_output", "عند وجود مخرج صالح"],
 ];
 
+const TRIGGER_TYPES = [
+  ["manual", "تشغيل يدوي"],
+  ["campaign_created", "عند إنشاء حملة"],
+  ["content_approved", "عند اعتماد محتوى"],
+  ["new_data_arrived", "عند وصول بيانات جديدة"],
+  ["previous_workflow_completed", "عند اكتمال مسار سابق"],
+  ["publish_scheduled", "عند جدولة نشر"],
+  ["performance_threshold", "عند تجاوز مؤشر أداء"],
+  ["review_requested", "عند طلب مراجعة"],
+];
+
+const START_CONDITIONS = [
+  ["manual_always", "دائمًا عند التشغيل اليدوي"],
+  ["required_data_complete", "عند اكتمال البيانات المطلوبة"],
+  ["user_approved", "بعد اعتماد المستخدم"],
+  ["valid_previous_output", "عند وجود مخرج صالح من مسار سابق"],
+  ["data_source_event", "عند وصول حدث من مصدر بيانات"],
+  ["performance_limit", "عند تجاوز حد أداء"],
+];
+
+const EVENT_SOURCES = [
+  ["manual", "إدخال يدوي"],
+  ["store_setup", "إعداد المتجر"],
+  ["campaign_wizard", "معالج الحملة"],
+  ["content_studio", "استوديو المحتوى"],
+  ["review_preview", "المراجعة والمعاينة"],
+  ["data_sources", "مصادر البيانات"],
+  ["analytics", "التحليلات"],
+  ["previous_workflow", "مسار سابق"],
+];
+
 const TABS = [
   ["builder", "مصمم مسارات التشغيل"],
   ["map", "خريطة تدفق البيانات"],
@@ -871,6 +902,36 @@ function getStepCostRow(step, route, costRows = []) {
   );
 }
 
+function inferDomainForField(field) {
+  const source = STRUCTURED_INPUT_SOURCES.find((item) => item.fields.includes(field));
+  return source?.value || "manual";
+}
+
+function normalizeInputRefs(step) {
+  const directRefs = Array.isArray(step?.inputRefs) ? step.inputRefs : [];
+  const legacyFields = Array.isArray(step?.inputFrom)
+    ? step.inputFrom
+    : typeof step?.inputFrom === "string"
+      ? [step.inputFrom]
+      : [];
+  const combined = directRefs.length
+    ? directRefs
+    : legacyFields.map((field) => ({
+        domain: step?.inputDomain || inferDomainForField(field),
+        field,
+      }));
+
+  return combined
+    .filter((item) => item && item.field)
+    .map((item) => ({
+      domain: item.domain || inferDomainForField(item.field),
+      field: item.field,
+    }))
+    .filter((item, index, list) =>
+      list.findIndex((candidate) => candidate.domain === item.domain && candidate.field === item.field) === index
+    );
+}
+
 function getOptionLabel(options, value) {
   return options.find(([id]) => id === value)?.[1] || value || "—";
 }
@@ -883,10 +944,21 @@ function getInputSourceLabel(value) {
   return STRUCTURED_INPUT_SOURCES.find((source) => source.value === value)?.label || "إدخال يدوي";
 }
 
+function getInputRefLabel(ref) {
+  if (!ref) return "—";
+  return `${getInputSourceLabel(ref.domain)} · ${getInputFieldLabel(ref.field)}`;
+}
+
+function formatInputRefs(step) {
+  const refs = normalizeInputRefs(step);
+  return refs.length ? refs.map(getInputRefLabel).join("، ") : "لم يتم اختيار مدخلات لهذه الخطوة.";
+}
+
 function inferInputDomain(step) {
-  const fields = Array.isArray(step?.inputFrom) ? step.inputFrom : [];
+  const refs = normalizeInputRefs(step);
+  const fields = refs.map((ref) => ref.field);
   const match = STRUCTURED_INPUT_SOURCES.find((source) =>
-    fields.some((field) => source.fields.includes(field))
+    refs.some((ref) => ref.domain === source.value) || fields.some((field) => source.fields.includes(field))
   );
 
   return step?.inputDomain || match?.value || "manual";
@@ -922,6 +994,40 @@ function getConsumerLabel(value) {
 
 function getStepOutputName(step) {
   return step?.outputKey || "مخرج غير مسمى";
+}
+
+function getTriggerTypeForTemplate(template) {
+  const map = {
+    store_intelligence: "manual",
+    campaign_generation: "campaign_created",
+    content_generation: "review_requested",
+    video_generation: "review_requested",
+  };
+  return map[template?.id] || "manual";
+}
+
+function getDefaultTrigger(template) {
+  const type = getTriggerTypeForTemplate(template);
+  const triggerScreen = template?.triggerScreen || "manual";
+  return {
+    type,
+    startCondition: type === "manual" ? "manual_always" : "required_data_complete",
+    eventSource: triggerScreen,
+    startWhen: template?.triggerAction || "اختبار يدوي",
+  };
+}
+
+function getWorkflowTrigger(workflowDraft) {
+  return workflowDraft?.trigger || getDefaultTrigger({
+    id: workflowDraft?.workflowType,
+    triggerScreen: workflowDraft?.triggerScreen,
+    triggerAction: workflowDraft?.triggerAction,
+  });
+}
+
+function getTriggerSummary(trigger) {
+  const safeTrigger = trigger || getDefaultTrigger();
+  return `${getOptionLabel(TRIGGER_TYPES, safeTrigger.type)} · ${getOptionLabel(START_CONDITIONS, safeTrigger.startCondition)} · ${getOptionLabel(EVENT_SOURCES, safeTrigger.eventSource)}`;
 }
 
 function getStepPrompt(step, workflowDraft, promptRegistry = []) {
@@ -972,6 +1078,8 @@ function buildStepReadiness(step, context = {}) {
   }
 
   const route = getStepRoute(step, modelRoutes);
+  const inputRefs = normalizeInputRefs(step);
+  const trigger = getWorkflowTrigger(workflowDraft);
   const staticRoute = getModelRouteSummary(step.processor);
   const primaryModel = route
     ? modelRegistry.find((model) => model.id === route.primaryModelId || model.modelId === route.primaryModelId)
@@ -982,6 +1090,18 @@ function buildStepReadiness(step, context = {}) {
     .filter(Boolean);
   const costRow = getStepCostRow(step, route, costRows);
   const prompt = getStepPrompt(step, workflowDraft, promptRegistry);
+
+  if (inputRefs.length) {
+    checks.push(`المدخلات المحددة من ${new Set(inputRefs.map((ref) => ref.domain)).size} صفحة أو مجال.`);
+  } else {
+    warnings.push("لم يتم اختيار مدخلات لهذه الخطوة.");
+  }
+
+  if (trigger?.type && trigger?.startCondition && trigger?.eventSource) {
+    checks.push("مشغل المسار محدد.");
+  } else {
+    warnings.push("مشغل المسار يحتاج ضبطًا.");
+  }
 
   if (step.processorType !== "model_call") {
     checks.push("لا يحتاج مسار نموذج.");
@@ -1103,9 +1223,14 @@ function cloneTemplate(template) {
     description: source.description,
     triggerScreen: source.triggerScreen,
     triggerAction: source.triggerAction,
+    trigger: getDefaultTrigger(source),
     inputSources: [...source.inputSources],
     outputsTo: [...source.outputsTo],
-    steps: source.steps.map((step) => ({ ...step, inputFrom: [...step.inputFrom] })),
+    steps: source.steps.map((step) => ({
+      ...step,
+      inputFrom: [...step.inputFrom],
+      inputRefs: normalizeInputRefs(step),
+    })),
     policies: {
       requireHumanReview: true,
       blockAutoPublish: true,
@@ -1208,18 +1333,29 @@ export default function WorkflowRunsPage() {
     }));
   };
 
-  const updateStepInput = (index, source) => {
+  const updateWorkflowTrigger = (key, value) => {
     setWorkflowDraft((prev) => ({
       ...prev,
-      steps: prev.steps.map((step, idx) => {
-        if (idx !== index) return step;
-        return {
-          ...step,
-          inputFrom: step.inputFrom.includes(source)
-            ? step.inputFrom.filter((item) => item !== source)
-            : [...step.inputFrom, source],
-        };
-      }),
+      trigger: {
+        ...getWorkflowTrigger(prev),
+        [key]: value,
+      },
+    }));
+  };
+
+  const updateStepInputRefs = (index, inputRefs) => {
+    const safeRefs = Array.isArray(inputRefs) ? inputRefs : [];
+    setWorkflowDraft((prev) => ({
+      ...prev,
+      steps: prev.steps.map((step, idx) =>
+        idx === index
+          ? {
+              ...step,
+              inputRefs: safeRefs,
+              inputFrom: safeRefs.map((ref) => ref.field),
+            }
+          : step
+      ),
     }));
   };
 
@@ -1232,6 +1368,7 @@ export default function WorkflowRunsPage() {
           id: `step_${Date.now()}`,
           name: "خطوة جديدة",
           inputDomain: "manual",
+          inputRefs: [{ domain: "manual", field: "previous_outputs" }],
           inputFrom: ["previous_outputs"],
           processorType: "model_call",
           processor: "ad_copy_generation",
@@ -1269,11 +1406,12 @@ export default function WorkflowRunsPage() {
   };
 
   const runLocalTest = () => {
+    const workflowTrigger = getWorkflowTrigger(workflowDraft);
     const readinessByStep = workflowDraft.steps.map((step) =>
       buildStepReadiness(step, readinessContext)
     );
     const missingInputs = workflowDraft.steps.flatMap((step) =>
-      step.inputFrom.length ? [] : [`${step.name}: لا يوجد Input source`]
+      normalizeInputRefs(step).length ? [] : [`${step.name}: لم يتم اختيار مدخلات لهذه الخطوة.`]
     );
 
     const unsafeOutputs = workflowDraft.steps.flatMap((step) => {
@@ -1326,11 +1464,12 @@ export default function WorkflowRunsPage() {
       blockedReasons,
       estimatedCost: estimatedCost.toFixed(2),
       estimatedDuration,
+      triggerSummary: getTriggerSummary(workflowTrigger),
       simulatedSteps: workflowDraft.steps.map((step, index) => ({
         index: index + 1,
         name: step.name,
         processor: step.processor,
-        inputFrom: step.inputFrom,
+        inputFrom: normalizeInputRefs(step).map(getInputRefLabel),
         outputKey: step.outputKey,
         destination: step.destination,
         visibility: step.visibility,
@@ -1579,6 +1718,12 @@ export default function WorkflowRunsPage() {
               <Info label="وجهات المخرجات" value={workflowDraft.outputsTo.join("، ")} />
             </div>
 
+            <WorkflowTriggerPanel
+              trigger={getWorkflowTrigger(workflowDraft)}
+              onChange={updateWorkflowTrigger}
+              editable
+            />
+
             <div className="steps-table">
               <div className="table-head">
                 <span>#</span>
@@ -1599,7 +1744,7 @@ export default function WorkflowRunsPage() {
                 >
                   <span>{index + 1}</span>
                   <strong>{step.name}</strong>
-                  <small>{(step.inputFrom || []).map(getInputFieldLabel).join("، ") || "لا توجد حقول"}</small>
+                  <small>{formatInputRefs(step)}</small>
                   <span>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</span>
                   <span>{PROCESSORS.find(([id]) => id === step.processor)?.[1] || step.processor}</span>
                   <span>{getStepOutputName(step)}</span>
@@ -1616,7 +1761,7 @@ export default function WorkflowRunsPage() {
                 step={workflowDraft.steps[selectedStepIndex]}
                 index={selectedStepIndex}
                 onChange={updateStep}
-                onToggleInput={updateStepInput}
+                onChangeInputs={updateStepInputRefs}
                 onDelete={removeStep}
                 readinessContext={readinessContext}
               />
@@ -1648,6 +1793,17 @@ export default function WorkflowRunsPage() {
       </div>
 
       <div className="flow-map-enhanced">
+        <div className="flow-trigger-card">
+          <strong>ما الذي يبدأ المسار؟</strong>
+          <div className="trigger-info-grid">
+            <Info label="نوع المشغل" value={getOptionLabel(TRIGGER_TYPES, getWorkflowTrigger(workflowDraft).type)} />
+            <Info label="متى يبدأ المسار؟" value={getWorkflowTrigger(workflowDraft).startWhen} />
+            <Info label="شرط البدء" value={getOptionLabel(START_CONDITIONS, getWorkflowTrigger(workflowDraft).startCondition)} />
+            <Info label="مصدر الحدث" value={getOptionLabel(EVENT_SOURCES, getWorkflowTrigger(workflowDraft).eventSource)} />
+          </div>
+          <p>هذا المشغل يوضح متى يبدأ المسار، ولا ينفذ أي تشغيل فعلي داخل النموذج.</p>
+        </div>
+
         {workflowDraft.steps.map((step, index) => {
           const visibilityLabel =
             VISIBILITY.find(([id]) => id === step.visibility)?.[1] || step.visibility;
@@ -1665,11 +1821,12 @@ export default function WorkflowRunsPage() {
 
               <div className="flow-cell inputs">
                 <strong>من أين تأتي البيانات؟</strong>
-                <small>{getInputSourceLabel(inferInputDomain(step))}</small>
+                <small>المدخلات المختارة من عدة صفحات أو مجالات</small>
                 <div className="flow-tags">
-                  {(step.inputFrom || []).map((input) => (
-                    <span key={input}>{getInputFieldLabel(input)}</span>
+                  {normalizeInputRefs(step).map((input) => (
+                    <span key={`${input.domain}-${input.field}`}>{getInputRefLabel(input)}</span>
                   ))}
+                  {!normalizeInputRefs(step).length ? <span>لم يتم اختيار مدخلات لهذه الخطوة.</span> : null}
                 </div>
               </div>
 
@@ -2077,6 +2234,7 @@ export default function WorkflowRunsPage() {
                   التكلفة التقديرية: ${dryRunResult.estimatedCost} · الزمن التقديري:{" "}
                   {dryRunResult.estimatedDuration}s
                 </span>
+                <span>مشغل المسار: {dryRunResult.triggerSummary}</span>
 
                 {dryRunResult.blockedReasons.length ? (
                   <div className="blocked-list">
@@ -2119,7 +2277,7 @@ export default function WorkflowRunsPage() {
                     <strong>{step.name}</strong>
                     <span>{step.processor}</span>
                     <span>{step.modelRoute ? step.modelRoute.primaryModel : "—"}</span>
-                    <span>{(step.inputFrom || []).map(getInputFieldLabel).join(" + ")}</span>
+                    <span>{(step.inputFrom || []).join(" + ")}</span>
                     <span>{getStepOutputName(step)}</span>
                     <span>{getOptionLabel(DESTINATION_OPTIONS, step.destination)}</span>
                     <span className={step.result === "passed" ? "sim-ok" : "sim-blocked"}>
@@ -2227,7 +2385,8 @@ function ModelRoutingSummary({ step, readinessContext = {}, compact = false }) {
 
 function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   const readiness = buildStepReadiness(step, readinessContext);
-  const selectedInputs = Array.isArray(step.inputFrom) ? step.inputFrom : [];
+  const selectedInputs = normalizeInputRefs(step);
+  const trigger = getWorkflowTrigger(readinessContext.workflowDraft);
   const selectedOutputs = [
     getStepOutputName(step),
     getOptionLabel(OUTPUT_TYPE_OPTIONS, step.outputType),
@@ -2263,7 +2422,10 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
       </div>
 
       <div className="step-readiness-grid">
-        <Info label="المدخلات المحددة" value={`${selectedInputs.length} · ${selectedInputs.map(getInputFieldLabel).join("، ") || "لا توجد حقول مختارة"}`} />
+        <Info label="عدد المدخلات المختارة" value={`${selectedInputs.length}`} />
+        <Info label="المدخلات المحددة" value={selectedInputs.length ? selectedInputs.map(getInputRefLabel).join("، ") : "لم يتم اختيار مدخلات لهذه الخطوة."} />
+        <Info label="مشغل المسار" value={getTriggerSummary(trigger)} />
+        <Info label="شرط البدء" value={getOptionLabel(START_CONDITIONS, trigger.startCondition)} />
         <Info label="المخرجات المحددة" value={selectedOutputs.join(" · ")} />
         <Info label="المسار التالي إن وجد" value={step.feedsNextWorkflow ? getWorkflowLabel(step.nextWorkflowType) : "لا يوجد"} />
         <Info label="المطالبة المرتبطة إن وجدت" value={step.nextPromptName ? `${step.nextPromptName} · ${getPromptStatusLabel(promptForNext)}` : "لا توجد مطالبة مرتبطة"} />
@@ -2303,32 +2465,93 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   );
 }
 
-function StepEditor({ step, index, onChange, onDelete, readinessContext }) {
+function WorkflowTriggerPanel({ trigger, onChange, editable = false }) {
+  const safeTrigger = trigger || getDefaultTrigger();
+
+  return (
+    <section className="workflow-trigger-card">
+      <div className="io-designer-head">
+        <strong>مشغل المسار</strong>
+        <span>هذا المشغل يوضح متى يبدأ المسار</span>
+      </div>
+
+      <div className="trigger-info-grid">
+        {editable ? (
+          <>
+            <SelectField
+              label="نوع المشغل"
+              value={safeTrigger.type}
+              options={TRIGGER_TYPES}
+              onChange={(value) => onChange("type", value)}
+            />
+            <label className="field">
+              <span>متى يبدأ المسار؟</span>
+              <input
+                value={safeTrigger.startWhen || ""}
+                onChange={(event) => onChange("startWhen", event.target.value)}
+                placeholder="مثال: عند اكتمال البيانات المطلوبة"
+              />
+            </label>
+            <SelectField
+              label="شرط البدء"
+              value={safeTrigger.startCondition}
+              options={START_CONDITIONS}
+              onChange={(value) => onChange("startCondition", value)}
+            />
+            <SelectField
+              label="مصدر الحدث"
+              value={safeTrigger.eventSource}
+              options={EVENT_SOURCES}
+              onChange={(value) => onChange("eventSource", value)}
+            />
+          </>
+        ) : (
+          <>
+            <Info label="نوع المشغل" value={getOptionLabel(TRIGGER_TYPES, safeTrigger.type)} />
+            <Info label="متى يبدأ المسار؟" value={safeTrigger.startWhen} />
+            <Info label="شرط البدء" value={getOptionLabel(START_CONDITIONS, safeTrigger.startCondition)} />
+            <Info label="مصدر الحدث" value={getOptionLabel(EVENT_SOURCES, safeTrigger.eventSource)} />
+          </>
+        )}
+      </div>
+
+      <p className="inline-note">
+        هذا مصمم تدفق واجهي فقط. لا يتم تنفيذ المشغلات أو المسارات أو استدعاء النماذج فعليًا في هذا النموذج.
+      </p>
+    </section>
+  );
+}
+
+function StepEditor({ step, index, onChange, onChangeInputs, onDelete, readinessContext }) {
   const promptRegistry = readinessContext.promptRegistry || [];
-  const inputDomain = inferInputDomain(step);
-  const selectedFields = Array.isArray(step.inputFrom) ? step.inputFrom : [];
-  const availableFields = Array.from(new Set([...getFieldsForSource(inputDomain), ...selectedFields]));
+  const inputDomain = step.inputDomain || inferInputDomain(step);
+  const [fieldToAdd, setFieldToAdd] = useState("");
+  const selectedInputRefs = normalizeInputRefs(step);
+  const selectedFields = selectedInputRefs.map((ref) => ref.field);
+  const availableFields = getFieldsForSource(inputDomain);
   const nextInputs = Array.isArray(step.nextInputs) ? step.nextInputs : selectedFields;
   const selectedPrompt = step.nextPromptName
     ? promptRegistry.find((prompt) => prompt.name === step.nextPromptName)
     : null;
 
   const setInputDomain = (value) => {
-    const fields = getFieldsForSource(value);
     onChange(index, "inputDomain", value);
-    onChange(index, "inputFrom", selectedFields.filter((field) => fields.includes(field)));
+    setFieldToAdd("");
   };
 
-  const toggleInputField = (field) => {
-    const nextFields = selectedFields.includes(field)
-      ? selectedFields.filter((item) => item !== field)
-      : [...selectedFields, field];
-    onChange(index, "inputFrom", nextFields);
+  const addInputRef = () => {
+    if (!fieldToAdd) return;
+    const nextRef = { domain: inputDomain, field: fieldToAdd };
+    const exists = selectedInputRefs.some((ref) => ref.domain === nextRef.domain && ref.field === nextRef.field);
+    if (exists) return;
+    onChangeInputs(index, [...selectedInputRefs, nextRef]);
   };
 
-  const addRequiredField = (field) => {
-    if (!field || selectedFields.includes(field)) return;
-    onChange(index, "inputFrom", [...selectedFields, field]);
+  const removeInputRef = (refToRemove) => {
+    onChangeInputs(
+      index,
+      selectedInputRefs.filter((ref) => !(ref.domain === refToRemove.domain && ref.field === refToRemove.field))
+    );
   };
 
   const toggleNextInput = (field) => {
@@ -2360,27 +2583,33 @@ function StepEditor({ step, index, onChange, onDelete, readinessContext }) {
 
         <SelectField
           label="الحقل المطلوب"
-          value=""
+          value={fieldToAdd}
           options={[["", "اختر حقلًا لإضافته"], ...availableFields.map((field) => [field, getInputFieldLabel(field)])]}
-          onChange={addRequiredField}
+          onChange={setFieldToAdd}
         />
 
+        <button type="button" className="secondary-button compact-action" onClick={addInputRef}>
+          إضافة الحقل إلى المدخلات
+        </button>
+
         <div className="input-source-box structured-inputs">
-          <strong>الحقول المختارة · {selectedFields.length}</strong>
-          <div>
-            {availableFields.map((field) => (
+          <strong>المدخلات المختارة</strong>
+          <span className="input-count">عدد المدخلات المختارة: {selectedInputRefs.length}</span>
+          <div className="selected-input-grid">
+            {selectedInputRefs.map((ref) => (
               <button
-                key={field}
+                key={`${ref.domain}-${ref.field}`}
                 type="button"
-                className={selectedFields.includes(field) ? "selected" : ""}
-                onClick={() => toggleInputField(field)}
+                className="selected removable-chip"
+                onClick={() => removeInputRef(ref)}
               >
-                {getInputFieldLabel(field)}
+                {getInputRefLabel(ref)}
+                <small>إزالة</small>
               </button>
             ))}
           </div>
-          {!selectedFields.length ? (
-            <p className="inline-warning">تحذير: لا توجد حقول إدخال مختارة لهذه الخطوة.</p>
+          {!selectedInputRefs.length ? (
+            <p className="inline-warning">لم يتم اختيار مدخلات لهذه الخطوة.</p>
           ) : null}
         </div>
       </section>
@@ -2762,6 +2991,11 @@ const styles = `
 .secondary-button {
   border: 1px solid #e4e7df;
   background: white;
+}
+
+.compact-action {
+  min-height: 36px;
+  justify-content: center;
 }
 
 .danger-button {
@@ -3206,6 +3440,36 @@ const styles = `
   gap: 10px;
 }
 
+.workflow-trigger-card,
+.flow-trigger-card {
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.flow-trigger-card > strong {
+  color: #1f241d;
+  font-size: 14px;
+}
+
+.flow-trigger-card p {
+  margin: 0;
+  color: #1d4ed8;
+  font-size: 12px;
+  line-height: 1.7;
+  font-weight: 800;
+}
+
+.trigger-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .output-designer {
   background: #fff;
 }
@@ -3238,6 +3502,29 @@ const styles = `
 
 .structured-inputs {
   background: white;
+}
+
+.input-count {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.selected-input-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.removable-chip {
+  gap: 6px;
+}
+
+.removable-chip small {
+  color: #9a3412;
+  font-size: 10px;
 }
 
 .inline-warning {
