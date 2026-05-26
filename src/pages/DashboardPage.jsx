@@ -18,105 +18,28 @@ import {
   Store,
 } from "lucide-react";
 import {
+  deriveDashboardSummary,
   formatCompactNumber,
-  getDashboardSnapshot,
+  readCampaignMetrics,
+  readCampaigns,
   refreshDashboardSummary,
 } from "../utils/campaignAnalyticsStore.js";
 import {
   readLatestStoreStrategicPlan,
 } from "../utils/storeStrategicPlanStore.js";
+import { readProductCatalog } from "../utils/productCatalogStore.js";
+import { readAssetLibrary } from "../utils/assetLibraryStore.js";
+import { readCampaignContent } from "../utils/campaignContentStore.js";
 
 const periodLabels = ["اليوم", "آخر 7 أيام", "هذا الشهر"];
 
-const kpis = [
-  {
-    title: "الحملات النشطة",
-    value: "7",
-    subtitle: "3 تحتاج متابعة",
-    tone: "green",
-    icon: Megaphone,
-  },
-  {
-    title: "محتوى ينتظر اعتمادًا",
-    value: "6",
-    subtitle: "راجع قبل الجدولة",
-    tone: "amber",
-    icon: AlertTriangle,
-  },
-  {
-    title: "أصول غير مؤكدة",
-    value: "9",
-    subtitle: "حقوق استخدام ناقصة",
-    tone: "blue",
-    icon: FolderOpen,
-  },
-  {
-    title: "جاهزية التشغيل",
-    value: "82%",
-    subtitle: "المتجر جيد ويحتاج استكمالًا",
-    tone: "green",
-    icon: Store,
-  },
-];
+function strategicPlanNextAction(plan) {
+  return plan?.planJson?.nextAction || "راجع آخر خطة استراتيجية محفوظة قبل إنشاء حملة.";
+}
 
-const campaigns = [
-  {
-    name: "إطلاق مجموعة الصيف",
-    product: "عطر أرابيان أود",
-    status: "نشطة",
-    tone: "green",
-    readiness: 84,
-    channel: "Instagram",
-    updated: "منذ ساعتين",
-  },
-  {
-    name: "عودة إلى المدرسة",
-    product: "حذاء رياضي نايك",
-    status: "تحتاج مراجعة",
-    tone: "amber",
-    readiness: 68,
-    channel: "Snapchat",
-    updated: "منذ 5 ساعات",
-  },
-  {
-    name: "عرض نهاية الأسبوع",
-    product: "كريم مرطب نيفيا",
-    status: "مسودة",
-    tone: "slate",
-    readiness: 46,
-    channel: "WhatsApp",
-    updated: "منذ يوم",
-  },
-  {
-    name: "خصومات العيد",
-    product: "ساعة كاسيو",
-    status: "معتمدة",
-    tone: "blue",
-    readiness: 92,
-    channel: "Email",
-    updated: "منذ يومين",
-  },
-];
-
-const readiness = [
-  ["إعداد المتجر", "82%", "green"],
-  ["كتالوج المنتجات", "4 عناصر", "green"],
-  ["مصادر البيانات", "2 مفحوصة", "green"],
-  ["الأصول", "9 تحتاج مراجعة", "amber"],
-];
-
-const assets = [
-  ["صور معتمدة", "12", "green"],
-  ["حقوق غير مؤكدة", "9", "amber"],
-  ["فيديوهات ناقصة", "3", "amber"],
-  ["شعار المتجر", "موجود", "green"],
-];
-
-const activities = [
-  ["تم فحص رابط المتجر وجمع 3 منتجات", "إعداد المتجر", "منذ 12 دقيقة", "green"],
-  ["تم إنشاء حملة تجريبية من معالج الحملات", "معالج الحملات", "منذ 35 دقيقة", "blue"],
-  ["تم طلب مراجعة Reel Script", "المحتوى والمراجعة", "منذ ساعة", "amber"],
-];
+function getCampaignProductName(campaign = {}) {
+  return campaign.productSnapshot?.name || campaign.product || "منتج غير محدد";
+}
 
 export default function DashboardPage({
   onCreateCampaign = () => {},
@@ -131,15 +54,26 @@ export default function DashboardPage({
   onOpenMultiPlatform = () => {},
 }) {
   const [period, setPeriod] = useState("آخر 7 أيام");
-  const [dashboardSnapshot, setDashboardSnapshot] = useState(() => getDashboardSnapshot());
+  const [campaignList, setCampaignList] = useState(() => readCampaigns([]));
+  const [campaignMetrics, setCampaignMetrics] = useState(() => readCampaignMetrics([]));
+  const [products, setProducts] = useState(() => readProductCatalog([]));
+  const [assets, setAssets] = useState(() => readAssetLibrary([]));
+  const [contentItems, setContentItems] = useState(() => readCampaignContent([]));
   const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
     readLatestStoreStrategicPlan(null)
   );
 
   useEffect(() => {
     const reloadDashboard = () => {
-      refreshDashboardSummary();
-      setDashboardSnapshot(getDashboardSnapshot());
+      const nextCampaigns = readCampaigns([]);
+      const nextMetrics = readCampaignMetrics([]);
+
+      refreshDashboardSummary(nextCampaigns, nextMetrics);
+      setCampaignList(nextCampaigns);
+      setCampaignMetrics(nextMetrics);
+      setProducts(readProductCatalog([]));
+      setAssets(readAssetLibrary([]));
+      setContentItems(readCampaignContent([]));
       setLatestStrategicPlan(readLatestStoreStrategicPlan(null));
     };
 
@@ -149,6 +83,9 @@ export default function DashboardPage({
     window.addEventListener("nashir-campaign-metrics-updated", reloadDashboard);
     window.addEventListener("nashir-dashboard-summary-updated", reloadDashboard);
     window.addEventListener("nashir-store-strategic-plan-updated", reloadDashboard);
+    window.addEventListener("nashir-product-catalog-updated", reloadDashboard);
+    window.addEventListener("nashir-asset-library-updated", reloadDashboard);
+    window.addEventListener("nashir-campaign-content-updated", reloadDashboard);
 
     return () => {
       window.removeEventListener("focus", reloadDashboard);
@@ -157,6 +94,9 @@ export default function DashboardPage({
       window.removeEventListener("nashir-campaign-metrics-updated", reloadDashboard);
       window.removeEventListener("nashir-dashboard-summary-updated", reloadDashboard);
       window.removeEventListener("nashir-store-strategic-plan-updated", reloadDashboard);
+      window.removeEventListener("nashir-product-catalog-updated", reloadDashboard);
+      window.removeEventListener("nashir-asset-library-updated", reloadDashboard);
+      window.removeEventListener("nashir-campaign-content-updated", reloadDashboard);
     };
   }, []);
 
@@ -183,63 +123,113 @@ export default function DashboardPage({
     ]
   );
 
+  const summary = useMemo(
+    () => deriveDashboardSummary(campaignList, campaignMetrics),
+    [campaignList, campaignMetrics]
+  );
+  const recentCampaigns = campaignList.slice(0, 4);
+  const needsReviewContent = contentItems.filter((item) =>
+    ["needs_review", "review", "ready"].includes(item.status) || item.approval === "needs_review"
+  ).length;
+  const unconfirmedAssets = assets.filter((asset) => asset.rightsStatus !== "allowed").length;
+  const readyAssets = assets.filter((asset) => asset.status === "ready").length;
+  const videoAssets = assets.filter((asset) => asset.type === "video").length;
+  const imageAssets = assets.filter((asset) => asset.type === "image").length;
+  const avgProductReadiness = products.length
+    ? Math.round(products.reduce((sum, product) => sum + Number(product.readiness || 0), 0) / products.length)
+    : 0;
+  const planReadiness = latestStrategicPlan ? Number(latestStrategicPlan.confidence || 0) : 0;
+  const operationalReadiness = Math.round(
+    [summary.avgReadiness, avgProductReadiness, planReadiness].filter((value) => Number.isFinite(value) && value > 0)
+      .reduce((sum, value, _index, list) => sum + value / list.length, 0)
+  );
+  const assetMetrics = [
+    ["صور محفوظة", products.length || assets.length ? String(imageAssets) : "لا توجد أصول محفوظة بعد", imageAssets ? "green" : "amber"],
+    ["حقوق غير مؤكدة", assets.length ? String(unconfirmedAssets) : "لا توجد أصول محفوظة بعد", unconfirmedAssets ? "amber" : "green"],
+    ["فيديوهات محفوظة", assets.length ? String(videoAssets) : "لا توجد أصول محفوظة بعد", videoAssets ? "green" : "amber"],
+    ["أصول قابلة للمراجعة", assets.length ? String(readyAssets) : "لا توجد أصول محفوظة بعد", readyAssets ? "green" : "amber"],
+  ];
+  const channelSet = new Set(campaignList.flatMap((campaign) => campaign.channels || (campaign.channel ? [campaign.channel] : [])));
+  const readyContent = contentItems.filter((item) => item.status === "ready" || item.approval === "approved").length;
+  const priorityGaps = [
+    !latestStrategicPlan ? "لا توجد خطة استراتيجية محفوظة بعد." : "",
+    !campaignList.length ? "لا توجد حملات محفوظة بعد." : "",
+    !products.length ? "لا توجد منتجات محفوظة بعد." : "",
+    !assets.length ? "لا توجد أصول محفوظة بعد." : "",
+  ].filter(Boolean);
   const priorities = [
     {
-      title: "استكمل أساس التشغيل",
-      body: "راجع إعداد المتجر والمنتجات ومصادر البيانات قبل إنشاء حملات جديدة.",
-      action: "فتح مصادر البيانات",
+      title: latestStrategicPlan ? "راجع الخطة والحملة التالية" : "استكمل خطة المتجر",
+      body: latestStrategicPlan
+        ? strategicPlanNextAction(latestStrategicPlan)
+        : "لا توجد خطة استراتيجية محفوظة بعد. ابدأ من إعداد المتجر لحفظ خطة واجهية.",
+      action: "فتح إعداد المتجر",
       icon: Database,
-      tone: "green",
-      onClick: onOpenDataSources,
+      tone: latestStrategicPlan ? "green" : "amber",
+      onClick: onOpenStoreSetup,
     },
     {
-      title: "راجع الأصول غير المؤكدة",
-      body: "يوجد 9 أصول تحتاج تأكيد حقوق الاستخدام قبل استخدامها في الإعلانات.",
+      title: assets.length ? "راجع الأصول غير المؤكدة" : "استكمل مكتبة الأصول",
+      body: assets.length
+        ? `${unconfirmedAssets} أصل يحتاج مراجعة حقوق قبل استخدامه في الحملات.`
+        : "لا توجد أصول محفوظة بعد.",
       action: "فتح مكتبة الأصول",
       icon: FolderOpen,
-      tone: "amber",
+      tone: unconfirmedAssets || !assets.length ? "amber" : "green",
       onClick: onOpenAssets,
     },
     {
-      title: "جهّز النشر متعدد القنوات",
-      body: "بعد اعتماد المحتوى، انتقل إلى الجدولة وفحص جاهزية القنوات.",
-      action: "فتح متعدد القنوات",
+      title: contentItems.length ? "جهّز المخرجات للمراجعة" : "أنشئ مخرجات حملة",
+      body: contentItems.length
+        ? `${needsReviewContent} مخرج يحتاج مراجعة أو اعتمادًا واجهيًا.`
+        : "لا توجد مخرجات حملة محفوظة بعد.",
+      action: contentItems.length ? "فتح المراجعة" : "إنشاء حملة",
       icon: Layers,
-      tone: "blue",
-      onClick: onOpenMultiPlatform,
+      tone: needsReviewContent ? "blue" : "amber",
+      onClick: contentItems.length ? onOpenReview : onCreateCampaign,
     },
   ];
+  const activities = useMemo(() => {
+    const rows = [];
 
-  const summary = dashboardSnapshot.summary;
-  const recentCampaigns = dashboardSnapshot.recentCampaigns.length
-    ? dashboardSnapshot.recentCampaigns
-    : campaigns;
+    if (latestStrategicPlan) {
+      rows.push(["آخر خطة استراتيجية محفوظة", "إعداد المتجر", latestStrategicPlan.updatedAt ? new Date(latestStrategicPlan.updatedAt).toLocaleDateString("ar-SA") : "محفوظة محليًا", "green"]);
+    }
+    if (campaignList[0]) {
+      rows.push([campaignList[0].name, "الحملات", campaignList[0].updatedAt || "محفوظة محليًا", "blue"]);
+    }
+    if (contentItems[0]) {
+      rows.push([contentItems[0].title, "استوديو المحتوى", contentItems[0].updatedAt ? new Date(contentItems[0].updatedAt).toLocaleDateString("ar-SA") : "محفوظ محليًا", "amber"]);
+    }
+
+    return rows.length ? rows : [["لا توجد بيانات محفوظة بعد", "بيانات النموذج الأولي", "ابدأ من إعداد المتجر", "amber"]];
+  }, [campaignList, contentItems, latestStrategicPlan]);
   const dashboardKpis = [
     {
       title: "الحملات النشطة",
-      value: String(summary.activeCampaigns),
-      subtitle: `${summary.reviewCampaigns} تحتاج متابعة`,
+      value: String(campaignList.length),
+      subtitle: campaignList.length ? `${summary.reviewCampaigns} تحتاج متابعة` : "لا توجد حملات محفوظة بعد.",
       tone: "green",
       icon: Megaphone,
     },
     {
       title: "محتوى ينتظر اعتمادًا",
-      value: String(summary.reviewCampaigns),
-      subtitle: "راجع قبل الجدولة",
+      value: String(needsReviewContent),
+      subtitle: contentItems.length ? "راجع قبل الجدولة" : "لا توجد مخرجات محفوظة بعد",
       tone: "amber",
       icon: AlertTriangle,
     },
     {
       title: "أصول غير مؤكدة",
-      value: "9",
-      subtitle: "حقوق استخدام ناقصة",
+      value: String(unconfirmedAssets),
+      subtitle: assets.length ? "حقوق استخدام تحتاج مراجعة" : "لا توجد أصول محفوظة بعد",
       tone: "blue",
       icon: FolderOpen,
     },
     {
       title: "جاهزية التشغيل",
-      value: `${summary.avgReadiness}%`,
-      subtitle: "المتجر جيد ويحتاج استكمالًا",
+      value: `${operationalReadiness || 0}%`,
+      subtitle: latestStrategicPlan ? "من بيانات النموذج الأولي" : "لا توجد خطة استراتيجية محفوظة بعد.",
       tone: "green",
       icon: Store,
     },
@@ -271,18 +261,18 @@ export default function DashboardPage({
 
     return {
       growthReadiness: summary.avgReadiness >= 80 ? "مرتفعة" : summary.avgReadiness >= 65 ? "متوسطة" : "تحتاج استكمال",
-      opportunity: recentCampaigns[0]?.product
-        ? `تحويل ${recentCampaigns[0].product} إلى حملة اختبارية مركزة.`
+      opportunity: products[0]?.name
+        ? `تحويل ${products[0].name} إلى حملة اختبارية مركزة.`
         : "لا توجد خطة استراتيجية محفوظة بعد.",
       risk: Number(summary.reviewCampaigns || 0) > 0
         ? "وجود محتوى أو حملات تحتاج مراجعة قبل التوسع."
-        : "الأصول والقنوات تحتاج متابعة قبل زيادة النشر.",
+        : priorityGaps[0] || "الأصول والقنوات تحتاج متابعة قبل زيادة النشر.",
       nextAction: Number(summary.reviewCampaigns || 0) > 0
         ? "راجع المحتوى المنتظر قبل الجدولة."
         : "ابدأ من إعداد المتجر لحفظ خطة استراتيجية.",
       status: "لا توجد خطة استراتيجية محفوظة بعد.",
     };
-  }, [latestStrategicPlan, recentCampaigns, summary.avgReadiness, summary.reviewCampaigns]);
+  }, [latestStrategicPlan, priorityGaps, products, summary.avgReadiness, summary.reviewCampaigns]);
 
   return (
     <main className="dashboard-grid-page" dir="rtl">
@@ -324,6 +314,11 @@ export default function DashboardPage({
         <div><span>المخرجات</span><strong>أهم فرصة، أهم خطر، والإجراء التالي.</strong></div>
         <div><span>الإجراء التالي</span><strong>الانتقال للشاشة التي تحتاج استكمالًا.</strong></div>
         <div><span>ما لا يحدث هنا</span><strong>الأرقام والمؤشرات هنا نموذجية وليست تشغيلًا إنتاجيًا.</strong></div>
+      </section>
+
+      <section className="prototype-data-note">
+        <Database size={17} />
+        <span>تعكس هذه اللوحة بيانات النموذج الأولي المحفوظة محليًا، وليست أرقامًا تشغيلية أو تحليلات إنتاجية.</span>
       </section>
 
       <section className="kpi-grid">
@@ -405,7 +400,7 @@ export default function DashboardPage({
                   </div>
                   <div>
                     <strong>{campaign.name}</strong>
-                    <span>{campaign.product}</span>
+                    <span>{getCampaignProductName(campaign)}</span>
                   </div>
                 </div>
 
@@ -437,7 +432,7 @@ export default function DashboardPage({
           />
 
           <div className="box-grid">
-            {assets.map(([label, value, tone]) => (
+            {assetMetrics.map(([label, value, tone]) => (
               <div key={label} className={`metric-box ${tone}`}>
                 <span>{label}</span>
                 <strong>{value}</strong>
@@ -458,10 +453,10 @@ export default function DashboardPage({
           />
 
           <div className="box-grid">
-            <Mini title="قنوات مختارة" value="4" />
-            <Mini title="جاهزية القنوات" value="75%" />
-            <Mini title="مخرجات جاهزة" value="3/5" />
-            <Mini title="تحتاج موافقة" value="2" />
+            <Mini title="قنوات مستخدمة" value={channelSet.size ? String(channelSet.size) : "لا توجد حملات محفوظة بعد."} />
+            <Mini title="جاهزية القنوات" value={campaignList.length ? `${Math.min(100, Math.max(35, summary.avgReadiness))}%` : "لا توجد حملات محفوظة بعد."} />
+            <Mini title="مخرجات جاهزة" value={contentItems.length ? `${readyContent}/${contentItems.length}` : "لا توجد مخرجات محفوظة بعد"} />
+            <Mini title="تحتاج موافقة" value={String(needsReviewContent)} />
           </div>
 
           <div className="split-buttons">
@@ -522,10 +517,10 @@ export default function DashboardPage({
 
           <div className="compact-list">
             {[
-              ["إعداد المتجر", `${summary.avgReadiness}%`, summary.avgReadiness >= 70 ? "green" : "amber"],
-              ["كتالوج المنتجات", "4 عناصر", "green"],
-              ["مصادر البيانات", "2 مفحوصة", "green"],
-              ["الأصول", "9 تحتاج مراجعة", "amber"],
+              ["الخطة الاستراتيجية", latestStrategicPlan ? (latestStrategicPlan.status === "ready_for_review" ? "جاهزة للمراجعة" : "مسودة") : "لا توجد خطة استراتيجية محفوظة بعد", latestStrategicPlan ? "green" : "amber"],
+              ["كتالوج المنتجات", products.length ? `${products.length} عناصر` : "لا توجد منتجات محفوظة بعد", products.length ? "green" : "amber"],
+              ["الحملات", campaignList.length ? `${campaignList.length} حملات` : "لا توجد حملات محفوظة بعد.", campaignList.length ? "green" : "amber"],
+              ["الأصول", assets.length ? `${unconfirmedAssets} تحتاج مراجعة` : "لا توجد أصول محفوظة بعد", assets.length && !unconfirmedAssets ? "green" : "amber"],
             ].map(([label, value, tone]) => (
               <InfoRow key={label} label={label} value={value} tone={tone} />
             ))}
