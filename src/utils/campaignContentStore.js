@@ -30,6 +30,11 @@ function normalizeContentItem(item = {}) {
       : metadata.productSnapshot && typeof metadata.productSnapshot === "object"
         ? metadata.productSnapshot
         : null;
+  const selectedAssets = Array.isArray(item.selectedAssets)
+    ? item.selectedAssets
+    : Array.isArray(metadata.selectedAssets)
+      ? metadata.selectedAssets
+      : [];
 
   return {
     id,
@@ -38,6 +43,7 @@ function normalizeContentItem(item = {}) {
     campaignSnapshot,
     productId: item.productId || metadata.productId || "",
     productSnapshot,
+    selectedAssets,
     title: item.title || "محتوى بدون عنوان",
     type: item.type || item.contentType || "محتوى",
     channel: item.channel || "عام",
@@ -60,6 +66,7 @@ function normalizeContentItem(item = {}) {
       productId: item.productId || metadata.productId || "",
       campaignSnapshot,
       productSnapshot,
+      selectedAssets,
     },
   };
 }
