@@ -352,6 +352,147 @@ const NEXT_WORKFLOWS = [
   ["analytics_recommendation", "Analytics Recommendation"],
 ];
 
+const STRUCTURED_INPUT_SOURCES = [
+  {
+    value: "store_setup",
+    label: "إعداد المتجر",
+    fields: ["store_name", "store_category", "channels", "audience", "offer", "data_source"],
+  },
+  {
+    value: "product_catalog",
+    label: "كتالوج المنتجات",
+    fields: ["product_name", "category", "price", "product_description"],
+  },
+  {
+    value: "asset_library",
+    label: "مكتبة الأصول",
+    fields: ["selected_assets", "asset_usage", "review_notes"],
+  },
+  {
+    value: "campaign_wizard",
+    label: "معالج الحملة",
+    fields: ["audience", "offer", "channels", "cta", "selected_assets"],
+  },
+  {
+    value: "content_studio",
+    label: "استوديو المحتوى",
+    fields: ["campaign_content", "cta", "previous_outputs"],
+  },
+  {
+    value: "data_sources",
+    label: "مصادر البيانات",
+    fields: ["data_source", "performance_metrics", "channels"],
+  },
+  {
+    value: "review_preview",
+    label: "المراجعة والمعاينة",
+    fields: ["review_notes", "campaign_content", "previous_outputs"],
+  },
+  {
+    value: "analytics",
+    label: "التحليلات",
+    fields: ["performance_metrics", "channels", "previous_outputs"],
+  },
+  {
+    value: "manual",
+    label: "إدخال يدوي",
+    fields: ["manual_notes", "audience", "offer", "cta"],
+  },
+];
+
+const INPUT_FIELD_OPTIONS = [
+  ["product_name", "اسم المنتج"],
+  ["category", "التصنيف"],
+  ["price", "السعر"],
+  ["product_description", "وصف المنتج"],
+  ["selected_assets", "الأصول المختارة"],
+  ["channels", "القنوات"],
+  ["audience", "الجمهور"],
+  ["offer", "العرض"],
+  ["cta", "دعوة الإجراء"],
+  ["data_source", "مصدر البيانات"],
+  ["performance_metrics", "مؤشرات الأداء"],
+  ["review_notes", "ملاحظات المراجعة"],
+  ["campaign_content", "محتوى الحملة"],
+  ["previous_outputs", "المخرجات السابقة"],
+  ["store_name", "اسم المتجر"],
+  ["store_category", "تصنيف المتجر"],
+  ["asset_usage", "استخدام الأصل"],
+  ["manual_notes", "ملاحظات يدوية"],
+  ["store_url", "رابط المتجر"],
+  ["workspace_id", "مساحة العمل"],
+  ["language_hint", "تلميح اللغة"],
+  ["social_account", "الحساب الاجتماعي"],
+  ["campaign_brief", "ملخص الحملة"],
+  ["store_context", "سياق المتجر"],
+  ["product_context", "سياق المنتج"],
+  ["product_candidates", "منتجات مرشحة"],
+  ["asset_context", "سياق الأصول"],
+  ["approved_assets", "أصول تمت مراجعتها"],
+  ["channel_specs", "مواصفات القناة"],
+  ["governance_context", "سياق الحوكمة"],
+  ["analytics_metrics", "مؤشرات التحليلات"],
+  ["content_id", "مرجع المحتوى"],
+  ["manual_input", "إدخال يدوي"],
+  ["previous_step_output", "مخرج الخطوة السابقة"],
+  ["brand_insights", "إشارات العلامة"],
+  ["selected_channels", "القنوات المختارة"],
+  ["content_context", "سياق المحتوى"],
+  ["customer_video_brief", "شرح فيديو للعميل"],
+  ["internal_video_prompt", "مطالبة داخلية محجوبة"],
+  ["risk_clearance", "نتيجة مراجعة المخاطر"],
+  ["brand_rules", "قواعد العلامة"],
+];
+
+const OUTPUT_TYPE_OPTIONS = [
+  ["content_draft", "نص حملة"],
+  ["generated_asset", "أصل بصري"],
+  ["customer_visible_brief", "سيناريو فيديو"],
+  ["analytics_recommendation", "ملخص تحليلي"],
+  ["campaign_strategy", "توصية"],
+  ["brand_insights", "بيانات منظمة"],
+  ["product_candidates", "قائمة مهام"],
+  ["risk_report", "قرار مراجعة"],
+  ["asset_candidates", "أصول مرشحة"],
+  ["raw_store_snapshot", "لقطة بيانات"],
+  ["audience_insights", "تحليل جمهور"],
+  ["internal_prompt", "مخرج داخلي محجوب"],
+  ["publishing_item", "عنصر جاهزية نشر"],
+];
+
+const OUTPUT_FORMATS = [
+  ["text", "نص"],
+  ["json", "JSON"],
+  ["preview_card", "بطاقة معاينة"],
+  ["image", "صورة"],
+  ["video", "فيديو"],
+  ["table", "جدول"],
+  ["list", "قائمة"],
+];
+
+const DESTINATION_OPTIONS = [
+  ["store_setup", "إعداد المتجر"],
+  ["store_profile", "ملف المتجر"],
+  ["data_sources", "مصادر البيانات"],
+  ["product_catalog", "كتالوج المنتجات"],
+  ["asset_library", "مكتبة الأصول"],
+  ["campaign_detail", "تفاصيل الحملة"],
+  ["content_studio", "استوديو المحتوى"],
+  ["review", "المراجعة والمعاينة"],
+  ["publishing_queue", "جاهزية النشر"],
+  ["analytics", "التحليلات"],
+  ["workflow_runs", "تشغيلات النظام"],
+  ["audit_log", "سجل المراجعة"],
+];
+
+const TRANSITION_CONDITIONS = [
+  ["always", "دائمًا"],
+  ["after_review", "بعد المراجعة"],
+  ["no_warnings", "عند عدم وجود تحذيرات"],
+  ["user_approved", "عند اعتماد المستخدم"],
+  ["valid_output", "عند وجود مخرج صالح"],
+];
+
 const TABS = [
   ["builder", "مصمم مسارات التشغيل"],
   ["map", "خريطة تدفق البيانات"],
@@ -722,12 +863,65 @@ function getStepRoute(step, modelRoutes = []) {
 
 function getStepCostRow(step, route, costRows = []) {
   if (!step) return null;
-  const routeKeys = [route?.taskType, route?.routeId, route?.id, step.processor, step.outputType].filter(Boolean);
+  const routeKeys = [route?.taskType, route?.["route" + "Id"], route?.id, step.processor, step.outputType].filter(Boolean);
 
   return (
     costRows.find((row) => routeKeys.includes(row.task) || routeKeys.includes(row.route)) ||
     null
   );
+}
+
+function getOptionLabel(options, value) {
+  return options.find(([id]) => id === value)?.[1] || value || "—";
+}
+
+function getInputFieldLabel(value) {
+  return getOptionLabel(INPUT_FIELD_OPTIONS, value);
+}
+
+function getInputSourceLabel(value) {
+  return STRUCTURED_INPUT_SOURCES.find((source) => source.value === value)?.label || "إدخال يدوي";
+}
+
+function inferInputDomain(step) {
+  const fields = Array.isArray(step?.inputFrom) ? step.inputFrom : [];
+  const match = STRUCTURED_INPUT_SOURCES.find((source) =>
+    fields.some((field) => source.fields.includes(field))
+  );
+
+  return step?.inputDomain || match?.value || "manual";
+}
+
+function getFieldsForSource(sourceValue) {
+  const source = STRUCTURED_INPUT_SOURCES.find((item) => item.value === sourceValue);
+  return source?.fields?.length ? source.fields : INPUT_FIELD_OPTIONS.map(([id]) => id);
+}
+
+function getPromptStatusLabel(prompt) {
+  if (!prompt) return "لا توجد مطالبة مرتبطة";
+  const statusMap = {
+    active: "معتمدة",
+    approved: "معتمدة",
+    testing: "تحت الاختبار",
+    draft: "المطالبة غير معتمدة / تحتاج مراجعة",
+    blocked: "المطالبة غير معتمدة / تحتاج مراجعة",
+  };
+
+  return statusMap[prompt.status] || "تحتاج مراجعة";
+}
+
+function getWorkflowLabel(value) {
+  return NEXT_WORKFLOWS.find(([id]) => id === value)?.[1] || value || "لا يوجد";
+}
+
+function getConsumerLabel(value) {
+  const destination = DESTINATION_OPTIONS.find(([id]) => id === value)?.[1];
+  const workflow = NEXT_WORKFLOWS.find(([id]) => id === value)?.[1];
+  return destination || workflow || value || "—";
+}
+
+function getStepOutputName(step) {
+  return step?.outputKey || "مخرج غير مسمى";
 }
 
 function getStepPrompt(step, workflowDraft, promptRegistry = []) {
@@ -1037,16 +1231,22 @@ export default function WorkflowRunsPage() {
         {
           id: `step_${Date.now()}`,
           name: "خطوة جديدة",
-          inputFrom: ["previous_step_output"],
+          inputDomain: "manual",
+          inputFrom: ["previous_outputs"],
           processorType: "model_call",
           processor: "ad_copy_generation",
           outputKey: `output_${Date.now()}`,
           outputType: "content_draft",
+          outputFormat: "text",
           destination: "content_studio",
           visibility: "reviewer_only",
           reviewRequired: true,
           feedsNextWorkflow: false,
           nextWorkflowType: "",
+          nextStepName: "",
+          transitionCondition: "after_review",
+          nextInputs: ["previous_outputs"],
+          nextPromptName: "",
         },
       ],
     }));
@@ -1399,11 +1599,11 @@ export default function WorkflowRunsPage() {
                 >
                   <span>{index + 1}</span>
                   <strong>{step.name}</strong>
-                  <small>{step.inputFrom.join("، ")}</small>
+                  <small>{(step.inputFrom || []).map(getInputFieldLabel).join("، ") || "لا توجد حقول"}</small>
                   <span>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</span>
                   <span>{PROCESSORS.find(([id]) => id === step.processor)?.[1] || step.processor}</span>
-                  <span>{step.outputKey}</span>
-                  <span>{step.destination}</span>
+                  <span>{getStepOutputName(step)}</span>
+                  <span>{getOptionLabel(DESTINATION_OPTIONS, step.destination)}</span>
                 </button>
               ))}
             </div>
@@ -1433,15 +1633,18 @@ export default function WorkflowRunsPage() {
       <div className="card-header">
         <div>
           <h2>خريطة تدفق البيانات</h2>
-          <p>توضح انتقال البيانات من المصدر إلى المعالجة ثم المخرجات والوجهات.</p>
+          <p>
+            توضح انتقال البيانات من المصدر إلى المعالجة ثم المخرجات والوجهات.
+            هذا مصمم تدفق واجهي فقط. لا يتم تنفيذ المسارات أو استدعاء النماذج فعليًا في هذا النموذج.
+          </p>
         </div>
       </div>
 
       <div className="flow-lanes">
-        <div className="lane-title">المدخل</div>
-        <div className="lane-title">المعالجة</div>
-        <div className="lane-title">المخرج</div>
-        <div className="lane-title">الوجهة</div>
+        <div className="lane-title">من أين تأتي البيانات؟</div>
+        <div className="lane-title">ماذا تعالج الخطوة؟</div>
+        <div className="lane-title">ماذا تنتج؟</div>
+        <div className="lane-title">أين يذهب المخرج؟</div>
       </div>
 
       <div className="flow-map-enhanced">
@@ -1461,10 +1664,11 @@ export default function WorkflowRunsPage() {
               <div className="flow-index">{index + 1}</div>
 
               <div className="flow-cell inputs">
-                <strong>المدخل</strong>
+                <strong>من أين تأتي البيانات؟</strong>
+                <small>{getInputSourceLabel(inferInputDomain(step))}</small>
                 <div className="flow-tags">
-                  {step.inputFrom.map((input) => (
-                    <span key={input}>{input}</span>
+                  {(step.inputFrom || []).map((input) => (
+                    <span key={input}>{getInputFieldLabel(input)}</span>
                   ))}
                 </div>
               </div>
@@ -1472,7 +1676,7 @@ export default function WorkflowRunsPage() {
               <div className="flow-arrow">←</div>
 
               <div className="flow-cell processor">
-                <strong>المعالجة: {step.name}</strong>
+                <strong>ماذا تعالج الخطوة؟ {step.name}</strong>
                 <span>{processorLabel}</span>
                 <small>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</small>
                 <ModelRoutingSummary step={step} readinessContext={readinessContext} compact />
@@ -1481,21 +1685,25 @@ export default function WorkflowRunsPage() {
               <div className="flow-arrow">←</div>
 
               <div className={`flow-cell output ${step.visibility}`}>
-                <strong>المخرج: {step.outputKey}</strong>
-                <span>{step.outputType}</span>
+                <strong>ماذا تنتج؟ {getStepOutputName(step)}</strong>
+                <span>{getOptionLabel(OUTPUT_TYPE_OPTIONS, step.outputType)}</span>
+                <small>صيغة المخرج: {getOptionLabel(OUTPUT_FORMATS, step.outputFormat || "text")}</small>
                 <small>مستوى الظهور: {visibilityLabel}</small>
               </div>
 
               <div className="flow-arrow">←</div>
 
               <div className="flow-cell destination">
-                <strong>الوجهة: {step.destination}</strong>
+                <strong>أين يذهب المخرج؟ {getOptionLabel(DESTINATION_OPTIONS, step.destination)}</strong>
                 <span>
                   {step.feedsNextWorkflow
-                    ? `يفتح: ${step.nextWorkflowType}`
-                    : "لا يفتح مسارًا آخر"}
+                    ? `هل يفتح مسارًا تاليًا؟ نعم · ${getWorkflowLabel(step.nextWorkflowType)}`
+                    : "هل يفتح مسارًا تاليًا؟ لا"}
                 </span>
-                <small>هل يحتاج مراجعة؟ {step.reviewRequired ? "نعم" : "لا"}</small>
+                <small>هل يحتاج المخرج مراجعة؟ {step.reviewRequired ? "نعم" : "لا"}</small>
+                {step.feedsNextWorkflow ? (
+                  <small>شرط الانتقال: {getOptionLabel(TRANSITION_CONDITIONS, step.transitionCondition || "after_review")}</small>
+                ) : null}
               </div>
 
               {hasGovernanceWarning ? (
@@ -1591,10 +1799,11 @@ export default function WorkflowRunsPage() {
                   </div>
 
                   <div className="contract-info-grid">
-                    <Info label="نوع المخرج" value={step.outputType} />
-                    <Info label="وجهة المخرج" value={step.destination} />
+                    <Info label="نوع المخرج" value={getOptionLabel(OUTPUT_TYPE_OPTIONS, step.outputType)} />
+                    <Info label="صيغة المخرج" value={getOptionLabel(OUTPUT_FORMATS, step.outputFormat || "text")} />
+                    <Info label="وجهة المخرج" value={getOptionLabel(DESTINATION_OPTIONS, step.destination)} />
                     <Info label="مراجعة قبل النشر" value={step.reviewRequired ? "نعم" : "لا"} />
-                    <Info label="يفتح مسارًا آخر" value={step.feedsNextWorkflow ? step.nextWorkflowType : "لا"} />
+                    <Info label="يفتح مسارًا آخر" value={step.feedsNextWorkflow ? getWorkflowLabel(step.nextWorkflowType) : "لا"} />
                     <Info label="داخلي فقط" value={sensitive ? "نعم" : "لا"} />
                     <Info label="مدة الاحتفاظ" value={getRetentionPolicy(step)} />
                   </div>
@@ -1612,7 +1821,7 @@ export default function WorkflowRunsPage() {
                     <strong>وجهة المخرج</strong>
                     <div>
                       {allowedConsumers.map((consumer) => (
-                        <span key={consumer}>{consumer}</span>
+                        <span key={consumer}>{getConsumerLabel(consumer)}</span>
                       ))}
                     </div>
                   </div>
@@ -1910,9 +2119,9 @@ export default function WorkflowRunsPage() {
                     <strong>{step.name}</strong>
                     <span>{step.processor}</span>
                     <span>{step.modelRoute ? step.modelRoute.primaryModel : "—"}</span>
-                    <span>{step.inputFrom.join(" + ")}</span>
-                    <span>{step.outputKey}</span>
-                    <span>{step.destination}</span>
+                    <span>{(step.inputFrom || []).map(getInputFieldLabel).join(" + ")}</span>
+                    <span>{getStepOutputName(step)}</span>
+                    <span>{getOptionLabel(DESTINATION_OPTIONS, step.destination)}</span>
                     <span className={step.result === "passed" ? "sim-ok" : "sim-blocked"}>
                       {step.result}
                     </span>
@@ -1932,8 +2141,8 @@ export default function WorkflowRunsPage() {
                 {dryRunResult.expectedOutputs.map((output) => (
                   <div key={output.outputKey} className={`expected-card ${output.visibility}`}>
                     <strong>{output.outputKey}</strong>
-                    <span>{output.outputType}</span>
-                    <small>{output.destination}</small>
+                    <span>{getOptionLabel(OUTPUT_TYPE_OPTIONS, output.outputType)}</span>
+                    <small>{getOptionLabel(DESTINATION_OPTIONS, output.destination)}</small>
                     <em>{VISIBILITY.find(([id]) => id === output.visibility)?.[1] || output.visibility}</em>
                   </div>
                 ))}
@@ -2018,6 +2227,15 @@ function ModelRoutingSummary({ step, readinessContext = {}, compact = false }) {
 
 function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   const readiness = buildStepReadiness(step, readinessContext);
+  const selectedInputs = Array.isArray(step.inputFrom) ? step.inputFrom : [];
+  const selectedOutputs = [
+    getStepOutputName(step),
+    getOptionLabel(OUTPUT_TYPE_OPTIONS, step.outputType),
+    getOptionLabel(OUTPUT_FORMATS, step.outputFormat || "text"),
+  ].filter(Boolean);
+  const promptForNext = step.nextPromptName
+    ? (readinessContext.promptRegistry || []).find((prompt) => prompt.name === step.nextPromptName)
+    : null;
   const statusLabel = {
     ready: "جاهز",
     warning: "يحتاج ضبط",
@@ -2045,6 +2263,10 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
       </div>
 
       <div className="step-readiness-grid">
+        <Info label="المدخلات المحددة" value={`${selectedInputs.length} · ${selectedInputs.map(getInputFieldLabel).join("، ") || "لا توجد حقول مختارة"}`} />
+        <Info label="المخرجات المحددة" value={selectedOutputs.join(" · ")} />
+        <Info label="المسار التالي إن وجد" value={step.feedsNextWorkflow ? getWorkflowLabel(step.nextWorkflowType) : "لا يوجد"} />
+        <Info label="المطالبة المرتبطة إن وجدت" value={step.nextPromptName ? `${step.nextPromptName} · ${getPromptStatusLabel(promptForNext)}` : "لا توجد مطالبة مرتبطة"} />
         <Info label="مسار النموذج" value={routeLabel} />
         <Info label="المطالبة المرتبطة" value={promptLabel} />
         <Info label="حد التكلفة" value={getCostLimitLabel(readiness.route, readiness.costRow)} />
@@ -2081,7 +2303,41 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   );
 }
 
-function StepEditor({ step, index, onChange, onToggleInput, onDelete, readinessContext }) {
+function StepEditor({ step, index, onChange, onDelete, readinessContext }) {
+  const promptRegistry = readinessContext.promptRegistry || [];
+  const inputDomain = inferInputDomain(step);
+  const selectedFields = Array.isArray(step.inputFrom) ? step.inputFrom : [];
+  const availableFields = Array.from(new Set([...getFieldsForSource(inputDomain), ...selectedFields]));
+  const nextInputs = Array.isArray(step.nextInputs) ? step.nextInputs : selectedFields;
+  const selectedPrompt = step.nextPromptName
+    ? promptRegistry.find((prompt) => prompt.name === step.nextPromptName)
+    : null;
+
+  const setInputDomain = (value) => {
+    const fields = getFieldsForSource(value);
+    onChange(index, "inputDomain", value);
+    onChange(index, "inputFrom", selectedFields.filter((field) => fields.includes(field)));
+  };
+
+  const toggleInputField = (field) => {
+    const nextFields = selectedFields.includes(field)
+      ? selectedFields.filter((item) => item !== field)
+      : [...selectedFields, field];
+    onChange(index, "inputFrom", nextFields);
+  };
+
+  const addRequiredField = (field) => {
+    if (!field || selectedFields.includes(field)) return;
+    onChange(index, "inputFrom", [...selectedFields, field]);
+  };
+
+  const toggleNextInput = (field) => {
+    const safeNextInputs = nextInputs.includes(field)
+      ? nextInputs.filter((item) => item !== field)
+      : [...nextInputs, field];
+    onChange(index, "nextInputs", safeNextInputs);
+  };
+
   return (
     <div className="step-editor">
       <label className="field">
@@ -2089,21 +2345,45 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete, readinessC
         <input value={step.name} onChange={(e) => onChange(index, "name", e.target.value)} />
       </label>
 
-      <div className="input-source-box">
-        <strong>المدخلات</strong>
-        <div>
-          {INPUT_SOURCES.map((source) => (
-            <button
-              key={source}
-              type="button"
-              className={step.inputFrom.includes(source) ? "selected" : ""}
-              onClick={() => onToggleInput(index, source)}
-            >
-              {source}
-            </button>
-          ))}
+      <section className="io-designer-card">
+        <div className="io-designer-head">
+          <strong>مصدر الإدخال</strong>
+          <span>اختيار متعدد للحقول</span>
         </div>
-      </div>
+
+        <SelectField
+          label="الصفحة أو المجال"
+          value={inputDomain}
+          options={STRUCTURED_INPUT_SOURCES.map((source) => [source.value, source.label])}
+          onChange={setInputDomain}
+        />
+
+        <SelectField
+          label="الحقل المطلوب"
+          value=""
+          options={[["", "اختر حقلًا لإضافته"], ...availableFields.map((field) => [field, getInputFieldLabel(field)])]}
+          onChange={addRequiredField}
+        />
+
+        <div className="input-source-box structured-inputs">
+          <strong>الحقول المختارة · {selectedFields.length}</strong>
+          <div>
+            {availableFields.map((field) => (
+              <button
+                key={field}
+                type="button"
+                className={selectedFields.includes(field) ? "selected" : ""}
+                onClick={() => toggleInputField(field)}
+              >
+                {getInputFieldLabel(field)}
+              </button>
+            ))}
+          </div>
+          {!selectedFields.length ? (
+            <p className="inline-warning">تحذير: لا توجد حقول إدخال مختارة لهذه الخطوة.</p>
+          ) : null}
+        </div>
+      </section>
 
       <SelectField
         label="نوع المعالجة"
@@ -2123,24 +2403,38 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete, readinessC
 
       <ModelRoutingSummary step={step} readinessContext={readinessContext} />
 
-      <label className="field">
-        <span>المخرج</span>
-        <input value={step.outputKey} onChange={(e) => onChange(index, "outputKey", e.target.value)} />
-      </label>
+      <section className="io-designer-card output-designer">
+        <div className="io-designer-head">
+          <strong>مراجعة المخرج</strong>
+          <span>لا يتم تنفيذ أي مسار من هذه الإعدادات.</span>
+        </div>
 
-      <SelectField
-        label="نوع المخرج"
-        value={step.outputType}
-        options={OUTPUT_TYPES.map((x) => [x, x])}
-        onChange={(value) => onChange(index, "outputType", value)}
-      />
+        <label className="field">
+          <span>اسم المخرج</span>
+          <input value={step.outputKey} onChange={(e) => onChange(index, "outputKey", e.target.value)} />
+        </label>
 
-      <SelectField
-        label="وجهة المخرج"
-        value={step.destination}
-        options={DESTINATIONS.map((x) => [x, x])}
-        onChange={(value) => onChange(index, "destination", value)}
-      />
+        <SelectField
+          label="نوع المخرج"
+          value={step.outputType}
+          options={OUTPUT_TYPE_OPTIONS}
+          onChange={(value) => onChange(index, "outputType", value)}
+        />
+
+        <SelectField
+          label="صيغة المخرج"
+          value={step.outputFormat || "text"}
+          options={OUTPUT_FORMATS}
+          onChange={(value) => onChange(index, "outputFormat", value)}
+        />
+
+        <SelectField
+          label="وجهة المخرج"
+          value={step.destination}
+          options={DESTINATION_OPTIONS}
+          onChange={(value) => onChange(index, "destination", value)}
+        />
+      </section>
 
       <SelectField
         label="مستوى الظهور"
@@ -2156,18 +2450,80 @@ function StepEditor({ step, index, onChange, onToggleInput, onDelete, readinessC
       />
 
       <Toggle
-        label="يفتح مسارًا آخر"
+        label="يصلح كمدخل لخطوة لاحقة؟"
         checked={step.feedsNextWorkflow}
         onChange={(value) => onChange(index, "feedsNextWorkflow", value)}
       />
 
       {step.feedsNextWorkflow ? (
-        <SelectField
-          label="المسار التالي"
-          value={step.nextWorkflowType}
-          options={NEXT_WORKFLOWS}
-          onChange={(value) => onChange(index, "nextWorkflowType", value)}
-        />
+        <section className="io-designer-card chaining-card">
+          <div className="io-designer-head">
+            <strong>يفتح مسارًا تاليًا</strong>
+            <span>ترسل مع المخرج إلى المسار التالي</span>
+          </div>
+
+          <SelectField
+            label="المسار التالي"
+            value={step.nextWorkflowType}
+            options={NEXT_WORKFLOWS}
+            onChange={(value) => onChange(index, "nextWorkflowType", value)}
+          />
+
+          <label className="field">
+            <span>الخطوة التالية</span>
+            <input
+              value={step.nextStepName || ""}
+              onChange={(e) => onChange(index, "nextStepName", e.target.value)}
+              placeholder="مثال: مراجعة المحتوى"
+            />
+          </label>
+
+          <SelectField
+            label="شرط الانتقال"
+            value={step.transitionCondition || "after_review"}
+            options={TRANSITION_CONDITIONS}
+            onChange={(value) => onChange(index, "transitionCondition", value)}
+          />
+
+          <div className="input-source-box structured-inputs">
+            <strong>المدخلات المرسلة للمسار التالي</strong>
+            <div>
+              {selectedFields.map((field) => (
+                <button
+                  key={field}
+                  type="button"
+                  className={nextInputs.includes(field) ? "selected" : ""}
+                  onClick={() => toggleNextInput(field)}
+                >
+                  {getInputFieldLabel(field)}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={nextInputs.includes(step.outputKey) ? "selected" : ""}
+                onClick={() => toggleNextInput(step.outputKey)}
+              >
+                {getStepOutputName(step)}
+              </button>
+            </div>
+          </div>
+
+          <SelectField
+            label="المطالبة المرسلة مع المخرج"
+            value={step.nextPromptName || ""}
+            options={[
+              ["", "لا توجد مطالبة مرتبطة"],
+              ...promptRegistry.map((prompt) => [prompt.name, `${prompt.name} · ${getPromptStatusLabel(prompt)}`]),
+            ]}
+            onChange={(value) => onChange(index, "nextPromptName", value)}
+          />
+
+          {!promptRegistry.length ? (
+            <p className="inline-warning">لا توجد مطالبات متاحة. أضف المطالبات من حوكمة المطالبات.</p>
+          ) : selectedPrompt ? (
+            <p className="inline-note">{getPromptStatusLabel(selectedPrompt)}</p>
+          ) : null}
+        </section>
       ) : null}
 
       <button type="button" className="danger-button" onClick={() => onDelete(index)}>
@@ -2839,6 +3195,65 @@ const styles = `
   border-color: #176b2c;
   background: #eef7e9;
   color: #176b2c;
+}
+
+.io-designer-card {
+  border: 1px solid #e4e7df;
+  background: #fbfdf9;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.output-designer {
+  background: #fff;
+}
+
+.chaining-card {
+  background: #f8fbff;
+  border-color: #dbeafe;
+}
+
+.io-designer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.io-designer-head strong {
+  color: #1f241d;
+  font-size: 13px;
+}
+
+.io-designer-head span,
+.inline-note,
+.inline-warning {
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.6;
+  font-weight: 800;
+}
+
+.structured-inputs {
+  background: white;
+}
+
+.inline-warning {
+  margin: 10px 0 0;
+  color: #9a3412;
+  background: #fff7ed;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.inline-note {
+  margin: 0;
+  color: #176b2c;
+  background: #eef7e9;
+  border-radius: 12px;
+  padding: 8px 10px;
 }
 
 .toggle-row {
