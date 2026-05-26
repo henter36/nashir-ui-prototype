@@ -182,6 +182,66 @@ const WORKFLOW_LINK_OPTIONS = [
   { workflow: "Customer Summary", step: "build_customer_safe_summary", surface: "تفاصيل الحملة", task: "customer_summary" },
 ];
 
+const ALLOWED_OUTPUT_OPTIONS = [
+  "content_draft",
+  "headline_options",
+  "cta_variants",
+  "image_direction",
+  "visual_variants",
+  "asset_generation_brief",
+  "risk_report",
+  "blocked_reasons",
+  "approval_recommendation",
+  "customer_explanation",
+  "status_note",
+  "next_action",
+  "structured_json",
+  "review_notes",
+];
+
+const REQUIRED_CHECK_OPTIONS = [
+  "risk_review",
+  "brand_tone_check",
+  "claim_evidence_check",
+  "asset_rights_check",
+  "visual_safety_review",
+  "human_review",
+  "policy_review",
+  "evidence_check",
+  "prompt_leakage_check",
+  "plain_language_check",
+  "privacy_check",
+  "channel_policy_check",
+];
+
+const BLOCKED_PATTERN_OPTIONS = [
+  "raw prompt leakage",
+  "hidden policy rules",
+  "internal model names",
+  "guaranteed results",
+  "unverified discount claims",
+  "medical claims",
+  "celebrity likeness",
+  "unsafe before-after claims",
+  "missing evidence",
+  "sensitive personal data",
+  "automatic publishing without approval",
+];
+
+const BLOCKED_PATTERN_SEVERITY = {
+  "raw prompt leakage": "حظر",
+  "hidden policy rules": "حظر",
+  "internal model names": "حظر",
+  "guaranteed results": "حظر",
+  "unverified discount claims": "تحذير",
+  "medical claims": "حظر",
+  "celebrity likeness": "مراقبة",
+  "unsafe before-after claims": "حظر",
+  "missing evidence": "تحذير",
+  "sensitive personal data": "حظر",
+  "automatic publishing without approval": "حظر",
+};
+
 function getGovernanceFindings(prompt) {
   const findings = [];
   const safePrompt = {
@@ -376,6 +436,21 @@ function getGovernanceScore(prompt) {
   return Math.max(0, 100 - penalty);
 }
 
+function getReviewQueueReasons(prompt, readiness) {
+  const reasons = [];
+  const checks = Array.isArray(prompt?.requiredChecks) ? prompt.requiredChecks : [];
+
+  if (prompt?.status === "draft") reasons.push("مسودة");
+  if (prompt?.status === "testing") reasons.push("قيد الاختبار");
+  if ((readiness?.score ?? getGovernanceScore(prompt)) < 80) reasons.push("درجة حوكمة منخفضة");
+  if (!checks.length) reasons.push("فحوص ناقصة");
+  if (prompt?.visibleToCustomer && !prompt?.customerFacingSummary) {
+    reasons.push("تظهر للعميل وتحتاج تلخيصًا آمنًا");
+  }
+
+  return reasons.length ? reasons : ["تحتاج مراجعة"];
+}
+
 export default function PromptGovernancePage() {
   const [activeTab, setActiveTab] = useState("registry");
   const [promptList, setPromptList] = useState(() => readPromptRegistry(INITIAL_PROMPTS));
@@ -456,7 +531,7 @@ export default function PromptGovernancePage() {
 
   const deletePrompt = () => {
     if (!selected || promptList.length <= 1) return;
-    const nextList = deletePromptFromStore(selected.promptId || selected.id, INITIAL_PROMPTS);
+    const nextList = deletePromptFromStore(selected.id, INITIAL_PROMPTS);
     setPromptList(nextList);
     setSelectedId(nextList[0]?.id || "");
   };
@@ -489,6 +564,15 @@ export default function PromptGovernancePage() {
         .map((item) => item.trim())
         .filter(Boolean),
     });
+  };
+
+  const toggleArrayItem = (field, item) => {
+    if (!selected || !item) return;
+    const current = Array.isArray(selected[field]) ? selected[field] : [];
+    const next = current.includes(item)
+      ? current.filter((value) => value !== item)
+      : [...current, item];
+    updatePrompt({ [field]: next });
   };
 
   const filteredPrompts = useMemo(() => {
@@ -548,8 +632,8 @@ export default function PromptGovernancePage() {
           </div>
           <h1>حوكمة المطالبات والمخرجات</h1>
           <p>
-            مركز ضبط المطالبات الداخلية وما يسمح بظهوره للعميل. هذه الشاشة لا
-            تشغل نماذج حقيقية، ولا تكشف prompts خام، ولا تفعل نشرًا تلقائيًا.
+            مركز ضبط المطالبات الداخلية وما يسمح بظهوره للعميل. هذه الصفحة لا تشغّل نماذج حقيقية،
+            لا تكشف مطالبات خام، ولا تفعل نشرًا تلقائيًا.
           </p>
         </div>
 
@@ -679,8 +763,8 @@ export default function PromptGovernancePage() {
                   <Field label="المهمة / Task" value={selected.task} onChange={(value) => updatePrompt({ task: value })} />
                   <Field label="الإصدار" value={selected.version} onChange={(value) => updatePrompt({ version: value })} />
                   <Field label="المالك" value={selected.owner} onChange={(value) => updatePrompt({ owner: value })} />
-                  <SelectInline label="الحالة" value={selected.status} options={Object.keys(STATUS_LABELS).map((item) => [item, STATUS_LABELS[item][0]])} onChange={(value) => updatePrompt({ status: value })} />
-                  <SelectInline label="المراجعة" value={selected.review} options={Object.entries(REVIEW_LABELS)} onChange={(value) => updatePrompt({ review: value })} />
+                  <SelectInline label="حالة المطالبة" value={selected.status} options={Object.keys(STATUS_LABELS).map((item) => [item, STATUS_LABELS[item][0]])} onChange={(value) => updatePrompt({ status: value })} />
+                  <SelectInline label="سياسة المراجعة" value={selected.review} options={Object.entries(REVIEW_LABELS)} onChange={(value) => updatePrompt({ review: value })} />
                   <SelectInline label="الحساسية" value={selected.sensitivity} options={Object.entries(SENSITIVITY_LABELS).map(([key, value]) => [key, value[0]])} onChange={(value) => updatePrompt({ sensitivity: value })} />
                   <Field label="السطح" value={selected.channel} onChange={(value) => updatePrompt({ channel: value })} />
                 </div>
@@ -696,12 +780,18 @@ export default function PromptGovernancePage() {
 
                 <TextAreaField label="الوصف" value={selected.description} rows={3} onChange={(value) => updatePrompt({ description: value })} />
                 <TextAreaField label="ملخص آمن للعميل" value={selected.customerFacingSummary} rows={3} onChange={(value) => updatePrompt({ customerFacingSummary: value })} />
-                <TextAreaField label="معاينة داخلية محجوبة" value={selected.internalPromptPreview} rows={4} onChange={(value) => updatePrompt({ internalPromptPreview: value })} />
+                <TextAreaField
+                  label="معاينة داخلية محجوبة"
+                  value={selected.internalPromptPreview}
+                  rows={4}
+                  helper="لا تُعرض للعميل ولا تُرسل كما هي في هذا النموذج."
+                  onChange={(value) => updatePrompt({ internalPromptPreview: value })}
+                />
               </div>
 
               <div className="score-card">
                 <div>
-                  <span>Governance Score</span>
+                  <span>درجة الحوكمة</span>
                   <strong>{selectedScore}%</strong>
                 </div>
                 <div className="score-track">
@@ -713,12 +803,17 @@ export default function PromptGovernancePage() {
                 <PromptStepReadinessPanel prompt={selected} readiness={selectedReadiness} />
               ) : null}
 
+              <PromptSafetySummary prompt={selected} findings={selectedFindings} readiness={selectedReadiness} score={selectedScore} />
+
               <section className="link-panel">
                 <h3>
                   <Link2 size={16} />
                   روابط الاستخدام
                 </h3>
-                <p>مرتبطة بخطوات التشغيل وتؤثر على جاهزية الخطوة في تشغيلات النظام. روابط الاستخدام تحدد أين تظهر المطالبة داخل سلسلة التشغيل.</p>
+                <p>
+                  روابط الاستخدام توضّح أين تظهر المطالبة داخل التشغيلات، ولا تنقل مصمم المسارات إلى هذه الصفحة.
+                  تشغيلات النظام تستهلك جاهزية المطالبة ولا تنفذها من هذه الصفحة.
+                </p>
 
                 <div className="link-controls">
                   <select
@@ -746,8 +841,10 @@ export default function PromptGovernancePage() {
                     (selected.usage || []).map((usage) => (
                       <div key={`${usage.workflow}-${usage.step}-${usage.surface}`} className="usage-edit-row">
                         <div>
-                          <strong>{usage.workflow}</strong>
-                          <span>{usage.surface} · {usage.step}</span>
+                          <strong>المسار: {usage.workflow || "غير محدد"}</strong>
+                          <span>الخطوة: {usage.step || "غير محدد"}</span>
+                          <span>الواجهة: {usage.surface || "غير محدد"} · نوع المهمة: {usage.task || selected.task || "غير محدد"}</span>
+                          <span>أثرها على تشغيلات النظام: تظهر ضمن جاهزية المطالبة للخطوة.</span>
                         </div>
                         <button type="button" onClick={() => removeWorkflowUsage(usage)}>
                           <Unlink size={14} />
@@ -766,15 +863,39 @@ export default function PromptGovernancePage() {
 
               <section className="array-editor">
                 <h3>سياسات المخرجات</h3>
-                <TextAreaField label="المخرجات المسموحة — كل قيمة في سطر" value={(selected.allowedOutputs || []).join("\n")} rows={4} onChange={(value) => updateArrayField("allowedOutputs", value)} />
-                <TextAreaField label="الفحوص المطلوبة — كل قيمة في سطر" value={(selected.requiredChecks || []).join("\n")} rows={4} onChange={(value) => updateArrayField("requiredChecks", value)} />
-                <TextAreaField label="أنماط الحظر — كل قيمة في سطر" value={(selected.blockedPatterns || []).join("\n")} rows={4} onChange={(value) => updateArrayField("blockedPatterns", value)} />
+                <ChipArrayEditor
+                  label="المخرجات المسموحة"
+                  helper="حدد أنواع المخرجات التي يُسمح لهذه المطالبة بإنتاجها."
+                  values={selected.allowedOutputs || []}
+                  suggestions={ALLOWED_OUTPUT_OPTIONS}
+                  onToggle={(item) => toggleArrayItem("allowedOutputs", item)}
+                  onTextChange={(value) => updateArrayField("allowedOutputs", value)}
+                />
+                <ChipArrayEditor
+                  label="الفحوصات المطلوبة"
+                  helper="الفحوصات التي يجب أن تمر بها المطالبة قبل استخدامها في التشغيل."
+                  values={selected.requiredChecks || []}
+                  suggestions={REQUIRED_CHECK_OPTIONS}
+                  tone="green"
+                  onToggle={(item) => toggleArrayItem("requiredChecks", item)}
+                  onTextChange={(value) => updateArrayField("requiredChecks", value)}
+                />
+                <ChipArrayEditor
+                  label="أنماط الحظر"
+                  helper="عبارات أو أنماط تمنع استخدام المطالبة أو تتطلب مراجعة."
+                  values={selected.blockedPatterns || []}
+                  suggestions={BLOCKED_PATTERN_OPTIONS}
+                  tone="red"
+                  showSeverity
+                  onToggle={(item) => toggleArrayItem("blockedPatterns", item)}
+                  onTextChange={(value) => updateArrayField("blockedPatterns", value)}
+                />
               </section>
 
               <section className="finding-list">
                 <h3>
                   <ShieldCheck size={16} />
-                  Governance Findings
+                  ملاحظات الحوكمة
                 </h3>
                 {selectedFindings.map((finding) => (
                   <Finding key={finding.text} finding={finding} />
@@ -803,7 +924,7 @@ export default function PromptGovernancePage() {
 
           <article className="card">
             <h2>مصفوفة سياسات المخرجات</h2>
-            <p>روابط الاستخدام تحدد أين تظهر المطالبة داخل سلسلة التشغيل.</p>
+            <p>روابط الاستخدام توضّح أين تظهر المطالبة داخل التشغيلات، ولا تنقل مصمم المسارات إلى هذه الصفحة.</p>
 
             <div className="policy-table">
               <div className="policy-head">
@@ -840,11 +961,17 @@ export default function PromptGovernancePage() {
                 })
                 .map((prompt) => {
                   const readiness = buildPromptStepReadiness(prompt);
+                  const reviewReasons = getReviewQueueReasons(prompt, readiness);
                   return (
                     <div key={`${prompt.id}-review`} className="queue-card">
                       <div>
                         <strong>{prompt.name}</strong>
                         <span>{readiness.blockedReasons[0] || readiness.warnings[0] || "تحتاج مراجعة اعتماد."}</span>
+                        <div className="review-reasons">
+                          {reviewReasons.map((reason) => (
+                            <Chip key={reason} tone="amber">{reason}</Chip>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <PromptReadinessBadge status={readiness.status} />
@@ -859,7 +986,10 @@ export default function PromptGovernancePage() {
 
           <article className="card">
             <h2>روابط الاستخدام</h2>
-            <p>مرتبطة بخطوات التشغيل وتؤثر على جاهزية الخطوة في تشغيلات النظام دون نقل مصمم مسارات التشغيل إلى هذه الصفحة.</p>
+            <p>
+              روابط الاستخدام توضّح أين تظهر المطالبة داخل التشغيلات، ولا تنقل مصمم المسارات إلى هذه الصفحة.
+              تشغيلات النظام تستهلك جاهزية المطالبة ولا تنفذها من هذه الصفحة.
+            </p>
 
             <div className="usage-grid">
               {promptList.map((prompt) => (
@@ -874,8 +1004,10 @@ export default function PromptGovernancePage() {
                       <div key={`${prompt.id}-${usage.workflow}-${usage.step}`} className="usage-row">
                         <ChevronLeft size={14} />
                         <div>
-                          <strong>{usage.workflow}</strong>
-                          <span>{usage.surface} · {usage.step}</span>
+                          <strong>المسار: {usage.workflow || "غير محدد"}</strong>
+                          <span>الخطوة: {usage.step || "غير محدد"}</span>
+                          <span>الواجهة: {usage.surface || "غير محدد"} · نوع المهمة: {usage.task || prompt.task || "غير محدد"}</span>
+                          <span>أثرها على تشغيلات النظام: تظهر ضمن جاهزية المطالبة للخطوة.</span>
                         </div>
                       </div>
                     ))
@@ -1002,9 +1134,9 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
       <div className="prompt-readiness-grid">
         <Info label="المهمة" value={prompt.task || "غير محددة"} />
         <Info label="حالة المطالبة" value={STATUS_LABELS[prompt.status]?.[0] || prompt.status || "غير محددة"} />
-        <Info label="المراجعة" value={REVIEW_LABELS[prompt.review] || "غير محددة"} />
+        <Info label="سياسة المراجعة" value={REVIEW_LABELS[prompt.review] || "غير محددة"} />
         <Info label="عدد روابط الاستخدام" value={usageCount} />
-        <Info label="الفحوص المطلوبة" value={requiredChecks} />
+        <Info label="الفحوصات المطلوبة" value={requiredChecks} />
         <Info label="المخرجات المسموحة" value={allowedOutputs} />
       </div>
 
@@ -1036,6 +1168,84 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
   );
 }
 
+function PromptSafetySummary({ prompt, findings = [], readiness, score }) {
+  const checks = Array.isArray(prompt?.requiredChecks) ? prompt.requiredChecks : [];
+  const patterns = Array.isArray(prompt?.blockedPatterns) ? prompt.blockedPatterns : [];
+  const usage = Array.isArray(prompt?.usage) ? prompt.usage : [];
+  const leakageSafe = checks.includes("prompt_leakage_check") || patterns.some((item) => String(item).includes("leak") || String(item).includes("تسريب"));
+  const claimsSafe = checks.includes("risk_review") || checks.includes("claim_evidence_check");
+  const assetSafe = checks.includes("asset_rights_check") || checks.includes("visual_safety_review");
+  const reviewSafe = ["required", "always"].includes(prompt?.review) || checks.includes("human_review");
+  const visibleLabel = prompt?.visibleToCustomer ? "ملخص آمن فقط" : "غير ظاهر للعميل";
+  const hasBlocks = findings.some((finding) => finding.level === "block") || readiness?.status === "blocked";
+
+  return (
+    <section className={`prompt-safety-card ${hasBlocks ? "blocked" : "safe"}`}>
+      <div className="card-header compact-header">
+        <div>
+          <h3>سلامة المطالبة</h3>
+          <p>ملخص سريع للمخاطر قبل استخدامها في التشغيلات.</p>
+        </div>
+        <span className={`score-pill ${score >= 80 ? "good" : score >= 60 ? "mid" : "bad"}`}>{score}%</span>
+      </div>
+
+      <div className="safety-grid">
+        <Info label="تسريب المطالبة" value={leakageSafe ? "مراقب" : "يحتاج فحصًا"} />
+        <Info label="ادعاءات وتسويق" value={claimsSafe ? "مغطاة بفحص" : "تحتاج مراجعة"} />
+        <Info label="حقوق الأصول" value={assetSafe ? "مغطاة بفحص" : "غير محددة"} />
+        <Info label="مراجعة بشرية" value={reviewSafe ? "مطلوبة" : "غير كافية"} />
+        <Info label="ظهور للعميل" value={visibleLabel} />
+        <Info label="روابط الاستخدام" value={usage.length ? `${usage.length} روابط` : "غير مرتبطة"} />
+      </div>
+    </section>
+  );
+}
+
+function ChipArrayEditor({ label, helper, values = [], suggestions = [], tone = "slate", showSeverity = false, onToggle, onTextChange }) {
+  const safeValues = Array.isArray(values) ? values : [];
+  const mergedSuggestions = Array.from(new Set([...suggestions, ...safeValues]));
+
+  return (
+    <section className="chip-array-editor">
+      <div className="chip-array-head">
+        <div>
+          <h4>{label}</h4>
+          <p>{helper}</p>
+        </div>
+        <span>{safeValues.length}</span>
+      </div>
+
+      <div className="chips selectable-chips">
+        {mergedSuggestions.map((item) => {
+          const selected = safeValues.includes(item);
+          const severity = showSeverity ? BLOCKED_PATTERN_SEVERITY[item] || "مراقبة" : "";
+          return (
+            <button
+              type="button"
+              key={item}
+              className={`chip-select ${selected ? "selected" : ""} ${tone}`}
+              onClick={() => onToggle(item)}
+            >
+              <span>{item}</span>
+              {showSeverity ? <small>{severity}</small> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <details className="advanced-array-edit">
+        <summary>تحرير متقدم للقائمة</summary>
+        <TextAreaField
+          label={`${label} — كل قيمة في سطر`}
+          value={safeValues.join("\n")}
+          rows={3}
+          onChange={onTextChange}
+        />
+      </details>
+    </section>
+  );
+}
+
 function Field({ label, value, onChange }) {
   return (
     <label className="inline-field">
@@ -1045,10 +1255,11 @@ function Field({ label, value, onChange }) {
   );
 }
 
-function TextAreaField({ label, value, rows = 3, onChange }) {
+function TextAreaField({ label, value, rows = 3, helper = "", onChange }) {
   return (
     <label className="textarea-field compact">
       <span>{label}</span>
+      {helper ? <em>{helper}</em> : null}
       <textarea value={value} rows={rows} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
@@ -1482,6 +1693,15 @@ const styles = `
   font-size:11px;
   font-weight:900;
 }
+.textarea-field em{
+  display:block;
+  color:#6f746b;
+  font-size:11px;
+  font-style:normal;
+  font-weight:800;
+  line-height:1.6;
+  margin-top:4px;
+}
 .info-row strong{
   display:block;
   margin-top:5px;
@@ -1507,6 +1727,109 @@ const styles = `
 }
 .finding-list{
   margin-top:12px;
+}
+.prompt-safety-card,.chip-array-editor{
+  border:1px solid #e4e7df;
+  background:#fbfdf9;
+  border-radius:18px;
+  padding:12px;
+  margin-top:12px;
+}
+.prompt-safety-card.blocked{
+  border-color:#fed7aa;
+  background:#fff7ed;
+}
+.compact-header{
+  margin-bottom:10px;
+}
+.safety-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.chip-array-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.chip-array-head h4{
+  margin:0;
+  font-size:14px;
+}
+.chip-array-head p{
+  color:#6f746b;
+  margin:4px 0 0;
+  font-size:12px;
+  line-height:1.7;
+}
+.chip-array-head > span{
+  min-width:30px;
+  min-height:30px;
+  border-radius:999px;
+  background:#eef7e9;
+  color:#176b2c;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:900;
+}
+.selectable-chips{
+  gap:7px;
+}
+.chip-select{
+  min-height:32px;
+  border:1px solid #e4e7df;
+  background:#fff;
+  border-radius:999px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-family:inherit;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+.chip-select.selected{
+  border-color:#176b2c;
+  background:#eef7e9;
+  color:#176b2c;
+}
+.chip-select.green.selected{
+  border-color:#16a34a;
+  background:#ecfdf5;
+  color:#166534;
+}
+.chip-select.red.selected{
+  border-color:#dc2626;
+  background:#fef2f2;
+  color:#991b1b;
+}
+.chip-select small{
+  border-radius:999px;
+  background:rgba(31,36,29,.08);
+  padding:2px 6px;
+  font-size:10px;
+}
+.advanced-array-edit{
+  margin-top:10px;
+  border-top:1px solid #e4e7df;
+  padding-top:10px;
+}
+.advanced-array-edit summary{
+  cursor:pointer;
+  color:#6f746b;
+  font-size:12px;
+  font-weight:900;
+}
+.review-reasons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
 }
 .finding{
   display:flex;
