@@ -21,7 +21,9 @@ import {
   getAssetRightsLabel,
   getAssetStatusLabel,
   getAssetTypeLabel,
+  normalizeAsset,
   readAssetLibrary,
+  upsertAsset,
 } from "../utils/assetLibraryStore.js";
 import { readProductCatalog } from "../utils/productCatalogStore.js";
 
@@ -181,6 +183,16 @@ export default function AssetLibraryPage() {
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(() => readAssetLibrary(assetsSeed)[0]?.id || assetsSeed[0].id);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [assetDraft, setAssetDraft] = useState({
+    name: "",
+    type: "image",
+    url: "",
+    linkedProductId: "",
+    channel: "Instagram",
+    rightsStatus: "needs_check",
+    quality: "medium",
+  });
+  const [assetNotice, setAssetNotice] = useState("");
 
   useEffect(() => {
     const refreshAssets = () => {
@@ -253,6 +265,68 @@ export default function AssetLibraryPage() {
       priority: "منخفضة",
     };
 
+  const saveAssetDraft = () => {
+    if (!assetDraft.name.trim()) {
+      setAssetNotice("أدخل اسم الأصل قبل الحفظ.");
+      return;
+    }
+
+    const linkedProduct = products.find((product) => product.id === assetDraft.linkedProductId);
+    const nextAssets = upsertAsset(
+      normalizeAsset({
+        name: assetDraft.name.trim(),
+        type: assetDraft.type,
+        url: assetDraft.url,
+        thumbnailUrl: "",
+        linkedType: linkedProduct ? "product" : "general",
+        linkedProductId: linkedProduct?.id || "",
+        linkedName: linkedProduct?.name || "عام",
+        channel: assetDraft.channel,
+        status: "review",
+        rightsStatus: assetDraft.rightsStatus,
+        quality: assetDraft.quality,
+        tags: ["مكتبة الأصول"],
+        usage: [],
+        notes: "كيان واجهي تجريبي محفوظ في مكتبة الأصول ويحتاج مراجعة قبل الاستخدام.",
+      }),
+      assetsSeed
+    );
+
+    const saved = nextAssets[0];
+    setAssets(nextAssets);
+    setSelectedId(saved?.id || selectedId);
+    setAssetDraft({
+      name: "",
+      type: "image",
+      url: "",
+      linkedProductId: "",
+      channel: "Instagram",
+      rightsStatus: "needs_check",
+      quality: "medium",
+    });
+    setAssetNotice("محفوظ في مكتبة الأصول ككيان واجهي تجريبي. لا يتم اعتماد الحقوق تلقائيًا.");
+  };
+
+  const linkSelectedAssetToProduct = (productId) => {
+    if (!selectedAsset?.id) return;
+
+    const linkedProduct = products.find((product) => product.id === productId);
+    const nextAssets = upsertAsset(
+      {
+        ...selectedAsset,
+        linkedType: linkedProduct ? "product" : "general",
+        linkedProductId: linkedProduct?.id || "",
+        linkedName: linkedProduct?.name || "عام",
+        updatedAt: new Date().toISOString(),
+      },
+      assetsSeed
+    );
+
+    setAssets(nextAssets);
+    setSelectedId(selectedAsset.id);
+    setAssetNotice("تم تحديث ربط الأصل وحفظه في مكتبة الأصول.");
+  };
+
   return (
     <main className="asset-library-page" dir="rtl">
       <style>{styles}</style>
@@ -292,13 +366,84 @@ export default function AssetLibraryPage() {
             <span>صور، فيديو، PDF، ملفات نصية — واجهة فقط حاليًا بدون رفع فعلي.</span>
           </div>
 
+          <div className="asset-draft-form">
+            <label>
+              <span>اسم الأصل</span>
+              <input
+                value={assetDraft.name}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="مثال: صورة المنتج الرئيسية"
+              />
+            </label>
+            <label>
+              <span>نوع الأصل</span>
+              <select
+                value={assetDraft.type}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, type: event.target.value }))}
+              >
+                <option value="image">صورة</option>
+                <option value="video">فيديو</option>
+                <option value="logo">شعار</option>
+                <option value="document">مستند</option>
+                <option value="text">نص</option>
+                <option value="design">تصميم</option>
+              </select>
+            </label>
+            <label>
+              <span>رابط الأصل</span>
+              <input
+                value={assetDraft.url}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, url: event.target.value }))}
+                placeholder="رابط مرجعي اختياري"
+              />
+            </label>
+            <label>
+              <span>ربط بمنتج</span>
+              <select
+                value={assetDraft.linkedProductId}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, linkedProductId: event.target.value }))}
+              >
+                <option value="">أصل عام</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>{product.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>حالة الحقوق</span>
+              <select
+                value={assetDraft.rightsStatus}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, rightsStatus: event.target.value }))}
+              >
+                <option value="needs_check">يحتاج تحقق</option>
+                <option value="allowed">مسموح</option>
+                <option value="blocked">محظور</option>
+              </select>
+            </label>
+            <label>
+              <span>الجودة</span>
+              <select
+                value={assetDraft.quality}
+                onChange={(event) => setAssetDraft((prev) => ({ ...prev, quality: event.target.value }))}
+              >
+                <option value="medium">متوسطة</option>
+                <option value="high">عالية</option>
+                <option value="low">منخفضة</option>
+              </select>
+            </label>
+            <button type="button" className="primary-action" onClick={saveAssetDraft}>
+              محفوظ في مكتبة الأصول
+            </button>
+          </div>
+
           <div className="upload-guidance">
             <AlertTriangle size={18} />
             <p>
-              الرفع الفعلي غير مفعّل حاليًا. هذه الواجهة مخصصة لترتيب معلومات الأصل
-              قبل أي معالجة لاحقة.
+              يتم حفظ الأصل ككيان واجهي تجريبي لاستخدامه في الحملة والمحتوى.
+              لا يتم رفع ملفات حقيقية أو تخزينها خارجيًا. حالة الحقوق تحتاج مراجعة بشرية.
             </p>
           </div>
+          {assetNotice ? <div className="asset-notice">{assetNotice}</div> : null}
         </section>
       ) : null}
 
@@ -399,6 +544,21 @@ export default function AssetLibraryPage() {
           <Info label="قناة الاستخدام" value={selectedAsset.channel || "غير محدد"} />
           <Info label="الحجم" value={selectedAsset.size} />
           <Info label="آخر تحديث" value={selectedAsset.updatedAt} />
+          <Info label="محفوظ في مكتبة الأصول" value={selectedAsset?.id ? "نعم" : "مرجع الأصل غير متوفر"} />
+
+          <div className="detail-section">
+            <h3>تحديث الربط</h3>
+            <p>عند استخدام الأصل في حملة، تحفظ الحملة نسخة من بيانات الأصل وقت الاختيار.</p>
+            <select
+              value={selectedAsset.linkedProductId || ""}
+              onChange={(event) => linkSelectedAssetToProduct(event.target.value)}
+            >
+              <option value="">أصل عام</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>{product.name}</option>
+              ))}
+            </select>
+          </div>
 
           <div className="detail-section">
             <h3>الاستخدام في الحملات</h3>
@@ -590,7 +750,7 @@ const styles = `
   padding: 16px;
   margin-bottom: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(220px, .75fr) minmax(320px, 1.1fr) 320px;
   gap: 14px;
 }
 
@@ -633,6 +793,56 @@ const styles = `
   line-height: 1.8;
   font-size: 13px;
   font-weight: 800;
+}
+
+.asset-draft-form {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 20px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.asset-draft-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.asset-draft-form label span {
+  color: #52604c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.asset-draft-form input,
+.asset-draft-form select,
+.detail-section select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 14px;
+  padding: 0 11px;
+  font-family: inherit;
+  font-weight: 800;
+  color: #1f241d;
+}
+
+.asset-draft-form button {
+  grid-column: 1 / -1;
+}
+
+.asset-notice {
+  grid-column: 1 / -1;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .stats-grid {

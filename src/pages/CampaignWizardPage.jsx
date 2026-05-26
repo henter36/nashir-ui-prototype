@@ -176,6 +176,18 @@ function toggleValue(list, value) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
+function buildAssetSnapshot(asset = {}) {
+  return {
+    name: asset.name || "أصل غير محدد",
+    type: asset.type || "image",
+    linkedProductId: asset.linkedProductId || "",
+    linkedName: asset.linkedName || "عام",
+    rightsStatus: asset.rightsStatus || "needs_check",
+    usage: Array.isArray(asset.usage) ? asset.usage : [],
+    status: asset.status || "review",
+  };
+}
+
 function makeCustomerText({
   output,
   productName,
@@ -611,6 +623,8 @@ export default function CampaignWizardPage({
       gender,
       selectedAssetCount: selectedAssets.length,
       selectedAssets: selectedAssets.map((asset) => ({
+        assetId: asset.assetId || asset.id || "",
+        assetSnapshot: buildAssetSnapshot(asset),
         name: asset.name,
         type: asset.type,
         linkedName: asset.linkedName,
@@ -656,6 +670,10 @@ export default function CampaignWizardPage({
             productId: selectedProduct?.id || "",
             campaignSnapshot,
             productSnapshot,
+            selectedAssets: selectedAssets.map((asset) => ({
+              assetId: asset.assetId || asset.id || "",
+              assetSnapshot: buildAssetSnapshot(asset),
+            })),
             product: selectedProduct?.name || "غير محدد",
           },
         },
@@ -788,6 +806,7 @@ export default function CampaignWizardPage({
                   </div>
                   <small>لا تعدل الحملات الخطة تلقائيًا. عند إنشاء الحملة لاحقًا، يجب حفظ نسخة من توصيات الخطة وقت الإنشاء.</small>
                   <small>تحفظ الحملة معرف المنتج ونسخة من بيانات المنتج وقت الإنشاء كمرجع واجهي. لا يتم تعديل المنتج أو الخطة تلقائيًا.</small>
+                  <small>عند استخدام الأصل في حملة، تحفظ الحملة نسخة من بيانات الأصل وقت الاختيار.</small>
                 </div>
 
                 <div className="store-plan-suggestions social-campaign-suggestions">

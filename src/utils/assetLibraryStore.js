@@ -46,8 +46,8 @@ function normalizeType(type) {
   return assetTypes.includes(type) ? type : "document";
 }
 
-function normalizeAsset(asset = {}) {
-  const id = asset.id || `ast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+export function normalizeAsset(asset = {}) {
+  const id = asset.id || asset[internalAssetKey] || `ast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return {
     ...asset,
@@ -58,6 +58,7 @@ function normalizeAsset(asset = {}) {
     url: asset.url || "",
     thumbnailUrl: asset.thumbnailUrl || "",
     linkedType: linkedTypes.includes(asset.linkedType) ? asset.linkedType : "general",
+    linkedProductId: asset.linkedProductId || asset.productId || "",
     linkedName: asset.linkedName || asset.product || "عام",
     channel: asset.channel || "",
     status: normalizeStatus(asset.status),
@@ -69,6 +70,7 @@ function normalizeAsset(asset = {}) {
     notes: asset.notes || "",
     source: asset.source || "Manual",
     [internalSurfaceKey]: asset[internalSurfaceKey] || asset.source || "Asset Library",
+    createdAt: asset.createdAt || asset.updatedAt || new Date().toISOString(),
     updatedAt: asset.updatedAt || new Date().toISOString(),
   };
 }
