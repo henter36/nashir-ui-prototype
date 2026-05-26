@@ -242,6 +242,46 @@ const BLOCKED_PATTERN_SEVERITY = {
   "automatic publishing without approval": "حظر",
 };
 
+const EXPECTED_INPUT_OPTIONS = [
+  "رابط المتجر",
+  "بيانات المتجر",
+  "بيانات المنتج",
+  "السعر",
+  "وصف المنتج",
+  "الأصول المختارة",
+  "الجمهور",
+  "القنوات",
+  "العرض",
+  "دعوة الإجراء",
+  "مخرجات خطوة سابقة",
+  "مصدر بيانات",
+  "مؤشرات الأداء",
+  "ملاحظات المراجعة",
+  "محتوى الحملة",
+  "محتوى حملة سابق",
+  "ادعاءات وتسويق",
+  "حالة المراجعة",
+  "القناة",
+];
+
+const TASK_INPUT_DEFAULTS = {
+  store_reading: ["رابط المتجر", "بيانات المتجر"],
+  product_extraction: ["رابط المتجر", "بيانات المنتج"],
+  ad_copy_generation: ["بيانات المنتج", "الجمهور", "القنوات", "العرض", "دعوة الإجراء"],
+  image_generation: ["بيانات المنتج", "الأصول المختارة", "القناة"],
+  video_generation: ["بيانات المنتج", "الأصول المختارة", "القنوات"],
+  risk_review: ["محتوى الحملة", "ملاحظات المراجعة", "ادعاءات وتسويق"],
+  customer_summary: ["محتوى حملة سابق", "حالة المراجعة"],
+};
+
+function getExpectedInputs(prompt) {
+  if (Array.isArray(prompt?.expectedInputs) && prompt.expectedInputs.length) {
+    return prompt.expectedInputs;
+  }
+
+  return TASK_INPUT_DEFAULTS[prompt?.task] || ["غير محددة بعد"];
+}
+
 function getGovernanceFindings(prompt) {
   const findings = [];
   const safePrompt = {
@@ -332,12 +372,14 @@ function buildPromptStepReadiness(prompt) {
     allowedOutputs: [],
     blockedPatterns: [],
     requiredChecks: [],
+    expectedInputs: [],
     usage: [],
     ...prompt,
   };
   const requiredChecks = Array.isArray(safePrompt.requiredChecks) ? safePrompt.requiredChecks : [];
   const blockedPatterns = Array.isArray(safePrompt.blockedPatterns) ? safePrompt.blockedPatterns : [];
   const allowedOutputs = Array.isArray(safePrompt.allowedOutputs) ? safePrompt.allowedOutputs : [];
+  const expectedInputs = getExpectedInputs(safePrompt);
   const usage = Array.isArray(safePrompt.usage) ? safePrompt.usage : [];
   const riskyTasks = ["ad_copy_generation", "image_generation", "video_generation", "customer_summary"];
   const assetTasks = ["image_generation", "video_generation"];
@@ -356,6 +398,12 @@ function buildPromptStepReadiness(prompt) {
 
   if (safePrompt.version) checks.push("الإصدار محدد.");
   else warnings.push("الإصدار غير محدد.");
+
+  if (expectedInputs.length && !expectedInputs.includes("غير محددة بعد")) {
+    checks.push("المدخلات المتوقعة محددة.");
+  } else {
+    warnings.push("المدخلات المتوقعة غير محددة.");
+  }
 
   if (safePrompt.status === "active" || safePrompt.status === "approved") {
     checks.push("حالة المطالبة معتمدة.");
@@ -385,8 +433,8 @@ function buildPromptStepReadiness(prompt) {
   if (blockedPatterns.length) checks.push("أنماط الحظر محددة.");
   else warnings.push("أنماط الحظر غير محددة.");
 
-  if (allowedOutputs.length) checks.push("المخرجات المسموحة محددة.");
-  else warnings.push("المخرجات المسموحة غير محددة.");
+  if (allowedOutputs.length) checks.push("المخرجات المتوقعة/المسموحة محددة.");
+  else warnings.push("المخرجات المتوقعة/المسموحة غير محددة.");
 
   if (usage.length) {
     checks.push("روابط الاستخدام موجودة.");
@@ -568,7 +616,11 @@ export default function PromptGovernancePage() {
 
   const toggleArrayItem = (field, item) => {
     if (!selected || !item) return;
-    const current = Array.isArray(selected[field]) ? selected[field] : [];
+    const current = field === "expectedInputs"
+      ? getExpectedInputs(selected).filter((value) => value !== "غير محددة بعد")
+      : Array.isArray(selected[field])
+        ? selected[field]
+        : [];
     const next = current.includes(item)
       ? current.filter((value) => value !== item)
       : [...current, item];
@@ -780,6 +832,11 @@ export default function PromptGovernancePage() {
 
                 <TextAreaField label="الوصف" value={selected.description} rows={3} onChange={(value) => updatePrompt({ description: value })} />
                 <TextAreaField label="ملخص آمن للعميل" value={selected.customerFacingSummary} rows={3} onChange={(value) => updatePrompt({ customerFacingSummary: value })} />
+                <ExpectedInputContext
+                  prompt={selected}
+                  onToggle={(item) => toggleArrayItem("expectedInputs", item)}
+                  onTextChange={(value) => updateArrayField("expectedInputs", value)}
+                />
                 <TextAreaField
                   label="معاينة داخلية محجوبة"
                   value={selected.internalPromptPreview}
@@ -787,6 +844,7 @@ export default function PromptGovernancePage() {
                   helper="لا تُعرض للعميل ولا تُرسل كما هي في هذا النموذج."
                   onChange={(value) => updatePrompt({ internalPromptPreview: value })}
                 />
+                <PromptContractCard />
               </div>
 
               <div className="score-card">
@@ -805,6 +863,37 @@ export default function PromptGovernancePage() {
 
               <PromptSafetySummary prompt={selected} findings={selectedFindings} readiness={selectedReadiness} score={selectedScore} />
 
+              <section className="array-editor">
+                <h3>سياسات المخرجات</h3>
+                <ChipArrayEditor
+                  label="المخرجات المتوقعة/المسموحة من المطالبة"
+                  helper="تحدد أنواع النتائج المقبولة من المطالبة، ولا تمثل مدخلات ترسل للنموذج."
+                  values={selected.allowedOutputs || []}
+                  suggestions={ALLOWED_OUTPUT_OPTIONS}
+                  onToggle={(item) => toggleArrayItem("allowedOutputs", item)}
+                  onTextChange={(value) => updateArrayField("allowedOutputs", value)}
+                />
+                <ChipArrayEditor
+                  label="الفحوصات المطلوبة"
+                  helper="الفحوصات التي يجب أن تمر بها المطالبة قبل استخدامها في التشغيل."
+                  values={selected.requiredChecks || []}
+                  suggestions={REQUIRED_CHECK_OPTIONS}
+                  tone="green"
+                  onToggle={(item) => toggleArrayItem("requiredChecks", item)}
+                  onTextChange={(value) => updateArrayField("requiredChecks", value)}
+                />
+                <ChipArrayEditor
+                  label="أنماط الحظر"
+                  helper="عبارات أو أنماط تمنع استخدام المطالبة أو تتطلب مراجعة."
+                  values={selected.blockedPatterns || []}
+                  suggestions={BLOCKED_PATTERN_OPTIONS}
+                  tone="red"
+                  showSeverity
+                  onToggle={(item) => toggleArrayItem("blockedPatterns", item)}
+                  onTextChange={(value) => updateArrayField("blockedPatterns", value)}
+                />
+              </section>
+
               <section className="link-panel">
                 <h3>
                   <Link2 size={16} />
@@ -813,6 +902,7 @@ export default function PromptGovernancePage() {
                 <p>
                   روابط الاستخدام توضّح أين تظهر المطالبة داخل التشغيلات، ولا تنقل مصمم المسارات إلى هذه الصفحة.
                   تشغيلات النظام تستهلك جاهزية المطالبة ولا تنفذها من هذه الصفحة.
+                  روابط الاستخدام لا تعني أن هذه الصفحة تنفذ المطالبة.
                 </p>
 
                 <div className="link-controls">
@@ -859,37 +949,6 @@ export default function PromptGovernancePage() {
                     </div>
                   )}
                 </div>
-              </section>
-
-              <section className="array-editor">
-                <h3>سياسات المخرجات</h3>
-                <ChipArrayEditor
-                  label="المخرجات المسموحة"
-                  helper="حدد أنواع المخرجات التي يُسمح لهذه المطالبة بإنتاجها."
-                  values={selected.allowedOutputs || []}
-                  suggestions={ALLOWED_OUTPUT_OPTIONS}
-                  onToggle={(item) => toggleArrayItem("allowedOutputs", item)}
-                  onTextChange={(value) => updateArrayField("allowedOutputs", value)}
-                />
-                <ChipArrayEditor
-                  label="الفحوصات المطلوبة"
-                  helper="الفحوصات التي يجب أن تمر بها المطالبة قبل استخدامها في التشغيل."
-                  values={selected.requiredChecks || []}
-                  suggestions={REQUIRED_CHECK_OPTIONS}
-                  tone="green"
-                  onToggle={(item) => toggleArrayItem("requiredChecks", item)}
-                  onTextChange={(value) => updateArrayField("requiredChecks", value)}
-                />
-                <ChipArrayEditor
-                  label="أنماط الحظر"
-                  helper="عبارات أو أنماط تمنع استخدام المطالبة أو تتطلب مراجعة."
-                  values={selected.blockedPatterns || []}
-                  suggestions={BLOCKED_PATTERN_OPTIONS}
-                  tone="red"
-                  showSeverity
-                  onToggle={(item) => toggleArrayItem("blockedPatterns", item)}
-                  onTextChange={(value) => updateArrayField("blockedPatterns", value)}
-                />
               </section>
 
               <section className="finding-list">
@@ -989,6 +1048,7 @@ export default function PromptGovernancePage() {
             <p>
               روابط الاستخدام توضّح أين تظهر المطالبة داخل التشغيلات، ولا تنقل مصمم المسارات إلى هذه الصفحة.
               تشغيلات النظام تستهلك جاهزية المطالبة ولا تنفذها من هذه الصفحة.
+              روابط الاستخدام لا تعني أن هذه الصفحة تنفذ المطالبة.
             </p>
 
             <div className="usage-grid">
@@ -1120,6 +1180,7 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
   const usageCount = Array.isArray(prompt.usage) ? prompt.usage.length : 0;
   const requiredChecks = Array.isArray(prompt.requiredChecks) ? prompt.requiredChecks.length : 0;
   const allowedOutputs = Array.isArray(prompt.allowedOutputs) ? prompt.allowedOutputs.length : 0;
+  const expectedInputs = getExpectedInputs(prompt).filter((item) => item !== "غير محددة بعد");
 
   return (
     <section className={`prompt-readiness-panel ${readiness.status}`}>
@@ -1135,9 +1196,10 @@ function PromptStepReadinessPanel({ prompt, readiness }) {
         <Info label="المهمة" value={prompt.task || "غير محددة"} />
         <Info label="حالة المطالبة" value={STATUS_LABELS[prompt.status]?.[0] || prompt.status || "غير محددة"} />
         <Info label="سياسة المراجعة" value={REVIEW_LABELS[prompt.review] || "غير محددة"} />
+        <Info label="المدخلات المتوقعة محددة" value={expectedInputs.length ? `${expectedInputs.length}` : "غير محددة بعد"} />
         <Info label="عدد روابط الاستخدام" value={usageCount} />
         <Info label="الفحوصات المطلوبة" value={requiredChecks} />
-        <Info label="المخرجات المسموحة" value={allowedOutputs} />
+        <Info label="المخرجات المتوقعة/المسموحة" value={allowedOutputs} />
       </div>
 
       <div className="prompt-readiness-notes blocked-notes">
@@ -1172,6 +1234,8 @@ function PromptSafetySummary({ prompt, findings = [], readiness, score }) {
   const checks = Array.isArray(prompt?.requiredChecks) ? prompt.requiredChecks : [];
   const patterns = Array.isArray(prompt?.blockedPatterns) ? prompt.blockedPatterns : [];
   const usage = Array.isArray(prompt?.usage) ? prompt.usage : [];
+  const expectedInputs = getExpectedInputs(prompt).filter((item) => item !== "غير محددة بعد");
+  const allowedOutputs = Array.isArray(prompt?.allowedOutputs) ? prompt.allowedOutputs : [];
   const leakageSafe = checks.includes("prompt_leakage_check") || patterns.some((item) => String(item).includes("leak") || String(item).includes("تسريب"));
   const claimsSafe = checks.includes("risk_review") || checks.includes("claim_evidence_check");
   const assetSafe = checks.includes("asset_rights_check") || checks.includes("visual_safety_review");
@@ -1195,7 +1259,87 @@ function PromptSafetySummary({ prompt, findings = [], readiness, score }) {
         <Info label="حقوق الأصول" value={assetSafe ? "مغطاة بفحص" : "غير محددة"} />
         <Info label="مراجعة بشرية" value={reviewSafe ? "مطلوبة" : "غير كافية"} />
         <Info label="ظهور للعميل" value={visibleLabel} />
+        <Info label="المدخلات المتوقعة محددة" value={expectedInputs.length ? "نعم" : "غير محددة بعد"} />
+        <Info label="المخرجات المتوقعة/المسموحة محددة" value={allowedOutputs.length ? "نعم" : "غير محددة"} />
         <Info label="روابط الاستخدام" value={usage.length ? `${usage.length} روابط` : "غير مرتبطة"} />
+      </div>
+    </section>
+  );
+}
+
+function ExpectedInputContext({ prompt, onToggle, onTextChange }) {
+  const expectedInputs = getExpectedInputs(prompt);
+  const selectedInputs = expectedInputs.filter((item) => item !== "غير محددة بعد");
+
+  return (
+    <section className="expected-input-card">
+      <div className="chip-array-head">
+        <div>
+          <h4>المدخلات المتوقعة للمطالبة</h4>
+          <p>
+            المطالبة تُرسل مع سياق مثل رابط متجر، بيانات منتج، أصول مختارة، قناة، جمهور، أو مخرج سابق.
+            هذه الصفحة تضبط العقد المتوقع ولا تنفذ المطالبة.
+          </p>
+        </div>
+        <span>{selectedInputs.length || "—"}</span>
+      </div>
+
+      <div className="chips selectable-chips">
+        {EXPECTED_INPUT_OPTIONS.map((item) => {
+          const selected = selectedInputs.includes(item);
+          return (
+            <button
+              type="button"
+              key={item}
+              className={`chip-select ${selected ? "selected" : ""}`}
+              onClick={() => onToggle(item)}
+            >
+              <span>{item}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!selectedInputs.length ? (
+        <div className="unused-warning">
+          <AlertTriangle size={15} />
+          غير محددة بعد
+        </div>
+      ) : null}
+
+      <details className="advanced-array-edit">
+        <summary>تحرير متقدم للمدخلات المتوقعة</summary>
+        <TextAreaField
+          label="المدخلات المتوقعة للمطالبة — كل قيمة في سطر"
+          value={selectedInputs.join("\n")}
+          rows={3}
+          onChange={onTextChange}
+        />
+      </details>
+    </section>
+  );
+}
+
+function PromptContractCard() {
+  return (
+    <section className="prompt-contract-card">
+      <h3>عقد المطالبة</h3>
+      <div className="contract-flow">
+        <span>سياق الإدخال</span>
+        <b>+</b>
+        <span>تعليمات المطالبة</span>
+        <b>+</b>
+        <span>عقد المخرج</span>
+      </div>
+      <p>
+        النتيجة المنطقية: سياق الإدخال + تعليمات المطالبة + عقد المخرج = استجابة نموذج قابلة للمراجعة.
+      </p>
+      <div className="contract-parts">
+        <Chip>المدخلات المتوقعة</Chip>
+        <Chip>معاينة داخلية محجوبة</Chip>
+        <Chip>المخرجات المتوقعة/المسموحة</Chip>
+        <Chip tone="green">الفحوص المطلوبة</Chip>
+        <Chip tone="red">أنماط الحظر</Chip>
       </div>
     </section>
   );
@@ -1728,12 +1872,51 @@ const styles = `
 .finding-list{
   margin-top:12px;
 }
-.prompt-safety-card,.chip-array-editor{
+.prompt-safety-card,.chip-array-editor,.expected-input-card,.prompt-contract-card{
   border:1px solid #e4e7df;
   background:#fbfdf9;
   border-radius:18px;
   padding:12px;
   margin-top:12px;
+}
+.expected-input-card{
+  background:#fff;
+}
+.prompt-contract-card{
+  background:#f8fbff;
+  border-color:#dbeafe;
+}
+.prompt-contract-card h3{
+  margin:0 0 10px;
+  font-size:15px;
+}
+.prompt-contract-card p{
+  color:#1d4ed8;
+  font-size:12px;
+  font-weight:850;
+  line-height:1.8;
+  margin:10px 0 0;
+}
+.contract-flow,.contract-parts{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.contract-flow span{
+  border:1px solid #dbeafe;
+  background:#fff;
+  border-radius:999px;
+  padding:7px 10px;
+  color:#1f241d;
+  font-size:12px;
+  font-weight:900;
+}
+.contract-flow b{
+  color:#1d4ed8;
+}
+.contract-parts{
+  margin-top:10px;
 }
 .prompt-safety-card.blocked{
   border-color:#fed7aa;
