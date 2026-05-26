@@ -169,10 +169,20 @@ const TABS = [
   ["overview", "نظرة عامة"],
   ["workspace", "مساحة العمل"],
   ["channels", "القنوات"],
-  ["ai", "الذكاء الاصطناعي والتكلفة"],
-  ["governance", "الحوكمة"],
+  ["ai", "ملخص الذكاء الاصطناعي"],
+  ["governance", "ملخص الحوكمة"],
   ["outputs", "المخرجات"],
   ["audit", "سجل الإعدادات"],
+];
+
+const OWNERSHIP_MAP = [
+  ["المزودون والأسرار", "يُدار من الأسرار والمفاتيح"],
+  ["توجيه النماذج", "يُدار من توجيه النماذج"],
+  ["التكلفة والاعتماد", "يُدار من مراقبة التكلفة"],
+  ["الحوكمة والسياسات العامة", "تُدار من إدارة النظام"],
+  ["حوكمة المطالبات", "تُدار من حوكمة المطالبات"],
+  ["التشغيلات والجاهزية", "تُعرض في تشغيلات النظام"],
+  ["القنوات ومصادر البيانات", "تُدار من القنوات أو مصادر البيانات"],
 ];
 
 function safeNormalize(value = "") {
@@ -230,7 +240,7 @@ function applySharedConnections(channels, sharedConnections = {}) {
   });
 }
 
-function buildWarnings({ channels, aiSettings, governance, outputSettings, workspace, sharedConnections }) {
+function buildWarnings({ channels, outputSettings, workspace, sharedConnections }) {
   const warnings = [];
 
   if (!workspace.workspaceName.trim()) {
@@ -264,8 +274,8 @@ function buildWarnings({ channels, aiSettings, governance, outputSettings, works
     warnings.push({
       id: "pending_oauth",
       tone: "amber",
-      title: "يوجد ربط OAuth بانتظار الإكمال",
-      message: "القنوات التي بدأت الربط ولم تكمله لا يجب اعتبارها جاهزة للنشر.",
+      title: "يوجد ربط تجريبي بانتظار الإكمال",
+      message: "حالة الربط هنا ملخص فقط. إدارة القنوات التفصيلية تتم من صفحة القنوات أو مصادر البيانات.",
     });
   }
 
@@ -273,8 +283,8 @@ function buildWarnings({ channels, aiSettings, governance, outputSettings, works
     warnings.push({
       id: "mock_connections",
       tone: "amber",
-      title: "يوجد ربط OAuth Mock",
-      message: "الربط الظاهر للتجربة فقط. التنفيذ الحقيقي يحتاج Backend يحفظ Tokens مشفرة.",
+      title: "يوجد ربط تجريبي",
+      message: "محاكاة فقط — لا يوجد اتصال فعلي في هذا النموذج.",
     });
   }
 
@@ -287,116 +297,6 @@ function buildWarnings({ channels, aiSettings, governance, outputSettings, works
       tone: "amber",
       title: "حالة الربط لا تظهر في القنوات",
       message: "راجع مفاتيح القنوات حتى تطابق Provider IDs المعتمدة.",
-    });
-  }
-
-  const monthlyBudget = Number(aiSettings.maxMonthlyBudget);
-
-  if (!Number.isFinite(monthlyBudget) || monthlyBudget <= 0) {
-    warnings.push({
-      id: "bad_budget",
-      tone: "red",
-      title: "حد التكلفة غير صالح",
-      message: "يجب أن يكون حد التكلفة رقمًا موجبًا حتى لا يصبح التحكم المالي شكليًا.",
-    });
-  }
-
-  if (monthlyBudget > 1000) {
-    warnings.push({
-      id: "high_budget",
-      tone: "amber",
-      title: "حد التكلفة مرتفع",
-      message: "ارفع السقف لاحقًا فقط بعد وجود مراقبة تكلفة وتنبيهات واعتمادات.",
-    });
-  }
-
-  if (aiSettings.allowAutoGeneration && !aiSettings.requireHumanReview) {
-    warnings.push({
-      id: "generation_without_review",
-      tone: "red",
-      title: "توليد بلا مراجعة بشرية",
-      message: "هذا يخلق خطر مخرجات غير دقيقة أو مخالفة قبل الاعتماد.",
-    });
-  }
-
-  if (aiSettings.textProvider === "غير محدد") {
-    warnings.push({
-      id: "text_provider_missing",
-      tone: "amber",
-      title: "مزود النصوص غير محدد",
-      message: "اختيار مزود النصوص ضروري لاحقًا لتوجيه النماذج والتكلفة.",
-    });
-  }
-
-  if (!aiSettings.requireFallbackModel) {
-    warnings.push({
-      id: "fallback_disabled",
-      tone: "amber",
-      title: "Fallback غير مفعل",
-      message: "تعطيل النموذج البديل قد يسبب توقفًا كاملًا عند فشل المزود الأساسي.",
-    });
-  }
-
-  if (!aiSettings.redactCustomerData) {
-    warnings.push({
-      id: "redaction_disabled",
-      tone: "red",
-      title: "إخفاء بيانات العملاء غير مفعل",
-      message: "لا يجوز استخدام بيانات عملاء حساسة في المطالبات دون ضوابط واضحة.",
-    });
-  }
-
-  if (!governance.blockAutoPublish) {
-    warnings.push({
-      id: "auto_publish_not_blocked",
-      tone: "red",
-      title: "النشر التلقائي غير محظور",
-      message: "هذا مخالف لاتجاه البروتوتايب الحالي: لا نشر تلقائي ولا إرسال حقيقي.",
-    });
-  }
-
-  if (!governance.requireApprovalBeforeSend) {
-    warnings.push({
-      id: "approval_disabled",
-      tone: "red",
-      title: "الإرسال بلا اعتماد",
-      message: "أي قناة خارجية يجب أن تمر باعتماد واضح قبل التنفيذ الحقيقي.",
-    });
-  }
-
-  if (!governance.keepReviewLog) {
-    warnings.push({
-      id: "review_log_disabled",
-      tone: "amber",
-      title: "سجل المراجعة غير مفعل",
-      message: "غياب سجل المراجعة سيضعف المساءلة والتتبع.",
-    });
-  }
-
-  if (!governance.requireClaimsReview) {
-    warnings.push({
-      id: "claims_review_disabled",
-      tone: "red",
-      title: "مراجعة الادعاءات غير مفعلة",
-      message: "المحتوى التسويقي قد يتضمن وعودًا أو ادعاءات تحتاج تحققًا قبل النشر.",
-    });
-  }
-
-  if (!governance.requireAssetRightsReview) {
-    warnings.push({
-      id: "asset_rights_review_disabled",
-      tone: "amber",
-      title: "مراجعة حقوق الأصول غير مفعلة",
-      message: "استخدام الصور أو الفيديوهات دون تحقق حقوقي خطر تشغيلي وسمعة.",
-    });
-  }
-
-  if (!governance.requirePromptVersioning) {
-    warnings.push({
-      id: "prompt_versioning_disabled",
-      tone: "amber",
-      title: "إصدارات المطالبات غير مفعلة",
-      message: "بدون versioning لن نستطيع معرفة أي مطالبة أنتجت أي مخرج.",
     });
   }
 
@@ -519,8 +419,8 @@ export default function SettingsPage() {
   );
 
   const warnings = useMemo(
-    () => buildWarnings({ channels, aiSettings, governance, outputSettings, workspace, sharedConnections }),
-    [channels, aiSettings, governance, outputSettings, workspace, sharedConnections]
+    () => buildWarnings({ channels, outputSettings, workspace, sharedConnections }),
+    [channels, outputSettings, workspace, sharedConnections]
   );
 
   const governanceScore = useMemo(() => calculateScore(warnings), [warnings]);
@@ -573,16 +473,6 @@ export default function SettingsPage() {
     recordChange(`تعديل إعداد مساحة العمل: ${key}`);
   };
 
-  const updateAi = (key, value) => {
-    setAiSettings((prev) => ({ ...prev, [key]: value }));
-    recordChange(`تعديل إعداد الذكاء الاصطناعي: ${key}`, key.includes("redact") ? "warning" : "info");
-  };
-
-  const updateGovernance = (key, value) => {
-    setGovernance((prev) => ({ ...prev, [key]: value }));
-    recordChange(`تعديل قاعدة حوكمة: ${key}`, value === false ? "warning" : "info");
-  };
-
   const updateOutput = (key, value) => {
     setOutputSettings((prev) => ({ ...prev, [key]: value }));
     recordChange(`تعديل إعداد المخرجات: ${key}`);
@@ -592,7 +482,7 @@ export default function SettingsPage() {
     setChannels((prev) =>
       prev.map((channel) => (channel.id === id ? { ...channel, enabled } : channel))
     );
-    recordChange(`${enabled ? "تفعيل" : "تعطيل"} قناة ${OAUTH_PROVIDERS[id]?.name || id}`);
+    recordChange(`${enabled ? "إظهار" : "إخفاء"} قناة ${OAUTH_PROVIDERS[id]?.name || id} في ملخص الإعدادات`);
   };
 
   const persistSharedConnection = (providerId, status, extra = {}) => {
@@ -625,11 +515,7 @@ export default function SettingsPage() {
     persistSharedConnection(channel.id, "pending_oauth", {
       lastAction: "oauth_started",
     });
-    recordChange(`بدء ربط OAuth لقناة ${provider.name}`, "info");
-
-    if (provider.authUrl && provider.authUrl !== "about:blank") {
-      window.open(provider.authUrl, "_blank", "noopener,noreferrer");
-    }
+    recordChange(`محاكاة بدء ربط قناة ${provider.name}`, "info");
   };
 
   const mockOAuthSuccess = (channel) => {
@@ -645,7 +531,7 @@ export default function SettingsPage() {
       lastAction: "oauth_callback_mocked",
     });
 
-    recordChange(`اكتمل ربط OAuth Mock لقناة ${provider.name}`, "info");
+    recordChange(`اكتملت محاكاة ربط قناة ${provider.name}`, "info");
   };
 
   const disconnectOAuth = (channel) => {
@@ -712,9 +598,9 @@ export default function SettingsPage() {
           <h1>مركز إعدادات ناشر قبل التشغيل الحقيقي</h1>
 
           <p>
-            هذه الصفحة تضبط مساحة العمل، القنوات، مزودي الذكاء الاصطناعي، حدود
-            التكلفة، وسياسات المراجعة. حالة ربط القنوات محفوظة محليًا وتظهر في
-            إعداد المتجر والإعدادات.
+            هذه الصفحة تضبط افتراضات مساحة العمل والمخرجات وتعرض ملخصات عالية
+            المستوى. إعدادات المزودين، التوجيه، التكلفة، الحوكمة، والسياسات
+            تُدار من صفحاتها المتخصصة.
           </p>
 
           <div className="hero-actions">
@@ -732,9 +618,9 @@ export default function SettingsPage() {
           <div className="hero-alert">
             <CircleAlert size={18} />
             <span>
-              لا تضع مفاتيح API حقيقية هنا. زر OAuth في هذا البروتوتايب يعرض
-              المسار فقط؛ التنفيذ الحقيقي يجب أن يتم عبر Backend آمن يحفظ Tokens
-              مشفرة ويعرض الحالة للواجهة فقط.
+              هذه الشاشة تحفظ أسماء مراجع وإعدادات واجهية عامة فقط. لا يتم حفظ
+              مفاتيح أو أسرار في الواجهة، وأي ربط قناة هنا محاكاة فقط — لا يوجد
+              اتصال فعلي في هذا النموذج.
             </span>
           </div>
         </div>
@@ -766,6 +652,34 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <section className="settings-card boundary-card">
+        <div className="card-header compact">
+          <div className="card-title">
+            <div className="card-icon">
+              <Shield size={20} />
+            </div>
+
+            <div>
+              <h2>حدود الإعدادات العامة</h2>
+              <p>
+                هذه الصفحة تضبط الإعدادات العامة لمساحة العمل فقط. إعدادات
+                الذكاء الاصطناعي، الحوكمة، التكلفة، والمزودين تُدار من صفحاتها
+                المتخصصة.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="ownership-map">
+          {OWNERSHIP_MAP.map(([label, value]) => (
+            <div key={label} className="ownership-row">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="settings-tabs" aria-label="تبويبات الإعدادات">
         {TABS.map(([id, label]) => (
           <button
@@ -785,7 +699,7 @@ export default function SettingsPage() {
             <>
               <section className="metrics-grid">
                 <Metric title="القنوات المفعلة" value={enabledChannelsCount} note={`من أصل ${channels.length}`} />
-                <Metric title="مرتبط OAuth Mock" value={connectedOAuthCount} note={`${pendingOAuthCount} بانتظار OAuth`} />
+                <Metric title="مرتبط تجريبي" value={connectedOAuthCount} note={`${pendingOAuthCount} بانتظار محاكاة`} />
                 <Metric title="حالة ربط محفوظة" value={reflectedConnectionCount} note={`${sharedConnectionCount} سجل محفوظ`} />
                 <Metric title="حالة التغييرات" value={dirty ? "غير محفوظة" : "محفوظة"} note="داخل الواجهة فقط" />
               </section>
@@ -793,7 +707,7 @@ export default function SettingsPage() {
               <SettingsCard
                 icon={Globe2}
                 title="حالة ربط القنوات المشتركة"
-                description="تقرأ هذه البطاقة حالة OAuth Mock المحفوظة محليًا."
+                description="حالة الربط هنا ملخص فقط. إدارة القنوات التفصيلية تتم من صفحة القنوات أو مصادر البيانات."
               >
                 <SharedConnectionSummary channels={channels} sharedConnectionCount={sharedConnectionCount} />
               </SettingsCard>
@@ -809,17 +723,17 @@ export default function SettingsPage() {
               <SettingsCard
                 icon={SlidersHorizontal}
                 title="ملخص التشغيل"
-                description="قراءة سريعة لما سيؤثر على إنشاء الحملات والمحتوى."
+                description="قراءة عامة لا تجعل هذه الصفحة مالكة لسياسات الذكاء الاصطناعي أو الحوكمة."
               >
                 <div className="summary-list inline">
                   <SummaryRow label="مساحة العمل" value={workspace.workspaceName || "غير محدد"} />
                   <SummaryRow label="السوق الافتراضي" value={workspace.defaultMarket || "غير محدد"} />
-                  <SummaryRow label="مراجعة بشرية" value={aiSettings.requireHumanReview ? "مفعلة" : "غير مفعلة"} />
-                  <SummaryRow label="النشر التلقائي" value={governance.blockAutoPublish ? "ممنوع" : "غير مضبوط"} />
-                  <SummaryRow label="مراجعة الادعاءات" value={governance.requireClaimsReview ? "مفعلة" : "غير مفعلة"} />
                   <SummaryRow label="اللغة والنبرة" value={`${outputSettings.defaultLanguage} · ${outputSettings.defaultTone}`} />
-                  <SummaryRow label="مسارات الذكاء الاصطناعي" value={modelRoutingSummary.routes || "غير محدد"} />
-                  <SummaryRow label="استهلاك التكلفة" value={`${modelRoutingSummary.usage || 0}%`} />
+                  <SummaryRow label="القنوات المفعلة" value={`${enabledChannelsCount} ملخص فقط`} />
+                  <SummaryRow label="إعدادات AI" value="تُدار من الصفحات المتخصصة" />
+                  <SummaryRow label="السياسات" value="تُدار من إدارة النظام" />
+                  <SummaryRow label="مسارات الذكاء الاصطناعي" value={`${modelRoutingSummary.routes || 0} ملخص فقط`} />
+                  <SummaryRow label="استهلاك التكلفة" value={`${modelRoutingSummary.usage || 0}% ملخص فقط`} />
                   <SummaryRow label="أعضاء الفريق" value={workspaceTeamSummary.members || 0} />
                   <SummaryRow label="تعليقات مفتوحة" value={workspaceTeamSummary.openComments || 0} />
                 </div>
@@ -864,16 +778,16 @@ export default function SettingsPage() {
           {activeTab === "channels" && (
             <SettingsCard
               icon={Globe2}
-              title="القنوات والربط OAuth"
-              description="نفس طريقة الربط المختصرة الموجودة في إعداد المتجر: قناة ثابتة، زر OAuth، حالة واحدة مشتركة."
+              title="ملخص القنوات"
+              description="حالة الربط هنا ملخص فقط. إدارة القنوات التفصيلية تتم من صفحة القنوات أو مصادر البيانات."
             >
               <div className="source-note">
                 <Store size={18} />
                 <div>
-                  <strong>حالة ربط واحدة</strong>
+                  <strong>ملخص فقط</strong>
                   <span>
-                    إعداد المتجر والإعدادات يعرضان نفس حالة الربط المحفوظة
-                    محليًا. لا توجد مزامنة يدوية ولا سجل قناة منفصل.
+                    محاكاة فقط — لا يوجد اتصال فعلي في هذا النموذج. هذه الصفحة
+                    لا تدير دورة الربط التفصيلية أو الصلاحيات.
                   </span>
                 </div>
               </div>
@@ -910,7 +824,7 @@ export default function SettingsPage() {
                       <div className="connection-badges">
                         <ConnectionBadge status={channel.status} />
                         {channel.fromSharedConnection && (
-                          <span className="shared-badge">حالة محفوظة</span>
+                          <span className="shared-badge">ملخص فقط</span>
                         )}
                       </div>
 
@@ -919,9 +833,9 @@ export default function SettingsPage() {
                           label="الحالة"
                           value={
                             isConnected
-                              ? "مرتبط OAuth Mock"
+                              ? "مرتبط تجريبي"
                               : isPending
-                                ? "بانتظار موافقة OAuth"
+                                ? "بانتظار محاكاة الموافقة"
                                 : channel.status === "failed"
                                   ? "فشل الربط"
                                   : "غير مرتبط"
@@ -942,7 +856,7 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="scope-list">
-                        <strong>الصلاحيات المطلوبة لاحقًا</strong>
+                        <strong>الصلاحيات المتوقعة لاحقًا</strong>
                         <div>
                           {(channel.requestedScopes || []).map((scope) => (
                             <span key={scope}>{scope}</span>
@@ -955,7 +869,7 @@ export default function SettingsPage() {
                           type="button"
                           onClick={() => startOAuthConnection(channel)}
                         >
-                          ربط OAuth
+                          محاكاة بدء الربط
                         </button>
 
                         <button
@@ -978,10 +892,10 @@ export default function SettingsPage() {
                         <Lock size={16} />
                         <span>
                           {isConnected
-                            ? "مرتبط كـ OAuth Mock داخل البروتوتايب."
+                            ? "مرتبط كمحاكاة داخل البروتوتايب."
                             : isPending
-                              ? "تم بدء مسار OAuth وينتظر إتمام الموافقة."
-                              : "غير مرتبط. اضغط ربط OAuth لبدء المسار."}
+                              ? "تم بدء مسار محاكاة الربط وينتظر إتمام الموافقة."
+                              : "غير مرتبط. استخدم المحاكاة فقط من هذه الصفحة."}
                         </span>
                       </div>
                     </div>
@@ -994,66 +908,23 @@ export default function SettingsPage() {
           {activeTab === "ai" && (
             <SettingsCard
               icon={Bot}
-              title="إعدادات أدوات الذكاء الاصطناعي والتكلفة"
-              description="اختيارات مزودي الخدمة وحدود التكلفة بشكل مبدئي."
+              title="ملخص الذكاء الاصطناعي والتكلفة"
+              description="ملخص فقط. المزودون، التوجيه، النماذج البديلة، والتكلفة لا تُدار من هذه الصفحة."
             >
-              <div className="form-grid">
-                <SelectField
-                  label="مزود النصوص"
-                  value={aiSettings.textProvider}
-                  options={providerOptions}
-                  onChange={(value) => updateAi("textProvider", value)}
-                />
+              <OwnershipNote
+                title="إعدادات AI لا تُحفظ هنا"
+                text="المزودون والأسرار: يُدار من الأسرار والمفاتيح. توجيه النماذج: يُدار من توجيه النماذج. التكلفة والاعتماد: يُدار من مراقبة التكلفة."
+              />
 
-                <SelectField
-                  label="مزود الصور"
-                  value={aiSettings.imageProvider}
-                  options={providerOptions}
-                  onChange={(value) => updateAi("imageProvider", value)}
-                />
-
-                <SelectField
-                  label="مزود الفيديو"
-                  value={aiSettings.videoProvider}
-                  options={providerOptions}
-                  onChange={(value) => updateAi("videoProvider", value)}
-                />
-
-                <Field
-                  label="حد التكلفة الشهري التقريبي بالدولار"
-                  value={aiSettings.maxMonthlyBudget}
-                  onChange={(value) => updateAi("maxMonthlyBudget", value)}
-                />
-              </div>
-
-              <div className="toggle-grid">
-                <ToggleRow
-                  title="مراجعة بشرية قبل اعتماد المخرجات"
-                  description="لا تعتمد المحتوى الناتج من AI دون مراجعة."
-                  checked={aiSettings.requireHumanReview}
-                  onChange={(value) => updateAi("requireHumanReview", value)}
-                />
-
-                <ToggleRow
-                  title="السماح بالتوليد التلقائي للمسودات"
-                  description="توليد مسودات فقط، وليس نشرًا أو إرسالًا."
-                  checked={aiSettings.allowAutoGeneration}
-                  onChange={(value) => updateAi("allowAutoGeneration", value)}
-                />
-
-                <ToggleRow
-                  title="تفعيل نموذج بديل عند فشل المزود"
-                  description="يقلل توقف التجربة عند فشل مزود واحد."
-                  checked={aiSettings.requireFallbackModel}
-                  onChange={(value) => updateAi("requireFallbackModel", value)}
-                />
-
-                <ToggleRow
-                  title="إخفاء بيانات العملاء قبل إرسال المطالبات"
-                  description="ضروري قبل أي تنفيذ حقيقي."
-                  checked={aiSettings.redactCustomerData}
-                  onChange={(value) => updateAi("redactCustomerData", value)}
-                />
+              <div className="summary-list inline readonly-summary">
+                <SummaryRow label="المزودون والأسرار" value="يُدار من الأسرار والمفاتيح" />
+                <SummaryRow label="توجيه النماذج" value="يُدار من توجيه النماذج" />
+                <SummaryRow label="التكلفة والاعتماد" value="يُدار من مراقبة التكلفة" />
+                <SummaryRow label="النماذج النشطة" value={`${modelRoutingSummary.activeModels || 0} ملخص فقط`} />
+                <SummaryRow label="مسارات المراجعة" value={`${modelRoutingSummary.reviewRoutes || 0} ملخص فقط`} />
+                <SummaryRow label="توقع التكلفة" value={`${modelRoutingSummary.forecastUsage || 0}% ملخص فقط`} />
+                <SummaryRow label="النماذج البديلة" value="تُدار من توجيه النماذج" />
+                <SummaryRow label="مرجع السر" value="يُدار من الأسرار والمفاتيح" />
               </div>
             </SettingsCard>
           )}
@@ -1061,60 +932,21 @@ export default function SettingsPage() {
           {activeTab === "governance" && (
             <SettingsCard
               icon={Shield}
-              title="الحوكمة والمراجعة"
-              description="ضوابط تمنع النشر أو الإرسال غير الآمن."
+              title="ملخص الحوكمة والسياسات"
+              description="ملخص فقط. السياسات العامة والاعتمادات النهائية تُدار من إدارة النظام والصفحات المتخصصة."
             >
-              <div className="form-grid">
-                <SelectField
-                  label="مستوى المخاطر الافتراضي"
-                  value={governance.riskLevel}
-                  options={riskLevels}
-                  onChange={(value) => updateGovernance("riskLevel", value)}
-                />
-              </div>
+              <OwnershipNote
+                title="السياسات النهائية ليست في الإعدادات العامة"
+                text="الحوكمة والسياسات العامة: تُدار من إدارة النظام. حوكمة المطالبات: تُدار من حوكمة المطالبات. التشغيلات والجاهزية: تُعرض في تشغيلات النظام."
+              />
 
-              <div className="toggle-grid">
-                <ToggleRow
-                  title="منع النشر التلقائي"
-                  description="النشر الحقيقي يجب أن يبقى محظورًا في هذه المرحلة."
-                  checked={governance.blockAutoPublish}
-                  onChange={(value) => updateGovernance("blockAutoPublish", value)}
-                />
-
-                <ToggleRow
-                  title="طلب اعتماد قبل الإرسال"
-                  description="أي قناة خارجية تحتاج موافقة بشرية."
-                  checked={governance.requireApprovalBeforeSend}
-                  onChange={(value) => updateGovernance("requireApprovalBeforeSend", value)}
-                />
-
-                <ToggleRow
-                  title="الاحتفاظ بسجل مراجعة"
-                  description="ضروري للمساءلة لاحقًا."
-                  checked={governance.keepReviewLog}
-                  onChange={(value) => updateGovernance("keepReviewLog", value)}
-                />
-
-                <ToggleRow
-                  title="مراجعة الادعاءات التسويقية"
-                  description="يمنع وعودًا أو ادعاءات غير قابلة للتحقق."
-                  checked={governance.requireClaimsReview}
-                  onChange={(value) => updateGovernance("requireClaimsReview", value)}
-                />
-
-                <ToggleRow
-                  title="مراجعة حقوق الأصول"
-                  description="قبل استخدام صور أو فيديوهات أو مواد خارجية."
-                  checked={governance.requireAssetRightsReview}
-                  onChange={(value) => updateGovernance("requireAssetRightsReview", value)}
-                />
-
-                <ToggleRow
-                  title="إصدارات المطالبات"
-                  description="ربط كل مخرج بإصدار المطالبة لاحقًا."
-                  checked={governance.requirePromptVersioning}
-                  onChange={(value) => updateGovernance("requirePromptVersioning", value)}
-                />
+              <div className="summary-list inline readonly-summary">
+                <SummaryRow label="الحوكمة والسياسات العامة" value="تُدار من إدارة النظام" />
+                <SummaryRow label="حوكمة المطالبات" value="تُدار من حوكمة المطالبات" />
+                <SummaryRow label="التشغيلات والجاهزية" value="تُعرض في تشغيلات النظام" />
+                <SummaryRow label="النشر التلقائي" value="تُدار من إدارة النظام" />
+                <SummaryRow label="الاعتماد قبل الإرسال" value="يُدار من مراقبة التكلفة وإدارة النظام" />
+                <SummaryRow label="سجل التدقيق" value="تُدار من إدارة النظام" />
               </div>
             </SettingsCard>
           )}
@@ -1207,8 +1039,8 @@ export default function SettingsPage() {
         <aside className="settings-side">
           <SettingsCard
             icon={Shield}
-            title="قرار الحوكمة"
-            description="ملخص سريع قبل اعتماد الإعدادات."
+            title="قرار الإعدادات العامة"
+            description="ملخص سريع لافتراضات مساحة العمل والمخرجات فقط."
           >
             <div className="decision-box">
               <strong>
@@ -1222,8 +1054,8 @@ export default function SettingsPage() {
                 {governanceScore >= 80
                   ? "الإعدادات مناسبة كتصور واجهة."
                   : governanceScore >= 55
-                    ? "توجد ملاحظات يجب إغلاقها قبل التنفيذ الحقيقي."
-                    : "المخاطر عالية ولا تصلح كإعدادات مرجعية."}
+                    ? "توجد ملاحظات في الإعدادات العامة."
+                    : "الإعدادات العامة تحتاج ضبطًا قبل استخدامها كمرجع."}
               </span>
             </div>
           </SettingsCard>
@@ -1231,29 +1063,27 @@ export default function SettingsPage() {
           <SettingsCard
             icon={Globe2}
             title="حالة ربط القنوات"
-            description="قراءة مختصرة لحالة OAuth Mock في البروتوتايب."
+            description="ملخص فقط. إدارة القنوات التفصيلية تتم من صفحة القنوات أو مصادر البيانات."
           >
             <div className="summary-list">
               <SummaryRow label="سجلات الربط" value={sharedConnectionCount} />
               <SummaryRow label="ظاهرة في الإعدادات" value={reflectedConnectionCount} />
               <SummaryRow label="مرتبطة" value={connectedOAuthCount} />
-              <SummaryRow label="بانتظار OAuth" value={pendingOAuthCount} />
+              <SummaryRow label="بانتظار محاكاة" value={pendingOAuthCount} />
             </div>
           </SettingsCard>
 
           <SettingsCard
-            icon={DollarSign}
-            title="التكلفة"
-            description="ملخص عالي المستوى من إعدادات التوجيه ومراقبة التكلفة."
+            icon={SlidersHorizontal}
+            title="ملخص التخصصات"
+            description="هذه الصفحة تعرض مؤشرات فقط ولا تملك قرارات الذكاء الاصطناعي أو التكلفة."
           >
             <div className="summary-list">
-              <SummaryRow label="الحد الشهري" value={`$${aiSettings.maxMonthlyBudget}`} />
-              <SummaryRow label="مزود النصوص" value={aiSettings.textProvider} />
-              <SummaryRow label="مزود الصور" value={aiSettings.imageProvider} />
-              <SummaryRow label="مزود الفيديو" value={aiSettings.videoProvider} />
-              <SummaryRow label="النماذج النشطة" value={modelRoutingSummary.activeModels || 0} />
-              <SummaryRow label="مسارات المراجعة" value={modelRoutingSummary.reviewRoutes || 0} />
-              <SummaryRow label="توقع التكلفة" value={`${modelRoutingSummary.forecastUsage || 0}%`} />
+              <SummaryRow label="إعدادات AI" value="تُدار من الصفحات المتخصصة" />
+              <SummaryRow label="السياسات" value="تُدار من إدارة النظام" />
+              <SummaryRow label="النماذج النشطة" value={`${modelRoutingSummary.activeModels || 0} ملخص فقط`} />
+              <SummaryRow label="مسارات المراجعة" value={`${modelRoutingSummary.reviewRoutes || 0} ملخص فقط`} />
+              <SummaryRow label="توقع التكلفة" value={`${modelRoutingSummary.forecastUsage || 0}% ملخص فقط`} />
             </div>
           </SettingsCard>
 
@@ -1356,7 +1186,7 @@ function SharedConnectionSummary({ channels, sharedConnectionCount }) {
     return (
       <div className="empty-state">
         <CircleAlert size={18} />
-        لا توجد حالة ربط محفوظة بعد. استخدم زر OAuth من إعداد المتجر أو من الإعدادات.
+        لا توجد حالة ربط محفوظة بعد. استخدم محاكاة الربط من إعداد المتجر أو من الإعدادات.
       </div>
     );
   }
@@ -1385,11 +1215,11 @@ function SharedConnectionSummary({ channels, sharedConnectionCount }) {
 
 function ConnectionBadge({ status }) {
   if (status === "connected") {
-    return <span className="connection-badge connected">مرتبط OAuth Mock</span>;
+    return <span className="connection-badge connected">مرتبط تجريبي</span>;
   }
 
   if (status === "pending_oauth") {
-    return <span className="connection-badge pending">بانتظار OAuth</span>;
+    return <span className="connection-badge pending">بانتظار محاكاة</span>;
   }
 
   if (status === "failed") {
@@ -1436,6 +1266,18 @@ function ToggleRow({ title, description, checked, onChange }) {
       </div>
 
       <Switch checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+function OwnershipNote({ title, text }) {
+  return (
+    <div className="ownership-note">
+      <Shield size={18} />
+      <div>
+        <strong>{title}</strong>
+        <span>{text}</span>
+      </div>
     </div>
   );
 }
@@ -1667,6 +1509,10 @@ const styles = `
   margin-bottom:14px;
 }
 
+.card-header.compact{
+  margin-bottom:12px;
+}
+
 .card-title{
   display:flex;
   gap:12px;
@@ -1700,6 +1546,70 @@ const styles = `
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:14px;
+}
+
+.boundary-card{
+  margin-bottom:16px;
+  border-radius:20px;
+}
+
+.ownership-map{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.ownership-row{
+  border:1px solid #e4e7df;
+  background:#f9faf7;
+  border-radius:16px;
+  padding:12px;
+  display:grid;
+  gap:5px;
+}
+
+.ownership-row span{
+  color:#6f746b;
+  font-size:12px;
+  font-weight:900;
+}
+
+.ownership-row strong{
+  color:#176b2c;
+  font-size:13px;
+  line-height:1.55;
+}
+
+.ownership-note{
+  border:1px solid #d9ead7;
+  background:#eef7e9;
+  color:#176b2c;
+  border-radius:18px;
+  padding:13px;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:14px;
+}
+
+.ownership-note strong,
+.ownership-note span{
+  display:block;
+}
+
+.ownership-note strong{
+  font-size:13px;
+  margin-bottom:4px;
+}
+
+.ownership-note span{
+  color:#3f5f3a;
+  font-size:12px;
+  line-height:1.75;
+}
+
+.readonly-summary .summary-row{
+  background:#fbfcf8;
 }
 
 .metric-card{
@@ -2245,7 +2155,8 @@ const styles = `
   }
 
   .metrics-grid,
-  .channels-grid{
+  .channels-grid,
+  .ownership-map{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
@@ -2257,6 +2168,7 @@ const styles = `
 
   .metrics-grid,
   .channels-grid,
+  .ownership-map,
   .form-grid,
   .summary-list.inline,
   .oauth-summary{
