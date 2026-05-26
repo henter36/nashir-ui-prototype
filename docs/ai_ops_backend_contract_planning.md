@@ -75,9 +75,14 @@ Future readiness evaluation object fields:
 - ownerSurface
 - affectedWorkflow
 - affectedStep
+- correlationId
 - evaluatedAt
 - evaluatedBy
 - sourceVersionRefs
+
+correlationId is required for grouping readiness signals emitted during the same dry-run or workflow-run evaluation. It may correlate providerReady, routeReady, promptReady, costReady, reviewReady, destinationReady, triggerReady, inputReady, outputContractReady, auditReady, and executionReady for the same run intent.
+
+correlationId must not expose internal implementation IDs to clients unless explicitly defined by the future API contract.
 
 Allowed status:
 
@@ -148,6 +153,11 @@ Future dry-run request should include:
 - selectedStepIds optional
 - dryRunMode
 - idempotencyKey
+- actor
+
+actor identifies the user, service, or system principal requesting the dry-run. It is required to evaluate RBAC-sensitive blockers such as RBAC_DENIED and should be workspace-scoped and auditable.
+
+actor is planning-only and must later map to authenticated principal data; the API must not trust arbitrary client-supplied actor data without authentication.
 
 Future dry-run response should include:
 
@@ -187,6 +197,7 @@ Future execution must require:
 
 Each future real run must snapshot:
 
+- promptTemplateId
 - promptVersionId
 - prompt status at execution time
 - expected input context
@@ -198,6 +209,8 @@ Each future real run must snapshot:
 - model route used
 - cost policy used
 - reviewer policy used
+
+promptTemplateId identifies the stable prompt/template family. promptVersionId identifies the exact immutable version used during execution. Both are required for traceability, audit, and efficient prompt history queries.
 
 ## 11. RunArtifact Contract Planning
 
