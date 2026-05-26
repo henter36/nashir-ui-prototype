@@ -419,21 +419,29 @@ export default function ProductCatalogPage() {
         </div>
 
         <div className="field">
-          <span>رابط صورة المنتج</span>
+          <span>إرفاق صورة</span>
           <input
-            value={draft.imageUrl}
-            onChange={(event) => setDraft((prev) => ({ ...prev, imageUrl: event.target.value }))}
-            placeholder="https://store.example/products/image.jpg"
+            type="file"
+            accept="image/*"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) setDraft((prev) => ({ ...prev, imageUrl: `إرفاق تجريبي: ${file.name}` }));
+            }}
           />
+          <small>{draft.imageUrl || "إرفاق تجريبي داخل النموذج الأولي — لا يوجد رفع فعلي للملفات."}</small>
         </div>
 
         <div className="field">
-          <span>رابط فيديو المنتج</span>
+          <span>إرفاق فيديو</span>
           <input
-            value={draft.videoUrl}
-            onChange={(event) => setDraft((prev) => ({ ...prev, videoUrl: event.target.value }))}
-            placeholder="https://store.example/products/video.mp4"
+            type="file"
+            accept="video/*"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) setDraft((prev) => ({ ...prev, videoUrl: `إرفاق تجريبي: ${file.name}` }));
+            }}
           />
+          <small>{draft.videoUrl || "إرفاق تجريبي داخل النموذج الأولي — لا يوجد رفع فعلي للملفات."}</small>
         </div>
 
         <div className="field wide">
@@ -757,6 +765,12 @@ const styles = `
 .field span {
   font-size: 12px;
   font-weight: 900;
+}
+
+.field small {
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 .field input,

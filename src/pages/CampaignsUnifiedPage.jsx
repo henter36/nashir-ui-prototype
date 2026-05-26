@@ -137,11 +137,26 @@ const TABS = [
 ];
 
 function getCampaignProductName(campaign = {}) {
-  return campaign.productSnapshot?.name || campaign.product || "غير محدد";
+  return campaign.productSnapshot?.name || campaign.product || "منتج غير محدد";
 }
 
 function getProductReferenceLabel(campaign = {}) {
   return campaign.productId ? "مرتبط بمنتج محفوظ" : "مرجع المنتج غير متوفر";
+}
+
+function getCampaignAssetsCount(campaign = {}) {
+  return campaign.selectedAssetCount ?? campaign.selectedAssets?.length ?? 0;
+}
+
+function getReviewStatus(campaign = {}) {
+  const outputs = campaign.outputs || [];
+  if (outputs.some(([, status]) => String(status).includes("مراجعة"))) return "تحتاج مراجعة";
+  if (outputs.length && outputs.every(([, status]) => String(status).includes("معتمد"))) return "معتمدة";
+  return campaign.status === "approved" ? "معتمدة" : "مسودة";
+}
+
+function getContentStatus(campaign = {}) {
+  return (campaign.outputs || []).length ? "مخرجات موجودة" : "لا توجد مخرجات";
 }
 
 export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
@@ -255,12 +270,13 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
         {latestWizardCampaign ? (
           <div className="wizard-reflection-grid">
             <Info label="اسم الحملة" value={latestWizardCampaign.name} />
-            <Info label="المنتج" value={getCampaignProductName(latestWizardCampaign)} />
+            <Info label="المنتج المرتبط بالحملة" value={getCampaignProductName(latestWizardCampaign)} />
             <Info label="الهدف" value={latestWizardCampaign.goal} />
             <Info label="القنوات" value={(latestWizardCampaign.channels || []).join("، ") || "غير محدد"} />
             <Info label="حالة المحتوى" value={(latestWizardCampaign.outputs || []).length ? "مخرجات أولية قابلة للمراجعة" : "لم يتم تجهيز مخرجات"} />
             <Info label="جاهزية المراجعة" value={latestWizardCampaign.readiness >= 60 ? "جاهزة مبدئيًا" : "تحتاج استكمال"} />
-            <Info label="مرجع واجهي" value={getProductReferenceLabel(latestWizardCampaign)} />
+            <Info label="عدد الأصول" value={String(getCampaignAssetsCount(latestWizardCampaign))} />
+            <Info label="آخر تحديث" value={latestWizardCampaign.updatedAt || "غير محدد"} />
             <Info label="الإجراء التالي" value="فتح استوديو المحتوى أو المراجعة والمعاينة." />
           </div>
         ) : (
@@ -297,7 +313,7 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
           <div className="card-header">
             <div>
               <h2>قائمة الحملات</h2>
-              <p>اختر حملة لعرض تفاصيلها مباشرة.</p>
+            <p>اختر حملة لعرض تفاصيلها مباشرة. صفحة الحملات تعرض ملخص الحملة والأداء ولا تملك مصادر التحليل.</p>
             </div>
             <span>{filteredCampaigns.length} نتيجة</span>
           </div>
@@ -337,6 +353,10 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
                   <div className="campaign-item-meta">
                     <span>{campaign.stage}</span>
                     <span>{campaign.updatedAt}</span>
+                  </div>
+                  <div className="campaign-item-meta">
+                    <span>المنتج المرتبط بالحملة: {getCampaignProductName(campaign)}</span>
+                    <span>{campaign.productId ? "مرتبط بمنتج محفوظ" : "منتج غير محدد"}</span>
                   </div>
 
                   <div className="readiness-row">
@@ -404,6 +424,10 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
                   <Info label="الحالة" value={(STATUS_MAP[selectedCampaign.status] || STATUS_MAP.draft).label} />
                   <Info label="المرحلة" value={selectedCampaign.stage} />
                   <Info label="الهدف" value={selectedCampaign.goal} />
+                  <Info label="المنتج المرتبط بالحملة" value={getCampaignProductName(selectedCampaign)} />
+                  <Info label="حالة المراجعة" value={getReviewStatus(selectedCampaign)} />
+                  <Info label="عدد الأصول" value={String(getCampaignAssetsCount(selectedCampaign))} />
+                  <Info label="حالة المحتوى" value={getContentStatus(selectedCampaign)} />
                   <Info label="الميزانية" value={selectedCampaign.budget} />
                   <Info label="المسؤول" value={selectedCampaign.owner} />
                   <Info label="آخر تحديث" value={selectedCampaign.updatedAt} />
@@ -460,18 +484,27 @@ export default function CampaignsUnifiedPage({ onCreateCampaign = () => {} }) {
           {activeTab === "performance" && (
             <div className="detail-section">
               <h3>الأداء</h3>
+              <p className="section-helper">الأداء هنا عرض تجريبي. الربط الفعلي يحتاج مصادر بيانات وتحليلات متصلة.</p>
 
               <div className="performance-grid">
-                <Info label="الوصول" value={selectedCampaign.performance.reach} />
-                <Info label="التحويلات" value={selectedCampaign.performance.conversions} />
-                <Info label="ROI" value={selectedCampaign.performance.roi} />
-                <Info label="CPA" value={selectedCampaign.performance.cpa} />
+                <Info label="القناة" value={(selectedCampaign.channels || [])[0] || "غير محدد"} />
+                <Info label="الحملة" value={selectedCampaign.name} />
+                <Info label="المنتج" value={getCampaignProductName(selectedCampaign)} />
+                <Info label="فترة القياس" value={selectedCampaign.period || "غير محدد"} />
+                <Info label="مصدر البيانات" value="مصدر تجريبي غير متصل" />
+                <Info label="حالة الربط" value="غير متصل" />
+                <Info label="آخر مزامنة" value="لا توجد مزامنة فعلية" />
+                <Info label="المشاهدات" value={selectedCampaign.performance?.reach || "0"} />
+                <Info label="النقرات" value={selectedCampaign.performance?.clicks || "غير متاح"} />
+                <Info label="التحويلات" value={selectedCampaign.performance?.conversions || "0"} />
+                <Info label="التكلفة" value={selectedCampaign.performance?.cpa || "غير متاح"} />
+                <Info label="ROAS" value={selectedCampaign.performance?.roi || "غير متاح"} />
               </div>
 
               <div className="chart-card">
                 <TrendingUp size={38} />
                 <strong>أداء تقديري مرتبط بالحملة</strong>
-                <span>المصدر الحالي Mock — لاحقًا يربط مع Analytics.</span>
+                <span>الأداء هنا عرض تجريبي، ولا يوجد ربط تحليلات فعلي.</span>
               </div>
             </div>
           )}

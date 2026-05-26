@@ -243,9 +243,12 @@ export default function CampaignWizardPage({
   const [showQuickProduct, setShowQuickProduct] = useState(false);
   const [quickProduct, setQuickProduct] = useState({
     name: "",
+    category: "",
     url: "",
     price: "",
     description: "",
+    imageUrl: "",
+    videoUrl: "",
   });
 
   const [availableAssets, setAvailableAssets] = useState(() => {
@@ -465,15 +468,18 @@ export default function CampaignWizardPage({
     const product = {
       id: `p-${Date.now()}`,
       name: quickProduct.name,
+      category: quickProduct.category,
       url: quickProduct.url,
       price: quickProduct.price,
       description: quickProduct.description,
+      imageUrl: quickProduct.imageUrl,
+      videoUrl: quickProduct.videoUrl,
     };
 
     const nextProducts = upsertProduct(product, initialProducts);
     setProducts(nextProducts);
     setSelectedProductKey(product.id);
-    setQuickProduct({ name: "", url: "", price: "", description: "" });
+    setQuickProduct({ name: "", category: "", url: "", price: "", description: "", imageUrl: "", videoUrl: "" });
     setShowQuickProduct(false);
   };
 
@@ -491,6 +497,7 @@ export default function CampaignWizardPage({
 
     const asset = {
       id: `wiz-asset-${Date.now()}`,
+      assetId: `wiz-asset-${Date.now()}`,
       name: assetDraft.name.trim(),
       type: assetDraft.type,
       url: assetDraft.url,
@@ -767,6 +774,11 @@ export default function CampaignWizardPage({
                         onChange={(value) => setQuickProduct((prev) => ({ ...prev, name: value }))}
                       />
                       <Field
+                        label="التصنيف"
+                        value={quickProduct.category}
+                        onChange={(value) => setQuickProduct((prev) => ({ ...prev, category: value }))}
+                      />
+                      <Field
                         label="رابط المنتج"
                         value={quickProduct.url}
                         onChange={(value) => setQuickProduct((prev) => ({ ...prev, url: value }))}
@@ -775,6 +787,18 @@ export default function CampaignWizardPage({
                         label="السعر"
                         value={quickProduct.price}
                         onChange={(value) => setQuickProduct((prev) => ({ ...prev, price: value }))}
+                      />
+                      <FileField
+                        label="إرفاق صورة"
+                        accept="image/*"
+                        value={quickProduct.imageUrl}
+                        onFile={(file) => setQuickProduct((prev) => ({ ...prev, imageUrl: file ? `إرفاق تجريبي: ${file.name}` : prev.imageUrl }))}
+                      />
+                      <FileField
+                        label="إرفاق فيديو"
+                        accept="video/*"
+                        value={quickProduct.videoUrl}
+                        onFile={(file) => setQuickProduct((prev) => ({ ...prev, videoUrl: file ? `إرفاق تجريبي: ${file.name}` : prev.videoUrl }))}
                       />
                       <TextArea
                         label="وصف مختصر"
@@ -912,6 +936,12 @@ export default function CampaignWizardPage({
                   onChange={(value) => setAssetDraft((prev) => ({ ...prev, url: value }))}
                   placeholder="https://example.com/asset"
                 />
+                <FileField
+                  label={assetDraft.type === "video" ? "إرفاق فيديو" : "إرفاق صورة"}
+                  accept={assetDraft.type === "video" ? "video/*" : "image/*"}
+                  value={assetDraft.url}
+                  onFile={(file) => setAssetDraft((prev) => ({ ...prev, url: file ? `إرفاق تجريبي: ${file.name}` : prev.url }))}
+                />
                 <div className="field">
                   <span>إضافة أصل</span>
                   <button type="button" className="button primary" onClick={addWizardAsset}>
@@ -929,8 +959,8 @@ export default function CampaignWizardPage({
             <Card>
               <SectionHeader
                 icon={Sparkles}
-                title="الخطوة 3: العرض والجمهور والقنوات"
-                description="العرض ودعوة الإجراء والفئة والعمر والقنوات."
+                title="الخطوة 3: العرض والجمهور"
+                description="العرض ودعوة الإجراء والفئة والعمر. القنوات جزء من المخرجات المطلوبة وليست من تعريف الجمهور."
               />
 
               <div className="form-grid">
@@ -968,13 +998,6 @@ export default function CampaignWizardPage({
                   selected={language}
                   setSelected={setLanguage}
                 />
-
-                <MultiChoice
-                  title="القنوات"
-                  options={channelOptions}
-                  selected={channels}
-                  setSelected={setChannels}
-                />
               </div>
             </Card>
           )}
@@ -984,7 +1007,7 @@ export default function CampaignWizardPage({
               <SectionHeader
                 icon={FileText}
                 title="الخطوة 4: المخرجات المطلوبة"
-                description="حدد أنواع المخرجات المطلوبة. سيتم توليد شرح عام للعميل ومطالبة داخلية للنموذج."
+                description="القنوات جزء من المخرجات المطلوبة وليست من تعريف الجمهور."
               />
 
               <MultiChoice
@@ -993,10 +1016,18 @@ export default function CampaignWizardPage({
                 selected={outputs}
                 setSelected={setOutputs}
               />
+              <MultiChoice
+                title="القنوات"
+                options={channelOptions}
+                selected={channels}
+                setSelected={setChannels}
+              />
 
               <div className="form-grid">
+                <Info label="نوع المخرج" value={outputs.join("، ") || "غير محدد"} />
+                <Info label="القنوات" value={channels.join("، ") || "غير محدد"} />
                 <ChoiceGroup
-                  title="عدد النسخ"
+                  title="الصيغة / التنسيق إن وجد"
                   options={["نسخة واحدة", "3 نسخ", "5 نسخ"]}
                   selected={copies}
                   setSelected={setCopies}
@@ -1007,6 +1038,7 @@ export default function CampaignWizardPage({
                   selected={videoDuration}
                   setSelected={setVideoDuration}
                 />
+                <Info label="CTA إن وجد" value={cta || "غير محدد"} />
                 <ChoiceGroup
                   title="أسلوب المخرج"
                   options={["مباشر", "قصصي", "فاخر", "تعليمي", "ترندي", "هادئ"]}
@@ -1040,8 +1072,15 @@ export default function CampaignWizardPage({
                 </div>
 
                 <Notice tone="amber">
-                  هذه مخرجات واجهية تجريبية. النص الظاهر للعميل هو مخرجات أولية قابلة للمراجعة، وليس توليدًا أو تنفيذًا حقيقيًا. التوليد والتنفيذ الحقيقي يحتاج Backend وAI orchestration لاحقًا.
+                  مخرجات تجريبية — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي. تظهر هنا نتيجة التوليد الواجهية حتى لا تبدو الحملة محفوظة بصمت.
                 </Notice>
+
+                <div className="asset-readiness-summary compact">
+                  <Info label="المنتج" value={selectedProduct?.name || "غير محدد"} />
+                  <Info label="القنوات" value={channels.join("، ") || "غير محدد"} />
+                  <Info label="الأصول المختارة" value={selectedAssets.length ? selectedAssets.map((asset) => asset.name).join("، ") : "لم يتم اختيار أصول"} />
+                  <Info label="المخرجات المطلوبة" value={outputs.join("، ") || "غير محدد"} />
+                </div>
 
                 <div className="button-row">
                   <button type="button" className="button primary" onClick={regenerateAllOutputs}>
@@ -1298,6 +1337,16 @@ function Field({ label, value, onChange, placeholder }) {
     <label className="field">
       <span>{label}</span>
       <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function FileField({ label, accept, value, onFile }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input type="file" accept={accept} onChange={(event) => onFile(event.target.files?.[0] || null)} />
+      <small>{value || "إرفاق تجريبي داخل النموذج الأولي — لا يوجد رفع فعلي للملفات."}</small>
     </label>
   );
 }

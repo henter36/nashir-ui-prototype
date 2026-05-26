@@ -174,10 +174,7 @@ const policyItems = [
   "هل توجد عبارات ممنوعة؟",
   "هل توجد ادعاءات لا يجوز استخدامها؟",
   "هل توجد منتجات مقيدة؟",
-  "سياسة الخصومات",
   "سياسة استخدام صور العملاء",
-  "سياسة الرد على التعليقات",
-  "من يعتمد الحملات قبل النشر؟",
   "هل يسمح باستخدام وجوه أشخاص؟",
   "هل توجد حساسية ثقافية أو تنظيمية؟",
 ];
@@ -330,10 +327,13 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
   const [editingProductId, setEditingProductId] = useState(null);
   const [productDraft, setProductDraft] = useState({
     name: "",
+    category: "",
     url: "",
     price: "",
     margin: "",
     description: "",
+    imageUrl: "",
+    videoUrl: "",
     flags: [],
     source: "manual",
   });
@@ -702,10 +702,13 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     setEditingProductId(null);
     setProductDraft({
       name: "",
+      category: "",
       url: "",
       price: "",
       margin: "",
       description: "",
+      imageUrl: "",
+      videoUrl: "",
       flags: [],
       source: "manual",
     });
@@ -750,10 +753,13 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
     setEditingProductId(product.id);
     setProductDraft({
       name: product.name || "",
+      category: product.category || "",
       url: product.url || "",
       price: product.price || "",
       margin: product.margin || "",
       description: product.description || "",
+      imageUrl: product.imageUrl || "",
+      videoUrl: product.videoUrl || "",
       flags: product.flags || [],
       source: product.source || "manual",
     });
@@ -925,7 +931,8 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
           </div>
           <h1>إعداد المتجر</h1>
           <p>
-            إعداد مختصر ومباشر لبيانات المتجر والمنتجات والجمهور والقنوات
+            إعداد مختصر ومباشر لبيانات المتجر والمنتجات والجمهور والقنوات.
+            إعداد المتجر يعرّف بيانات المتجر والمنتجات الأساسية. سياسات الاعتماد والحوكمة تُدار من صفحاتها المتخصصة.
             والسياسات قبل إنشاء الحملات. كل البيانات هنا Mock داخل الواجهة.
           </p>
         </div>
@@ -934,7 +941,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
 
       <section className="screen-guidance-card">
         <div><span>هدف الشاشة</span><strong>تجهيز بيانات المتجر وتحديد مصدر البيانات وبناء الخطة الاستراتيجية.</strong></div>
-        <div><span>المدخلات</span><strong>نوع المتجر، قناة البيع، المنتجات، الأصول، السياسات، القنوات.</strong></div>
+        <div><span>المدخلات</span><strong>نوع المتجر، قناة البيع، المنتجات، الأصول، القنوات.</strong></div>
         <div><span>المخرجات</span><strong>خطة جمع البيانات، خطة استراتيجية، أولويات المنتجات، فجوات الأصول.</strong></div>
         <div><span>الإجراء التالي</span><strong>استكمال البيانات أو الانتقال إلى مركز مصادر البيانات أو إنشاء حملة.</strong></div>
         <div><span>ما لا يحدث هنا</span><strong>لا يتم سحب بيانات فعلية من هذه الصفحة.</strong></div>
@@ -1137,11 +1144,13 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                   </div>
                   <div className="form-grid">
                     <Field label="اسم المنتج" value={productDraft.name} placeholder="مثال: سيروم عناية طبيعي" onChange={(value) => updateProductDraft("name", value)} />
+                    <Field label="التصنيف" value={productDraft.category} placeholder="مثال: عناية وجمال" onChange={(value) => updateProductDraft("category", value)} />
                     <Field label="رابط المنتج" value={productDraft.url} placeholder="https://store.example/products/..." onChange={(value) => updateProductDraft("url", value)} />
                     <Field label="السعر" value={productDraft.price} placeholder="149 ر.س" onChange={(value) => updateProductDraft("price", value)} />
                     <Field label="هامش الربح التقريبي - اختياري" value={productDraft.margin} placeholder="اختياري" onChange={(value) => updateProductDraft("margin", value)} />
-                    <TextArea label="وصف المنتج ومميزاته" value={productDraft.description} placeholder="اكتب وصف المنتج، فوائده، ولماذا يشتريه العميل..." onChange={(value) => updateProductDraft("description", value)} />
-                    <UploadBox title="صور المنتج" />
+                    <TextArea label="وصف مختصر" value={productDraft.description} placeholder="اكتب وصف المنتج، فوائده، ولماذا يشتريه العميل..." onChange={(value) => updateProductDraft("description", value)} />
+                    <UploadBox title="إرفاق صورة" accept="image/*" onFile={(file) => updateProductDraft("imageUrl", file ? `إرفاق تجريبي: ${file.name}` : productDraft.imageUrl)} value={productDraft.imageUrl} />
+                    <UploadBox title="إرفاق فيديو" accept="video/*" onFile={(file) => updateProductDraft("videoUrl", file ? `إرفاق تجريبي: ${file.name}` : productDraft.videoUrl)} value={productDraft.videoUrl} />
                   </div>
                   <div className="product-flags-section"><h4>خصائص المنتج</h4><div className="choice-list">{productFlagOptions.map((flag) => (<button key={flag} type="button" onClick={() => toggleDraftFlag(flag)} className={`choice ${productDraft.flags.includes(flag) ? "selected" : ""}`}>{flag}</button>))}</div></div>
                   <div className="product-form-actions"><Button onClick={saveProductDraft}>{editingProductId ? "حفظ التعديل" : "إضافة إلى الجدول"}</Button><Button variant="secondary" onClick={resetProductDraft}>تفريغ النموذج</Button></div>
@@ -1182,7 +1191,6 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
               <div className="form-grid three">
                 <ChoiceGroup title="الفئة العمرية" options={["13–17", "18–24", "25–34", "35–44", "45–54", "55+"]} selected={form.age} setSelected={(value) => update("age", value)} />
                 <ChoiceGroup title="الجنس" options={["رجال", "نساء", "الجميع"]} selected={form.gender} setSelected={(value) => update("gender", value)} />
-                <Field label="موقع الجمهور" value={form.audienceLocation} onChange={(value) => update("audienceLocation", value)} />
               </div>
               <MultiChoice
                 title="دوافع الشراء"
@@ -1252,7 +1260,7 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
                   </div>
                   <div className="issues-card"><h3>النواقص</h3>{readinessIssues.length ? readinessIssues.map((issue) => (<div key={issue} className="issue-row"><AlertTriangle size={16} /><span>{issue}</span></div>)) : (<div className="issue-row ok"><CheckCircle2 size={16} /><span>لا توجد نواقص حرجة قبل إنشاء الحملة.</span></div>)}</div>
                 </Card>
-                <Card className="recommendation-card"><h3>توصيات قبل البدء</h3><div className="recommendation-list">{recommendations.map((item) => (<div key={item}>{item}</div>))}</div><Button onClick={onCreateCampaign}><Sparkles size={16} /> إنشاء أول حملة</Button></Card>
+                <Card className="recommendation-card"><h3>توصيات قبل البدء</h3><div className="recommendation-list">{recommendations.map((item) => (<div key={item}>{item}</div>))}</div><Button onClick={() => { if (typeof onCreateCampaign === "function") onCreateCampaign(); }}><Sparkles size={16} /> إنشاء أول حملة</Button><Notice>إذا لم ينتقل النموذج تلقائيًا، فهذا زر واجهي تجريبي ويعتمد على ربط التنقل في التطبيق.</Notice></Card>
               </div>
 
               <Card className="strategy-card">
@@ -1453,8 +1461,16 @@ function MultiChoice({ title, options, selected, setSelected }) {
   return <div className="choice-block wide"><h4>{title}</h4><div className="choice-list">{options.map((item) => <button key={item} type="button" onClick={() => toggle(item)} className={`choice ${selected.includes(item) ? "selected" : ""}`}>{item}</button>)}</div></div>;
 }
 
-function UploadBox({ title }) {
-  return <div className="upload-box"><Upload size={22} /><strong>{title}</strong><span>إرفاق صور / روابط / ملاحظات</span><p>المرفقات هنا شكلية داخل البروتوتايب ولا يتم رفعها فعليًا.</p></div>;
+function UploadBox({ title, accept, onFile, value }) {
+  return (
+    <label className="upload-box">
+      <Upload size={22} />
+      <strong>{title}</strong>
+      <span>{value || "إرفاق تجريبي"}</span>
+      <input type="file" accept={accept} onChange={(event) => onFile?.(event.target.files?.[0] || null)} />
+      <p>إرفاق تجريبي داخل النموذج الأولي — لا يوجد رفع فعلي للملفات.</p>
+    </label>
+  );
 }
 
 function Notice({ children }) {
