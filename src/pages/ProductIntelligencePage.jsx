@@ -482,8 +482,8 @@ export default function ProductIntelligencePage({ onNavigate }) {
                 <div>
                   <h3>الخطوة التالية المقترحة</h3>
                   <p>
-                    استخدم نتائج تحليل المنتج كنقطة انطلاق لصناعة محتوى الحملة أو فتح معالج إنشاء حملة.
-                    في هذا النموذج لا يتم تمرير بيانات أو إنشاء سجلات فعلية.
+                    المسار الأساسي هو إنشاء حملة من المنتج، لأن تحليل المنتج ينتج هدفًا وجمهورًا وزوايا ورسائل وجدولًا،
+                    وليس مجرد قطعة محتوى واحدة. في هذا النموذج لا يتم تمرير بيانات أو إنشاء سجلات فعلية.
                   </p>
                 </div>
                 <div className="angle-list">
@@ -494,9 +494,9 @@ export default function ProductIntelligencePage({ onNavigate }) {
               </div>
             </div>
             <div className="next-buttons">
+              <button type="button" onClick={() => handlePrototypeNavigate("campaigns")}><Megaphone size={16} /> إنشاء حملة من هذا المنتج</button>
+              <button type="button" onClick={() => handlePrototypeNavigate("content")}><BarChart3 size={16} /> إنشاء محتوى فقط</button>
               <button type="button" onClick={() => handlePrototypeAction("حفظ التقرير غير مفعل في النموذج التجريبي.")}><FileText size={16} /> حفظ كتقرير</button>
-              <button type="button" onClick={() => handlePrototypeNavigate("content")}><BarChart3 size={16} /> إنشاء محتوى حملة</button>
-              <button type="button" onClick={() => handlePrototypeNavigate("campaigns")}><Megaphone size={16} /> إنشاء حملة</button>
               <button type="button" onClick={() => handlePrototypeAction("البحث عن الموردين يتطلب تكاملًا خارجيًا وتحققًا لاحقًا.")}><Truck size={16} /> البحث عن موردين لاحقًا</button>
             </div>
             {notice ? <div className="notice">{notice}</div> : null}
