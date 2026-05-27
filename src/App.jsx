@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Layers,
   Megaphone,
+  PackageSearch,
   Settings,
   Shield,
   Store,
@@ -37,6 +38,7 @@ const SystemAdminPage = lazy(() => import("./pages/SystemAdminPage.jsx"));
 const SecretsAndKeysPage = lazy(() => import("./pages/SecretsAndKeysPage.jsx"));
 const ModelRoutingPage = lazy(() => import("./pages/ModelRoutingPage.jsx"));
 const ProductCatalogPage = lazy(() => import("./pages/ProductCatalogPage.jsx"));
+const ProductIntelligencePage = lazy(() => import("./pages/ProductIntelligencePage.jsx"));
 const DataSourcesHubPage = lazy(() => import("./pages/DataSourcesHubPage.jsx"));
 const PromptGovernancePage = lazy(() => import("./pages/PromptGovernancePage.jsx"));
 const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage.jsx"));
@@ -105,6 +107,7 @@ export default function App() {
       { id: "dashboard", label: "لوحة التحكم", icon: LayoutDashboard, enabled: true },
       { id: "storeSetup", label: "إعداد المتجر", icon: Store, enabled: true },
       { id: "productCatalog", label: "كتالوج المنتجات", icon: Store, enabled: true },
+      { id: "productIntelligence", label: "استوديو تحليل المنتج", icon: PackageSearch, enabled: true },
       { id: "dataSourcesHub", label: "مركز المصادر البياناتية", icon: Database, enabled: true },
       { id: "assetLibrary", label: "مكتبة الأصول", icon: FolderOpen, enabled: true },
 
@@ -153,6 +156,7 @@ export default function App() {
 
   if (activeScreen === "storeSetup") pageContent = <StoreSetupPage />;
   if (activeScreen === "productCatalog") pageContent = <ProductCatalogPage />;
+  if (activeScreen === "productIntelligence") pageContent = <ProductIntelligencePage />;
   if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
 
