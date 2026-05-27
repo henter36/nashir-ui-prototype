@@ -105,7 +105,7 @@ export default function App() {
 
   const navigateToScreen = (screen, context = {}) => {
     setCampaignOrigin(
-      screen === "campaigns" && context.campaignOrigin === "product-intelligence"
+      screen === "campaigns" && context?.campaignOrigin === "product-intelligence"
         ? "product-intelligence"
         : null
     );
