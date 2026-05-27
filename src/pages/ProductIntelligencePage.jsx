@@ -187,9 +187,9 @@ export default function ProductIntelligencePage({ onNavigate }) {
     setNotice(message);
   };
 
-  const handlePrototypeNavigate = (screenKey) => {
+  const handlePrototypeNavigate = (screenKey, context) => {
     if (typeof onNavigate === "function") {
-      onNavigate(screenKey);
+      onNavigate(screenKey, context);
       return;
     }
 
@@ -494,7 +494,7 @@ export default function ProductIntelligencePage({ onNavigate }) {
               </div>
             </div>
             <div className="next-buttons">
-              <button type="button" onClick={() => handlePrototypeNavigate("campaigns")}><Megaphone size={16} /> إنشاء حملة من هذا المنتج</button>
+              <button type="button" onClick={() => handlePrototypeNavigate("campaigns", { campaignOrigin: "product-intelligence" })}><Megaphone size={16} /> إنشاء حملة من هذا المنتج</button>
               <button type="button" onClick={() => handlePrototypeNavigate("content")}><BarChart3 size={16} /> إنشاء محتوى فقط</button>
               <button type="button" className="secondary" onClick={() => handlePrototypeAction("حفظ التقرير غير مفعل في النموذج التجريبي.")}><FileText size={16} /> حفظ كتقرير</button>
               <button type="button" className="secondary" onClick={() => handlePrototypeAction("البحث عن الموردين يتطلب تكاملًا خارجيًا وتحققًا لاحقًا.")}><Truck size={16} /> البحث عن موردين لاحقًا</button>
