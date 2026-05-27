@@ -170,7 +170,7 @@ export default function App() {
   if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
 
-  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage campaignOrigin={campaignOrigin} />;
+  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage campaignOrigin={campaignOrigin} onNavigate={navigateToScreen} />;
 
   if (activeScreen === "campaignsList") {
     pageContent = (
