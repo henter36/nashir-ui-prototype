@@ -229,8 +229,10 @@ export default function CampaignWizardPage({
   onOpenContentStudio = () => {},
   onOpenReviewPreview = () => {},
   campaignOrigin = null,
+  onNavigate = null,
 } = {}) {
   const [step, setStep] = useState(1);
+  const [starterNotice, setStarterNotice] = useState("");
 
   const [campaignName, setCampaignName] = useState("حملة عطر X - مارس");
   const [goal, setGoal] = useState("زيادة المبيعات");
@@ -717,10 +719,10 @@ export default function CampaignWizardPage({
         <section className="product-intelligence-context-panel">
           <div className="section-title-row">
             <div>
-              <h2>تم فتح الحملة من استوديو تحليل المنتج</h2>
+              <h2>بداية حملة من تحليل المنتج</h2>
               <p>
-                في النسخة المستقبلية يمكن استخدام تحليل المنتج لاقتراح هدف الحملة، الجمهور، زوايا الرسائل،
-                التقويم، والمخاطر. في هذا النموذج لا يتم تمرير بيانات أو إنشاء سجلات فعلية.
+                هذه بطاقة تجريبية توضّح كيف يمكن لاحقًا تحويل تحليل المنتج إلى مدخلات حملة.
+                لا يتم إنشاء حملة فعلية أو تمرير بيانات محفوظة في هذا النموذج.
               </p>
             </div>
             <div className="context-badges">
@@ -729,13 +731,77 @@ export default function CampaignWizardPage({
               <Badge tone="neutral">لا يوجد تمرير بيانات</Badge>
             </div>
           </div>
-          <div className="context-preview-grid">
-            <div><span>هدف مقترح</span><strong>اختبار قابلية بيع المنتج</strong></div>
-            <div><span>جمهور مقترح</span><strong>المهتمون بالهدايا والمنتجات العملية</strong></div>
-            <div><span>زاوية رسالة</span><strong>منتج جاهز للاستخدام أو الإهداء</strong></div>
-            <div><span>مخاطرة يجب اختبارها</span><strong>وضوح الخامة والسعر قبل الإعلان</strong></div>
+
+          <div className="starter-section">
+            <h3>ملخص المنتج المصغر</h3>
+            <div className="starter-summary-grid">
+              <div><span>المنتج التجريبي</span><strong>هدية نباتية مكتبية</strong></div>
+              <div><span>الفئة</span><strong>هدايا / ديكور مكتبي</strong></div>
+              <div><span>نقطة البيع</span><strong>منتج جاهز للإهداء والاستخدام اليومي</strong></div>
+              <div><span>حالة البيانات</span><strong>Demo فقط</strong></div>
+            </div>
           </div>
-          <p className="context-demo-note">معاينة تجريبية فقط، ولا تنشئ حملة أو محتوى أو سجلات فعلية.</p>
+
+          <div className="starter-section">
+            <h3>اتجاه الحملة المقترح</h3>
+            <div className="context-preview-grid">
+              <div><span>هدف مقترح</span><strong>اختبار قابلية بيع المنتج</strong></div>
+              <div><span>جمهور مقترح</span><strong>المهتمون بالهدايا والمنتجات العملية</strong></div>
+              <div><span>زاوية رسالة</span><strong>هدية بسيطة تبقى على المكتب</strong></div>
+              <div><span>مخاطرة يجب اختبارها</span><strong>وضوح الخامة والسعر قبل الإعلان</strong></div>
+            </div>
+          </div>
+
+          <div className="starter-lists-grid">
+            <div className="starter-list-card">
+              <h3>ما الذي سيُستخدم لاحقًا؟</h3>
+              <ul>
+                <li>ملخص المنتج</li>
+                <li>زوايا الإعلان</li>
+                <li>توصيات التطوير</li>
+                <li>تقويم 7 أيام</li>
+                <li>مصفوفة المخاطر والفرص</li>
+              </ul>
+            </div>
+            <div className="starter-list-card muted">
+              <h3>ما الذي لا يحدث الآن؟</h3>
+              <ul>
+                <li>لا إنشاء حملة فعلية</li>
+                <li>لا حفظ بيانات</li>
+                <li>لا تمرير بيانات حقيقية</li>
+                <li>لا اتصال API</li>
+                <li>لا اعتماد توصيات الموردين</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="starter-actions">
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => {
+                setStep(1);
+                setStarterNotice("يمكنك متابعة إعداد الحملة يدويًا في النموذج التجريبي.");
+              }}
+            >
+              متابعة إعداد الحملة
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => {
+                if (typeof onNavigate === "function") {
+                  onNavigate("productIntelligence");
+                  return;
+                }
+                setStarterNotice("العودة لتحليل المنتج غير متاحة من هذه الصفحة حاليًا.");
+              }}
+            >
+              العودة لتحليل المنتج
+            </button>
+          </div>
+
+          {starterNotice ? <p className="context-demo-note">{starterNotice}</p> : null}
         </section>
       ) : null}
 
@@ -2515,31 +2581,81 @@ const styles = `
   justify-content: flex-end;
 }
 
-.context-preview-grid {
+.starter-section {
+  margin-top: 14px;
+}
+
+.starter-section h3,
+.starter-list-card h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.context-preview-grid,
+.starter-summary-grid,
+.starter-lists-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.context-preview-grid div {
+.starter-lists-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.context-preview-grid div,
+.starter-summary-grid div,
+.starter-list-card {
   border: 1px solid #dbeafe;
   background: #eff6ff;
   border-radius: 16px;
   padding: 10px;
 }
 
-.context-preview-grid span {
+.starter-summary-grid div {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.starter-list-card.muted {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.context-preview-grid span,
+.starter-summary-grid span {
   display: block;
   color: #1d4ed8;
   font-size: 12px;
   font-weight: 900;
 }
 
-.context-preview-grid strong {
+.starter-summary-grid span {
+  color: #475569;
+}
+
+.context-preview-grid strong,
+.starter-summary-grid strong {
   display: block;
   margin-top: 5px;
   line-height: 1.6;
   font-size: 13px;
+}
+
+.starter-list-card ul {
+  margin: 0;
+  padding-right: 18px;
+  color: #334155;
+  line-height: 1.9;
+  font-size: 13px;
+}
+
+.starter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .context-demo-note {
@@ -2548,7 +2664,9 @@ const styles = `
 
 @media (max-width: 1280px) {
   .screen-guidance-card,
-  .context-preview-grid { grid-template-columns: 1fr; }
+  .context-preview-grid,
+  .starter-summary-grid,
+  .starter-lists-grid { grid-template-columns: 1fr; }
 
   .product-intelligence-context-panel .section-title-row {
     display: grid;
