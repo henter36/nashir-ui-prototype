@@ -340,10 +340,36 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.next-actions-copy {
+  flex: 1 1 420px;
+}
+.next-bridge {
+  border: 1px solid #d9ead7;
+  background: #f5fbf1;
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.next-bridge h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.next-bridge p {
+  margin-top: 6px;
+}
 .next-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+.next-buttons button.secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #d8dee8;
+}
+.next-buttons button.secondary:hover {
+  background: #e8eef6;
+  color: #334155;
 }
 .empty-analysis {
   min-height: 240px;

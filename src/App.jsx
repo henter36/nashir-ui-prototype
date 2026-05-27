@@ -156,7 +156,7 @@ export default function App() {
 
   if (activeScreen === "storeSetup") pageContent = <StoreSetupPage />;
   if (activeScreen === "productCatalog") pageContent = <ProductCatalogPage />;
-  if (activeScreen === "productIntelligence") pageContent = <ProductIntelligencePage />;
+  if (activeScreen === "productIntelligence") pageContent = <ProductIntelligencePage onNavigate={setActiveScreen} />;
   if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
 
