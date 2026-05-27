@@ -233,6 +233,7 @@ export default function CampaignWizardPage({
 } = {}) {
   const [step, setStep] = useState(1);
   const [starterNotice, setStarterNotice] = useState("");
+  const [showStarterPanel, setShowStarterPanel] = useState(true);
 
   const [campaignName, setCampaignName] = useState("حملة عطر X - مارس");
   const [goal, setGoal] = useState("زيادة المبيعات");
@@ -715,7 +716,7 @@ export default function CampaignWizardPage({
         <div><span>ما لا يحدث هنا</span><strong>لا يتم نشر الحملة أو توليد AI حقيقي.</strong></div>
       </section>
 
-      {campaignOrigin === "product-intelligence" ? (
+      {campaignOrigin === "product-intelligence" && showStarterPanel ? (
         <section className="product-intelligence-context-panel">
           <div className="section-title-row">
             <div>
@@ -780,7 +781,7 @@ export default function CampaignWizardPage({
               type="button"
               className="button primary"
               onClick={() => {
-                setStep(1);
+                setShowStarterPanel(false);
                 setStarterNotice("يمكنك متابعة إعداد الحملة يدويًا في النموذج التجريبي.");
               }}
             >
@@ -800,10 +801,10 @@ export default function CampaignWizardPage({
               العودة لتحليل المنتج
             </button>
           </div>
-
-          {starterNotice ? <p className="context-demo-note">{starterNotice}</p> : null}
         </section>
       ) : null}
+
+      {starterNotice ? <p className="context-demo-note starter-notice-outside">{starterNotice}</p> : null}
 
       <StepTabs steps={steps} step={step} setStep={setStep} />
 
@@ -2592,15 +2593,16 @@ const styles = `
 }
 
 .context-preview-grid,
-.starter-summary-grid,
-.starter-lists-grid {
+.starter-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .starter-lists-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 14px;
 }
 
@@ -2660,6 +2662,16 @@ const styles = `
 
 .context-demo-note {
   font-weight: 900;
+}
+
+.starter-notice-outside {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  color: #9a3412;
+  line-height: 1.7;
+  margin: 0 0 16px;
+  padding: 10px 12px;
 }
 
 @media (max-width: 1280px) {
