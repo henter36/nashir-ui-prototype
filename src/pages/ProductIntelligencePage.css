@@ -362,6 +362,15 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+.next-buttons button.secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #d8dee8;
+}
+.next-buttons button.secondary:hover {
+  background: #e8eef6;
+  color: #334155;
+}
 .empty-analysis {
   min-height: 240px;
   display: grid;
