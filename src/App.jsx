@@ -101,6 +101,16 @@ function PageLoadingFallback() {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState("dashboard");
+  const [campaignOrigin, setCampaignOrigin] = useState(null);
+
+  const navigateToScreen = (screen, context = {}) => {
+    setCampaignOrigin(
+      screen === "campaigns" && context?.campaignOrigin === "product-intelligence"
+        ? "product-intelligence"
+        : null
+    );
+    setActiveScreen(screen);
+  };
 
   const screens = useMemo(
     () => [
@@ -140,32 +150,32 @@ export default function App() {
   if (activeScreen === "dashboard") {
     pageContent = (
 <DashboardPage
-  onCreateCampaign={() => setActiveScreen("campaigns")}
-  onOpenStoreSetup={() => setActiveScreen("storeSetup")}
-  onOpenProductCatalog={() => setActiveScreen("productCatalog")}
-  onOpenDataSources={() => setActiveScreen("dataSourcesHub")}
-  onOpenCampaigns={() => setActiveScreen("campaignsList")}
-  onOpenAssets={() => setActiveScreen("assetLibrary")}
-  onOpenAnalytics={() => setActiveScreen("analytics")}
-  onOpenReview={() => setActiveScreen("content")}
-  onOpenPublishingQueue={() => setActiveScreen("publishingQueue")}
-  onOpenMultiPlatform={() => setActiveScreen("multiPlatform")}
+  onCreateCampaign={() => navigateToScreen("campaigns")}
+  onOpenStoreSetup={() => navigateToScreen("storeSetup")}
+  onOpenProductCatalog={() => navigateToScreen("productCatalog")}
+  onOpenDataSources={() => navigateToScreen("dataSourcesHub")}
+  onOpenCampaigns={() => navigateToScreen("campaignsList")}
+  onOpenAssets={() => navigateToScreen("assetLibrary")}
+  onOpenAnalytics={() => navigateToScreen("analytics")}
+  onOpenReview={() => navigateToScreen("content")}
+  onOpenPublishingQueue={() => navigateToScreen("publishingQueue")}
+  onOpenMultiPlatform={() => navigateToScreen("multiPlatform")}
 />
     );
   }
 
   if (activeScreen === "storeSetup") pageContent = <StoreSetupPage />;
   if (activeScreen === "productCatalog") pageContent = <ProductCatalogPage />;
-  if (activeScreen === "productIntelligence") pageContent = <ProductIntelligencePage onNavigate={setActiveScreen} />;
+  if (activeScreen === "productIntelligence") pageContent = <ProductIntelligencePage onNavigate={navigateToScreen} />;
   if (activeScreen === "dataSourcesHub") pageContent = <DataSourcesHubPage />;
   if (activeScreen === "assetLibrary") pageContent = <AssetLibraryPage />;
 
-  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage />;
+  if (activeScreen === "campaigns") pageContent = <CampaignWizardPage campaignOrigin={campaignOrigin} />;
 
   if (activeScreen === "campaignsList") {
     pageContent = (
       <CampaignsUnifiedPage
-        onCreateCampaign={() => setActiveScreen("campaigns")}
+        onCreateCampaign={() => navigateToScreen("campaigns")}
       />
     );
   }
@@ -200,7 +210,7 @@ export default function App() {
     <AppShell
       screens={screens}
       activeScreen={activeScreen}
-      setActiveScreen={setActiveScreen}
+      setActiveScreen={navigateToScreen}
     >
       <Suspense fallback={<PageLoadingFallback />}>
         {pageContent}

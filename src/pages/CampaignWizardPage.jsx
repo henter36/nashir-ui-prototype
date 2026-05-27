@@ -228,6 +228,7 @@ export default function CampaignWizardPage({
   onOpenCampaign = () => {},
   onOpenContentStudio = () => {},
   onOpenReviewPreview = () => {},
+  campaignOrigin = null,
 } = {}) {
   const [step, setStep] = useState(1);
 
@@ -711,6 +712,32 @@ export default function CampaignWizardPage({
         <div><span>الإجراء التالي</span><strong>فتح الحملة أو استوديو المحتوى أو المراجعة والمعاينة.</strong></div>
         <div><span>ما لا يحدث هنا</span><strong>لا يتم نشر الحملة أو توليد AI حقيقي.</strong></div>
       </section>
+
+      {campaignOrigin === "product-intelligence" ? (
+        <section className="product-intelligence-context-panel">
+          <div className="section-title-row">
+            <div>
+              <h2>تم فتح الحملة من استوديو تحليل المنتج</h2>
+              <p>
+                في النسخة المستقبلية يمكن استخدام تحليل المنتج لاقتراح هدف الحملة، الجمهور، زوايا الرسائل،
+                التقويم، والمخاطر. في هذا النموذج لا يتم تمرير بيانات أو إنشاء سجلات فعلية.
+              </p>
+            </div>
+            <div className="context-badges">
+              <Badge tone="blue">Prototype</Badge>
+              <Badge tone="neutral">لا يوجد إنشاء فعلي</Badge>
+              <Badge tone="neutral">لا يوجد تمرير بيانات</Badge>
+            </div>
+          </div>
+          <div className="context-preview-grid">
+            <div><span>هدف مقترح</span><strong>اختبار قابلية بيع المنتج</strong></div>
+            <div><span>جمهور مقترح</span><strong>المهتمون بالهدايا والمنتجات العملية</strong></div>
+            <div><span>زاوية رسالة</span><strong>منتج جاهز للاستخدام أو الإهداء</strong></div>
+            <div><span>مخاطرة يجب اختبارها</span><strong>وضوح الخامة والسعر قبل الإعلان</strong></div>
+          </div>
+          <p className="context-demo-note">معاينة تجريبية فقط، ولا تنشئ حملة أو محتوى أو سجلات فعلية.</p>
+        </section>
+      ) : null}
 
       <StepTabs steps={steps} step={step} setStep={setStep} />
 
@@ -2452,7 +2479,83 @@ const styles = `
   line-height: 1.6;
 }
 
+.product-intelligence-context-panel {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgba(24, 38, 18, 0.035);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.product-intelligence-context-panel .section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.product-intelligence-context-panel h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.product-intelligence-context-panel p {
+  margin: 7px 0 0;
+  color: #6f746b;
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+.context-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.context-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.context-preview-grid div {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.context-preview-grid span {
+  display: block;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.context-preview-grid strong {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.context-demo-note {
+  font-weight: 900;
+}
+
 @media (max-width: 1280px) {
-  .screen-guidance-card { grid-template-columns: 1fr; }
+  .screen-guidance-card,
+  .context-preview-grid { grid-template-columns: 1fr; }
+
+  .product-intelligence-context-panel .section-title-row {
+    display: grid;
+  }
+
+  .context-badges {
+    justify-content: flex-start;
+  }
 }
 `;
