@@ -7,6 +7,7 @@ const groups = [
       "dashboard",
       "storeSetup",
       "productCatalog",
+      "productIntelligence",
       "dataSourcesHub",
       "assetLibrary",
     ],
