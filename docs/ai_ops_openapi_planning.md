@@ -60,6 +60,7 @@ These are endpoint candidates only. Do not write YAML in this gate.
 | GET | `/workspaces/{workspaceId}/ai/models` | List model registry entries and capabilities. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/model-routes` | List task-to-model route policies and route readiness. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/model-routes/{routeId}` | Read a route policy and safe readiness summary. | Candidate for OpenAPI Planning |
+| GET | `/workspaces/{workspaceId}/ai/model-routes/{routeId}/readiness` | Read routeReady status. | Candidate for OpenAPI Planning |
 | POST | `/workspaces/{workspaceId}/ai/model-routes/{routeId}/evaluate-readiness` | Evaluate routeReady without executing a model. | Candidate for OpenAPI Planning |
 
 ### C. Prompt Governance
@@ -68,6 +69,7 @@ These are endpoint candidates only. Do not write YAML in this gate.
 | --- | --- | --- | --- |
 | GET | `/workspaces/{workspaceId}/ai/prompts` | List prompt templates and readiness summaries. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/prompts/{promptTemplateId}` | Read prompt family metadata without unsafe prompt exposure. | Candidate for OpenAPI Planning |
+| GET | `/workspaces/{workspaceId}/ai/prompts/{promptTemplateId}/versions` | List versions of a prompt template. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/prompts/{promptTemplateId}/versions/{promptVersionId}` | Read prompt version metadata and governed contract. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/prompts/{promptTemplateId}/readiness` | Read promptReady status. | Candidate for OpenAPI Planning |
 | POST | `/workspaces/{workspaceId}/ai/prompts/{promptTemplateId}/evaluate-readiness` | Evaluate prompt readiness without executing prompts. | Candidate for OpenAPI Planning |
@@ -78,6 +80,7 @@ These are endpoint candidates only. Do not write YAML in this gate.
 | --- | --- | --- | --- |
 | GET | `/workspaces/{workspaceId}/ai/cost-policies` | List cost policies and readiness summaries. | Candidate for OpenAPI Planning |
 | GET | `/workspaces/{workspaceId}/ai/cost-policies/{costPolicyId}` | Read cost policy metadata. | Candidate for OpenAPI Planning |
+| GET | `/workspaces/{workspaceId}/ai/cost-policies/{costPolicyId}/readiness` | Read costReady status. | Candidate for OpenAPI Planning |
 | POST | `/workspaces/{workspaceId}/ai/cost-policies/{costPolicyId}/evaluate-readiness` | Evaluate costReady without execution. | Candidate for OpenAPI Planning |
 
 ### E. Workflow Definitions and Dry-Run
@@ -117,6 +120,7 @@ These are endpoint candidates only. Do not write YAML in this gate.
 | Method | Path | Purpose | Status |
 | --- | --- | --- | --- |
 | GET | `/workspaces/{workspaceId}/ai/review-decisions` | List review decisions for prompts, outputs, or run artifacts. | Candidate for OpenAPI Planning |
+| GET | `/workspaces/{workspaceId}/ai/review-decisions/{reviewDecisionId}` | Read a specific review decision. | Candidate for OpenAPI Planning |
 | POST | `/workspaces/{workspaceId}/ai/review-decisions` | Record a future review decision. | Deferred until review authority and RBAC are finalized |
 
 ### J. Audit Events
@@ -124,6 +128,7 @@ These are endpoint candidates only. Do not write YAML in this gate.
 | Method | Path | Purpose | Status |
 | --- | --- | --- | --- |
 | GET | `/workspaces/{workspaceId}/ai/audit-events` | Read audit events for AI Operations. | Candidate for OpenAPI Planning |
+| GET | `/workspaces/{workspaceId}/ai/audit-events/{auditEventId}` | Read a specific audit event. | Candidate for OpenAPI Planning |
 
 ## 5. Explicit Endpoint Status
 
