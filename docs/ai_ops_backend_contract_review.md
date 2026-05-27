@@ -70,7 +70,7 @@ The following areas are sufficiently defined in `docs/ai_ops_backend_contract_pl
 | Missing trigger explanation | Resolved | Workflow trigger model is documented and reflected in the UI prototype. |
 | Shared readiness model documented | Resolved | Shared readiness planning document defines canonical signals and ownership. |
 | Backend contract planning merged | Resolved | Planning document exists and includes review-remediation fields such as `correlationId`, `actor`, `promptTemplateId`, and `promptVersionId`. |
-| OpenAPI blocker | OpenAPI blocker | None identified. |
+| OpenAPI blocker | N/A | None identified. |
 | Reason code naming may drift | Should fix before OpenAPI | Freeze reason code enum names during AI Operations OpenAPI Planning. |
 | Reference naming ambiguity | Should fix before OpenAPI | Standardize `scopeRef`, workflow/step refs, prompt refs, route refs, policy refs, and artifact refs. |
 | Dry-run object names need finalization | Should fix before OpenAPI | Choose canonical schema names such as `WorkflowDryRunRequest`, `WorkflowDryRunResponse`, and `ReadinessSummary`. |
@@ -117,6 +117,7 @@ This review gate does not approve:
 - real workflow execution
 - real AI/model calls
 - real prompt execution
+- connector execution
 - publishing
 - billing
 - AI Gateway Overview
