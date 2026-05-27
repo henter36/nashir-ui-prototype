@@ -340,6 +340,23 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.next-actions-copy {
+  flex: 1 1 420px;
+}
+.next-bridge {
+  border: 1px solid #d9ead7;
+  background: #f5fbf1;
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.next-bridge h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.next-bridge p {
+  margin-top: 6px;
+}
 .next-buttons {
   display: flex;
   gap: 10px;

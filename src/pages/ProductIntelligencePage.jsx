@@ -9,6 +9,7 @@ import {
   ImageUp,
   Link2,
   Lightbulb,
+  Megaphone,
   PackageSearch,
   ShieldCheck,
   Sparkles,
@@ -177,13 +178,22 @@ function ScoreBar({ label, value }) {
   );
 }
 
-export default function ProductIntelligencePage() {
+export default function ProductIntelligencePage({ onNavigate }) {
   const [inputMode, setInputMode] = useState("image");
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [notice, setNotice] = useState("");
 
-  const handlePrototypeAction = (label) => {
-    setNotice(`${label}: إجراء تجريبي فقط — لا يتم إنشاء سجل أو استدعاء API.`);
+  const handlePrototypeAction = (message) => {
+    setNotice(message);
+  };
+
+  const handlePrototypeNavigate = (screenKey) => {
+    if (typeof onNavigate === "function") {
+      onNavigate(screenKey);
+      return;
+    }
+
+    setNotice("التنقل التجريبي غير متاح من هذه الصفحة حاليًا.");
   };
 
   return (
@@ -465,14 +475,29 @@ export default function ProductIntelligencePage() {
           </section>
 
           <section className="pi-card next-actions-card">
-            <div>
+            <div className="next-actions-copy">
               <h2>الخطوة التالية</h2>
               <p>كل الأزرار تجريبية ولا تنشئ سجلات أو حملات أو تكاملات.</p>
+              <div className="next-bridge">
+                <div>
+                  <h3>الخطوة التالية المقترحة</h3>
+                  <p>
+                    استخدم نتائج تحليل المنتج كنقطة انطلاق لصناعة محتوى الحملة أو فتح معالج إنشاء حملة.
+                    في هذا النموذج لا يتم تمرير بيانات أو إنشاء سجلات فعلية.
+                  </p>
+                </div>
+                <div className="angle-list">
+                  <Badge>Prototype</Badge>
+                  <Badge tone="amber">لا يوجد إنشاء فعلي</Badge>
+                  <Badge tone="slate">لا يوجد تمرير بيانات</Badge>
+                </div>
+              </div>
             </div>
             <div className="next-buttons">
-              <button type="button" onClick={() => handlePrototypeAction("حفظ كتقرير")}><FileText size={16} /> حفظ كتقرير</button>
-              <button type="button" onClick={() => handlePrototypeAction("إنشاء محتوى حملة")}><BarChart3 size={16} /> إنشاء محتوى حملة</button>
-              <button type="button" onClick={() => handlePrototypeAction("البحث عن موردين لاحقًا")}><Truck size={16} /> البحث عن موردين لاحقًا</button>
+              <button type="button" onClick={() => handlePrototypeAction("حفظ التقرير غير مفعل في النموذج التجريبي.")}><FileText size={16} /> حفظ كتقرير</button>
+              <button type="button" onClick={() => handlePrototypeNavigate("content")}><BarChart3 size={16} /> إنشاء محتوى حملة</button>
+              <button type="button" onClick={() => handlePrototypeNavigate("campaigns")}><Megaphone size={16} /> إنشاء حملة</button>
+              <button type="button" onClick={() => handlePrototypeAction("البحث عن الموردين يتطلب تكاملًا خارجيًا وتحققًا لاحقًا.")}><Truck size={16} /> البحث عن موردين لاحقًا</button>
             </div>
             {notice ? <div className="notice">{notice}</div> : null}
           </section>
