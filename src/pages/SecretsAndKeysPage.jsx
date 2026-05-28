@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -917,7 +917,7 @@ export default function SecretsAndKeysPage() {
     }
   };
 
-  const duplicateProvider = (provider) => {
+  const duplicateProvider = useCallback((provider) => {
     const copy = {
       ...provider,
       id: `${provider.providerType}-${Date.now()}`,
@@ -935,7 +935,7 @@ export default function SecretsAndKeysPage() {
     setProviders((prev) => [copy, ...prev]);
     setSelectedProviderId(copy.id);
     setViewMode("editor");
-  };
+  }, []);
 
   const validateProvider = (provider) => {
     const missing = [];
