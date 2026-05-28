@@ -124,7 +124,7 @@ The following conceptual mapping describes which OpenAPI endpoint would supply d
 | `getModelRouteReadiness` | Route health, fallback models, provider binding status | Static route fixture in `ModelRoutingPage` |
 | `getPromptReadiness` | Prompt version, approval status, blocked patterns | Static prompt fixture in `PromptGovernancePage` |
 
-**Prototype note:** `CostReadinessSnapshot` and `DataSourceReadinessSnapshot` are schema-only in Slice 3. Their data surfaces embedded within `WorkflowStepReadiness` via `costReady` and `dataSourceReady` dimension signals. No standalone endpoint exists. Prototype fixtures for these dimensions must be embedded in the step readiness fixture, not displayed as independent API results.
+**Prototype note:** `CostReadinessSnapshot` and `DataSourceReadinessSnapshot` are schema-only in Slice 3. Their data surfaces are embedded within `WorkflowStepReadiness` via `costReady` and `dataSourceReady` dimension signals. No standalone endpoint exists. Prototype fixtures for these dimensions must be embedded in the step readiness fixture, not displayed as independent API results.
 
 ---
 
@@ -215,7 +215,7 @@ The following conceptual mapping describes which OpenAPI endpoint would supply d
 |---|---|
 | May consume | `getProviderReadiness` for each configured provider |
 | May display | Provider health chip: `healthy / degraded / unavailable / unknown`; supported capabilities list; secret reference name (never secret value); last-tested timestamp; blockers if any |
-| Must not display | Raw secret values, API keys, or credential strings — ever; a "test connection" button that implies live probing (deferred — Condition A1, B1) |
+| Must not display | Raw secret values, API keys, or credential strings — ever; a "test connection" button that implies live probing (live provider probing and provider test-connection remain deferred by the Slice 3 planning, review, and acceptance gates) |
 | Must not do | Write readiness to another page's state; provide readiness data directly to consumer pages; expose any credential value |
 | Allowed UI pattern | Provider card with readiness chip; health status icon; `secretReferenceName` shown as vault reference label only; blocker badge if provider is not ready |
 | Risk if misused | Secret value leaks into the UI; provider health chip is misread as authorization to use the provider in a real call |
@@ -362,9 +362,9 @@ Until a real backend and API are available, the prototype must represent readine
 | **Pages coupled through local state.** A consumer page imports readiness from an owner page's `useState`. | Section 8 ownership boundaries are enforced. A shared fixture store is the only acceptable inter-page data pattern in the prototype. |
 | **Prototype looks like real API integration.** A fake API client module is introduced and later assumed to be wired to a real backend. | Prototype data strategy in Section 9 prohibits fake API clients. Any future real API wiring must be separately gated. |
 | **Readiness becomes an execution gate.** A "run" or "generate" button becomes active when readiness score crosses a threshold. | Readiness must not gate execution in the prototype. Buttons may reference readiness for display but must be clearly labelled as prototype-only actions. |
-| **Secret leakage in UI.** A `secretValue`, raw API key, or credential string appears in a readiness panel. | Section 4 rules prohibit any credential display. `SecretsAndKeysPage` must display only `secretReferenceName`. Prototype fixtures must not contain real or simulated credential strings. |
+| **Secret leakage in UI.** A `secretValue`, raw API key, or credential string appears in a readiness panel. | The `SecretsAndKeysPage` ownership rules (Section 6) and prototype data strategy (Section 9) prohibit any credential display. `SecretsAndKeysPage` must display only `secretReferenceName`. Prototype fixtures must not contain real or simulated credential strings. |
 | **Cost / data-source endpoint confusion.** A developer introduces standalone readiness API calls for cost or data-source dimensions. | Section 5 explicitly states these are schema-only in Slice 3 with no standalone endpoint. Any standalone endpoint addition requires a new planning and review cycle. |
-| **`stepKey` instability.** A consumer page stores `stepKey` alone as a durable identifier across workflow versions. | Section 4 states the durable reference is `(workflowDefinitionId, workflowVersion, stepKey)`. Prototype fixtures must store all three fields. |
+| **`stepKey` instability.** A consumer page stores `stepKey` alone as a durable identifier across workflow versions. | The durable workflow step reference `(workflowDefinitionId, workflowVersion, stepKey)` is inherited from the accepted OpenAPI Slice 3 readiness contract and YAML implementation scope. Prototype fixtures must store all three fields. |
 | **Inconsistent labels across pages.** One page labels a `blocked` state "غير جاهز" and another labels it "محجوب". | Section 4 defines five distinct state labels. All pages must use the same label set for each `ReadinessStatus` value. A shared label constant is recommended. |
 
 ---
