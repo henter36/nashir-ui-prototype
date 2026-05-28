@@ -55,7 +55,7 @@ The following prohibitions are inherited from all upstream gates and remain in f
 
 ### Twenty-one conditions carried in
 
-All fifteen upstream conditions (A1, B1, F1, H1, I1, J1, DR1, S1–S5, ID1–ID2, RequestIdHeader) and all six review gate conditions (R1–R6) are carried into this acceptance gate. They are enumerated in Section 9 and Section 6.
+All fifteen upstream conditions (A1, B1, F1, H1, I1, J1, DR1, S1–S5, ID1–ID2, RequestIdHeader) and all six review gate conditions (R1–R6) are carried into this acceptance gate. They are enumerated across Sections 3, 5, 6, and 9.
 
 ---
 
