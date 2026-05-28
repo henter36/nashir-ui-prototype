@@ -1,21 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  ArrowLeftRight,
   CheckCircle2,
   CircleAlert,
   Clock3,
-  Database,
-  Eye,
   FileSearch,
   GitBranch,
-  ListChecks,
   PlayCircle,
   RefreshCw,
-  RotateCcw,
   Save,
   ShieldCheck,
-  Store,
   Workflow,
   XCircle,
 } from "lucide-react";
@@ -382,55 +376,6 @@ const PROCESSORS = [
   ["ai_recommendations", "AI Recommendations Model"],
   ["brief_validation", "Brief Validation"],
   ["content_context_loader", "Content Context Loader"],
-];
-
-const INPUT_SOURCES = [
-  "store_url",
-  "social_account",
-  "campaign_brief",
-  "store_context",
-  "product_context",
-  "product_candidates",
-  "asset_context",
-  "approved_assets",
-  "selected_assets",
-  "channel_specs",
-  "governance_context",
-  "analytics_metrics",
-  "content_id",
-  "manual_input",
-  "previous_step_output",
-];
-
-const OUTPUT_TYPES = [
-  "raw_store_snapshot",
-  "product_candidates",
-  "asset_candidates",
-  "brand_insights",
-  "audience_insights",
-  "campaign_strategy",
-  "customer_visible_brief",
-  "internal_prompt",
-  "content_draft",
-  "risk_report",
-  "generated_asset",
-  "analytics_recommendation",
-  "publishing_item",
-];
-
-const DESTINATIONS = [
-  "store_setup",
-  "store_profile",
-  "data_sources",
-  "product_catalog",
-  "asset_library",
-  "campaign_detail",
-  "content_studio",
-  "review",
-  "publishing_queue",
-  "analytics",
-  "workflow_runs",
-  "audit_log",
 ];
 
 const VISIBILITY = [
@@ -1604,13 +1549,6 @@ export default function WorkflowRunsPage() {
     setSelectedStepIndex(0);
   };
 
-  const togglePolicy = (key) => {
-    setWorkflowDraft((prev) => ({
-      ...prev,
-      policies: { ...prev.policies, [key]: !prev.policies[key] },
-    }));
-  };
-
   const runLocalTest = () => {
     const workflowTrigger = getWorkflowTrigger(workflowDraft);
     const readinessByStep = workflowDraft.steps.map((step) =>
@@ -2653,11 +2591,6 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
   const promptForNext = step.nextPromptName
     ? (readinessContext.promptRegistry || []).find((prompt) => prompt.name === step.nextPromptName)
     : null;
-  const statusLabel = {
-    ready: "جاهز",
-    warning: "يحتاج ضبط",
-    blocked: "محظور",
-  }[readiness.status];
   const routeLabel =
     readiness.primaryModel?.displayName ||
     readiness.staticRoute?.primaryModel ||

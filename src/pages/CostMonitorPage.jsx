@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -14,8 +14,6 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  TrendingUp,
-  Zap,
 } from "lucide-react";
 import {
   deriveCostRowsFromRoutes,

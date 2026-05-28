@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -10,16 +10,13 @@ import {
   FileText,
   ImageIcon,
   Mail,
-  Megaphone,
   MessageCircle,
   MonitorSmartphone,
   PlayCircle,
   RefreshCw,
   Search,
-  Send,
   Smartphone,
   Sparkles,
-  Wand2,
 } from "lucide-react";
 import { readCampaigns } from "../utils/campaignAnalyticsStore.js";
 import { readCampaignContent } from "../utils/campaignContentStore.js";

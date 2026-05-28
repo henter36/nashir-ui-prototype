@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Gift, Search, Share2, Sparkles, Store, Wand2 } from "lucide-react";
 import {
   createTemplateFromText,

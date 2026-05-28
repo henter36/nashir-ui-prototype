@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
   CalendarDays,
-  CheckCircle2,
-  Clock3,
   Database,
   FileCheck2,
   FolderOpen,

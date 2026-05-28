@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  CircleAlert,
   FileCheck2,
   Globe2,
   Link2,
@@ -655,7 +654,6 @@ export default function StoreSetupPage({ onCreateCampaign = () => {} }) {
       .slice(0, 4);
     const productsMissingDescription = safeProducts.filter((product) => !String(product.description || "").trim());
     const productsMissingPrice = safeProducts.filter((product) => !String(product.price || "").trim());
-    const productsMissingMedia = safeProducts.filter((product) => !product.imageUrl && !product.videoUrl);
     const videoReadyProducts = safeProducts.filter((product) => (product.flags || []).includes("يصلح للفيديو") || product.videoUrl);
     const identityStrength = form.storeName && form.category && form.tone?.length && form.useWords ? "واضحة" : "تحتاج ضبط";
     const productClarity = safeProducts.length && !productsMissingDescription.length ? "واضحة" : safeProducts.length ? "متوسطة" : "ضعيفة";

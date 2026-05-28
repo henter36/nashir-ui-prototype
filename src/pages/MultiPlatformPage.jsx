@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -8,7 +8,6 @@ import {
   FileCheck2,
   Globe2,
   Layers,
-  Link2,
   Lock,
   MessageSquare,
   Plus,
@@ -16,7 +15,6 @@ import {
   Search,
   ShieldCheck,
   Smartphone,
-  Users,
   Wand2,
   XCircle,
 } from "lucide-react";
@@ -164,12 +162,6 @@ const approvalMap = {
   rejected: ["مرفوض", "red"],
 };
 
-const riskMap = {
-  low: "منخفض",
-  medium: "متوسط",
-  high: "مرتفع",
-};
-
 const platformRequirements = {
   Instagram: ["مقاس صحيح", "Caption قصير", "هاشتاقات محدودة", "موافقة على الصورة"],
   TikTok: ["فيديو عمودي", "Hook واضح", "مراجعة موسيقى/حقوق", "موافقة بشرية"],
@@ -209,7 +201,7 @@ function getReadiness(account, assets) {
 
 export default function MultiPlatformPage() {
   const [accounts, setAccounts] = useState(initialAccounts);
-  const [contentItems, setContentItems] = useState(() => readCampaignContent([]));
+  const [, setContentItems] = useState(() => readCampaignContent([]));
   const [assets, setAssets] = useState(() => {
     const content = readCampaignContent([]);
     const stored = readMultiPlatformReadiness(initialAssets);
@@ -273,7 +265,6 @@ export default function MultiPlatformPage() {
   const selectedAccounts = accounts.filter((account) => account.selected);
   const connectedSelected = selectedAccounts.filter((account) => account.status === "connected");
   const approvedAssets = assets.filter((asset) => asset.approval === "approved");
-  const blockedAssets = assets.filter((asset) => asset.status === "blocked");
   const needsWork = assets.filter(
     (asset) => asset.status !== "ready" || asset.approval !== "approved"
   );
