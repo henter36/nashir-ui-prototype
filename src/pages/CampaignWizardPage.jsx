@@ -383,6 +383,7 @@ export default function CampaignWizardPage({
 
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [textApprovalStatus, setTextApprovalStatus] = useState("unapproved");
+  const [outputApprovalStatus, setOutputApprovalStatus] = useState({});
   const [campaignGenerated, setCampaignGenerated] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
   const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
@@ -582,6 +583,13 @@ export default function CampaignWizardPage({
     [ageGroup, channels, cta, gender, goal, offer, selectedAssets, selectedProduct?.name]
   );
   const textApproved = textApprovalStatus === "approved";
+  const approvedOutputCount = outputs.filter((output) => outputApprovalStatus[output] === "approved").length;
+  const outputsNeedingEditCount = outputs.filter((output) => outputApprovalStatus[output] === "needs_edit").length;
+  const campaignOutputReadiness = !textApproved
+    ? "النص الأساسي لم يعتمد بعد."
+    : outputs.length && approvedOutputCount === outputs.length
+      ? "الحملة جاهزة للمراجعة النهائية."
+      : "الحملة غير جاهزة — توجد مخرجات غير معتمدة.";
 
   const addQuickProduct = () => {
     if (!quickProduct.name.trim()) return;
@@ -1279,7 +1287,7 @@ export default function CampaignWizardPage({
                 </div>
 
                 <div className="approval-sequence-strip">
-                  <span>1. اعتماد النص المقترح</span>
+                  <span>1. اعتماد النص الأساسي</span>
                   <span>2. توليد المخرجات المطلوبة</span>
                   <span>3. مراجعة المخرجات</span>
                 </div>
@@ -1287,34 +1295,48 @@ export default function CampaignWizardPage({
                 <div className="suggested-text-approval-card">
                   <div className="approval-card-head">
                     <div>
-                      <h3>اعتماد النص المقترح</h3>
-                      <p>اعتماد النص هنا واجهي فقط، ولا يرسل الحملة للنشر.</p>
+                      <h3>اعتماد النص الأساسي</h3>
+                      <p>الاعتماد هنا واجهي فقط، ولا يرسل الحملة للنشر.</p>
                     </div>
                     <Badge tone={textApproved ? "green" : textApprovalStatus === "needs_edit" ? "amber" : "neutral"}>
                       {getApprovalLabel(textApprovalStatus)}
                     </Badge>
                   </div>
                   <div className="suggested-campaign-text">
-                    <span>النص المقترح للحملة</span>
+                    <span>النص الأساسي للحملة</span>
                     <strong>{suggestedCampaignText}</strong>
                   </div>
                   <div className="asset-readiness-summary compact">
-                    <Info label="حالة الاعتماد" value={getApprovalLabel(textApprovalStatus)} />
-                    <Info label="تأثير الجاهزية" value={textApproved ? "النص المقترح معتمد." : "النص المقترح لم يعتمد بعد."} />
+                    <Info label="حالة اعتماد النص الأساسي" value={getApprovalLabel(textApprovalStatus)} />
+                    <Info label="تأثير الجاهزية" value={textApproved ? "النص الأساسي معتمد." : "النص الأساسي لم يعتمد بعد."} />
                   </div>
                   <div className="button-row compact">
                     <button type="button" className="button primary" onClick={() => setTextApprovalStatus("approved")}>
-                      اعتماد النص المقترح
+                      اعتماد النص الأساسي
                     </button>
                     <button type="button" className="button secondary" onClick={() => setTextApprovalStatus("needs_edit")}>
                       طلب تعديل النص
                     </button>
                   </div>
                   {!textApproved ? (
-                    <Notice tone="amber">النص المقترح لم يعتمد بعد. اعتماد النص المقترح مطلوب قبل اعتبار المخرجات جاهزة.</Notice>
+                    <Notice tone="amber">النص الأساسي لم يعتمد بعد. اعتماد النص الأساسي مطلوب قبل اعتبار المخرجات جاهزة.</Notice>
                   ) : (
-                    <Notice tone="neutral">النص المقترح معتمد.</Notice>
+                    <Notice tone="neutral">النص الأساسي معتمد.</Notice>
                   )}
+                </div>
+
+                <div className="output-approval-summary-card">
+                  <h3>مراجعة مخرجات الحملة</h3>
+                  <p>اعتماد النص الأساسي لا يعني اعتماد كل المخرجات. يجب مراجعة كل مخرج مطلوب قبل اعتبار الحملة جاهزة.</p>
+                  <div className="asset-readiness-summary compact">
+                    <Info label="عدد المخرجات المطلوبة" value={String(outputs.length)} />
+                    <Info label="عدد المخرجات المعتمدة" value={String(approvedOutputCount)} />
+                    <Info label="عدد المخرجات التي تحتاج تعديل" value={String(outputsNeedingEditCount)} />
+                    <Info label="حالة جاهزية الحملة" value={campaignOutputReadiness} />
+                  </div>
+                  <Notice tone={textApproved && outputs.length && approvedOutputCount === outputs.length ? "neutral" : "amber"}>
+                    {campaignOutputReadiness}
+                  </Notice>
                 </div>
 
                 <div className="brief-grid">
@@ -1365,14 +1387,20 @@ export default function CampaignWizardPage({
               </Card>
 
               <Card>
-                <h3 className="section-mini-title">توليد المخرجات المطلوبة</h3>
+                <h3 className="section-mini-title">مراجعة مخرجات الحملة</h3>
                 <Notice tone="amber">مخرجات تجريبية — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي.</Notice>
                 <Badge tone={campaignGenerated ? "green" : "neutral"}>
                   {campaignGenerated ? "تم عرض مخرجات تجريبية" : "مسودات قابلة للمراجعة"}
                 </Badge>
 
                 <div className="output-explanation-list">
+                  {!outputs.length ? (
+                    <Notice tone="amber">لم يتم اختيار مخرجات مطلوبة بعد. أضف مخرجًا واحدًا على الأقل لمراجعة الجاهزية.</Notice>
+                  ) : null}
+
                   {outputs.map((output) => {
+                    const outputStatus = outputApprovalStatus[output] || "unapproved";
+                    const outputApproved = outputStatus === "approved";
                     const item = generatedTexts[output] || {
                       customerText: makeCustomerText({
                         output,
@@ -1406,8 +1434,15 @@ export default function CampaignWizardPage({
                       channels,
                       selectedAssets,
                       videoDuration,
-                      textApproved,
+                      textApproved: textApproved && outputApproved,
                     });
+                    const outputReadiness = !textApproved
+                      ? "مسودة بانتظار اعتماد النص الأساسي"
+                      : outputApproved
+                        ? "معتمد كمخرج تجريبي للمراجعة"
+                        : outputStatus === "needs_edit"
+                          ? "يحتاج تعديل"
+                          : "غير معتمد";
 
                     return (
                       <div key={output} className="output-card">
@@ -1416,6 +1451,9 @@ export default function CampaignWizardPage({
                             <strong>{artifact.type}</strong>
                             <span>{output}</span>
                           </div>
+                          <Badge tone={outputApproved ? "green" : outputStatus === "needs_edit" ? "amber" : "neutral"}>
+                            {getApprovalLabel(outputStatus)}
+                          </Badge>
 
                           <button
                             type="button"
@@ -1431,8 +1469,26 @@ export default function CampaignWizardPage({
                           <Info label="نوع المخرج" value={artifact.type} />
                           <Info label="القنوات المرتبطة" value={artifact.channelText} />
                           <Info label="ملخص المخرج" value={artifact.summary} />
-                          <Info label="حالة الجاهزية" value={artifact.readiness} />
+                          <Info label="حالة الجاهزية" value={outputReadiness} />
                           <Info label="يحتاج مراجعة؟" value={artifact.reviewRequired ? "نعم" : "لا"} />
+                        </div>
+
+                        <div className="output-approval-actions">
+                          <Info label="حالة اعتماد المخرج" value={getApprovalLabel(outputStatus)} />
+                          <button
+                            type="button"
+                            className="button primary compact"
+                            onClick={() => setOutputApprovalStatus((prev) => ({ ...prev, [output]: "approved" }))}
+                          >
+                            اعتماد هذا المخرج
+                          </button>
+                          <button
+                            type="button"
+                            className="button secondary compact"
+                            onClick={() => setOutputApprovalStatus((prev) => ({ ...prev, [output]: "needs_edit" }))}
+                          >
+                            طلب تعديل هذا المخرج
+                          </button>
                         </div>
 
                         {artifact.details.length ? (
@@ -2425,6 +2481,27 @@ const styles = `
   margin-bottom: 16px;
 }
 
+.output-approval-summary-card {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 20px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.output-approval-summary-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.output-approval-summary-card p {
+  margin: 6px 0 12px;
+  color: #6f746b;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .approval-card-head {
   display: flex;
   justify-content: space-between;
@@ -2499,6 +2576,14 @@ const styles = `
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  margin-top: 10px;
+}
+
+.output-approval-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
   margin-top: 10px;
 }
 
@@ -2731,6 +2816,7 @@ const styles = `
   .asset-select-grid,
   .metrics-grid,
   .approval-sequence-strip,
+  .output-approval-actions,
   .generated-artifact-grid,
   .generated-output-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2763,6 +2849,7 @@ const styles = `
   .asset-select-grid,
   .metrics-grid,
   .approval-sequence-strip,
+  .output-approval-actions,
   .generated-artifact-grid,
   .generated-output-detail-grid,
   .brief-grid {
