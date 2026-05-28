@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
   CircleAlert,
-  DollarSign,
   FileText,
   Globe2,
   KeyRound,
@@ -120,27 +119,6 @@ const DEFAULT_WORKSPACE = {
   businessMode: "متجر إلكتروني",
 };
 
-const DEFAULT_AI_SETTINGS = {
-  textProvider: "OpenAI",
-  imageProvider: "غير محدد",
-  videoProvider: "غير محدد",
-  maxMonthlyBudget: "250",
-  requireHumanReview: true,
-  allowAutoGeneration: true,
-  requireFallbackModel: true,
-  redactCustomerData: true,
-};
-
-const DEFAULT_GOVERNANCE = {
-  blockAutoPublish: true,
-  requireApprovalBeforeSend: true,
-  keepReviewLog: true,
-  riskLevel: "متوسط",
-  requireClaimsReview: true,
-  requireAssetRightsReview: true,
-  requirePromptVersioning: true,
-};
-
 const DEFAULT_OUTPUT_SETTINGS = {
   defaultLanguage: "العربية",
   defaultTone: "ودية",
@@ -151,19 +129,8 @@ const DEFAULT_OUTPUT_SETTINGS = {
   requireCustomerSafeSummary: true,
 };
 
-const providerOptions = [
-  "غير محدد",
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "Runway",
-  "Replicate",
-  "مزود داخلي لاحقًا",
-];
-
 const toneOptions = ["ودية", "رسمية", "فاخرة", "شبابية", "عملية", "جريئة", "هادئة"];
 const languageOptions = ["العربية", "الإنجليزية", "العربية والإنجليزية"];
-const riskLevels = ["منخفض", "متوسط", "مرتفع"];
 
 const TABS = [
   ["overview", "نظرة عامة"],
@@ -339,8 +306,6 @@ export default function SettingsPage() {
   ]);
 
   const [workspace, setWorkspace] = useState(DEFAULT_WORKSPACE);
-  const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
-  const [governance, setGovernance] = useState(DEFAULT_GOVERNANCE);
   const [outputSettings, setOutputSettings] = useState(DEFAULT_OUTPUT_SETTINGS);
 
   const refreshSharedConnections = () => {
@@ -567,8 +532,6 @@ export default function SettingsPage() {
     setSharedConnections(latest);
     setChannels(buildDefaultChannels(latest));
     setWorkspace(DEFAULT_WORKSPACE);
-    setAiSettings(DEFAULT_AI_SETTINGS);
-    setGovernance(DEFAULT_GOVERNANCE);
     setOutputSettings(DEFAULT_OUTPUT_SETTINGS);
     setSaved(false);
     setDirty(false);
