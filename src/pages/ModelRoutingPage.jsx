@@ -622,7 +622,7 @@ export default function ModelRoutingPage() {
       routes: visibleRoutes.length,
       highCostRoutes: visibleRoutes.filter((route) => Number(route.cost?.maxCostPerRun || 0) >= 1).length,
     }),
-    [models, routes, visibleRoutes]
+    [models, visibleRoutes]
   );
 
   const syncRouteCosts = (nextRoutes, nextModels = models) => {
