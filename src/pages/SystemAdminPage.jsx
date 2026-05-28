@@ -683,20 +683,20 @@ export default function SystemAdminPage() {
                   <span className="readiness-workflow-version">v{wf.workflowVersion}</span>
                 </div>
                 <ReadinessBadge status={wf.overallStatus} />
-                {wf.blockers.length > 0 && (
+                {wf.blockers?.length > 0 && (
                   <div className="readiness-blockers">
                     <span className="readiness-blockers-heading">عوائق تمنع التشغيل</span>
                     <ul className="readiness-blocker-list">
-                      {wf.blockers.map((b) => (
-                        <li key={b}>{b}</li>
+                      {wf.blockers.map((b, idx) => (
+                        <li key={idx}>{b}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {wf.warnings.length > 0 && (
+                {wf.warnings?.length > 0 && (
                   <ul className="readiness-advisory-caption">
-                    {wf.warnings.map((w) => (
-                      <li key={w}>{w}</li>
+                    {wf.warnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
                     ))}
                   </ul>
                 )}
@@ -1535,8 +1535,8 @@ const styles = `
 }
 
 .sys-readiness-section {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: var(--card, rgba(255, 255, 255, 0.96));
+  border: 1px solid var(--border, #e7edf3);
   border-radius: 26px;
   padding: 24px;
   display: flex;
@@ -1557,7 +1557,7 @@ const styles = `
   gap: 2px;
   padding: 10px 20px;
   border-radius: 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #e7edf3);
   min-width: 72px;
 }
 
@@ -1569,7 +1569,7 @@ const styles = `
 
 .readiness-stat span {
   font-size: 0.75rem;
-  color: var(--muted-foreground);
+  color: var(--muted-foreground, #667085);
   display: flex;
   align-items: center;
   gap: 3px;
@@ -1604,7 +1604,7 @@ const styles = `
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #e7edf3);
   border-radius: 14px;
   flex-wrap: wrap;
 }
@@ -1624,25 +1624,23 @@ const styles = `
 
 .readiness-workflow-version {
   font-size: 0.75rem;
-  color: var(--muted-foreground);
+  color: var(--muted-foreground, #667085);
   white-space: nowrap;
 }
 
 .readiness-advisory-caption {
   width: 100%;
   margin: 0;
-  padding: 0 0 0 16px;
+  padding: 0;
+  padding-inline-start: 16px;
   list-style: disc;
   font-size: 0.78rem;
   color: #92400e;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .readiness-unknown-hint {
   font-size: 0.78rem;
-  color: var(--muted-foreground);
+  color: var(--muted-foreground, #667085);
   margin: 0;
   padding: 8px 12px;
   border-radius: 10px;
@@ -1669,12 +1667,10 @@ const styles = `
 
 .readiness-blocker-list {
   margin: 0;
-  padding: 0 0 0 16px;
+  padding: 0;
+  padding-inline-start: 16px;
   list-style: disc;
   font-size: 0.78rem;
   color: #991b1b;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 `;
