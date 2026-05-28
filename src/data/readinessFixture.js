@@ -1,0 +1,47 @@
+export const workspaceReadinessFixture = {
+  workspaceId: "ws-nashir-demo",
+  overallStatus: "warning",
+  totalActiveWorkflows: 4,
+  blockedWorkflows: 1,
+  warningWorkflows: 2,
+  readyWorkflows: 1,
+  unknownWorkflows: 0,
+  updatedAt: "2026-05-28T12:00:00Z",
+  workflows: [
+    {
+      workflowDefinitionId: "wf-001",
+      workflowVersion: "1.0",
+      name: "مسار توليد المحتوى",
+      overallStatus: "ready",
+      blockers: [],
+      warnings: [],
+    },
+    {
+      workflowDefinitionId: "wf-002",
+      workflowVersion: "1.0",
+      name: "مسار تحليل المنتج",
+      overallStatus: "warning",
+      blockers: [],
+      warnings: [
+        "إعدادات المزود تحتاج مراجعة قبل الاعتماد",
+        "مسار النموذج يفتقر لنموذج احتياطي",
+      ],
+    },
+    {
+      workflowDefinitionId: "wf-003",
+      workflowVersion: "1.0",
+      name: "مسار الحملة الترويجية",
+      overallStatus: "warning",
+      blockers: [],
+      warnings: ["قالب المطالبة بحاجة لمراجعة الاعتماد"],
+    },
+    {
+      workflowDefinitionId: "wf-004",
+      workflowVersion: "1.0",
+      name: "مسار التقارير الدورية",
+      overallStatus: "blocked",
+      blockers: ["وجهة إخراج البيانات غير مهيأة — لا يمكن تشغيل المسار"],
+      warnings: [],
+    },
+  ],
+};

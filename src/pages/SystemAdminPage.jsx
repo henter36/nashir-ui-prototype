@@ -1,16 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
-  Bot,
   Building2,
-  CheckCircle2,
   CircleAlert,
-  Clock3,
-  Database,
-  DollarSign,
   Eye,
   Flag,
+  HelpCircle,
   KeyRound,
   Lock,
   RefreshCw,
@@ -19,7 +15,6 @@ import {
   Shield,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Users,
 } from "lucide-react";
 import {
@@ -28,6 +23,8 @@ import {
   readWorkspaceMembers,
   readWorkspaceRoles,
 } from "../utils/teamAccessStore.js";
+import ReadinessBadge from "../components/ui/ReadinessBadge.jsx";
+import { workspaceReadinessFixture } from "../data/readinessFixture.js";
 
 const workspaces = [
   {
@@ -644,6 +641,72 @@ export default function SystemAdminPage() {
             ))}
           </div>
         </article>
+      </section>
+
+      <section className="sys-readiness-section">
+        <div className="sys-card-header">
+          <div>
+            <h2>جاهزية مسارات الذكاء الاصطناعي</h2>
+            <p>ملخص حالة جاهزية مسارات العمل النشطة في المساحة. البيانات تجريبية.</p>
+          </div>
+          <ReadinessBadge status={workspaceReadinessFixture.overallStatus} />
+        </div>
+
+        <div className="readiness-stats-row">
+          <div className="readiness-stat readiness-stat--ready">
+            <strong>{workspaceReadinessFixture.readyWorkflows}</strong>
+            <span>جاهز</span>
+          </div>
+          <div className="readiness-stat readiness-stat--warning">
+            <strong>{workspaceReadinessFixture.warningWorkflows}</strong>
+            <span>تحذير</span>
+          </div>
+          <div className="readiness-stat readiness-stat--blocked">
+            <strong>{workspaceReadinessFixture.blockedWorkflows}</strong>
+            <span>محجوب</span>
+          </div>
+          <div className="readiness-stat readiness-stat--unknown">
+            <strong>{workspaceReadinessFixture.unknownWorkflows}</strong>
+            <span>
+              <HelpCircle size={12} />
+              غير معروف
+            </span>
+          </div>
+        </div>
+
+        <div className="readiness-panel">
+          <div className="readiness-workflow-list">
+            {workspaceReadinessFixture.workflows.map((wf) => (
+              <div key={wf.workflowDefinitionId} className="readiness-workflow-row">
+                <div className="readiness-workflow-meta">
+                  <span className="readiness-workflow-name">{wf.name}</span>
+                  <span className="readiness-workflow-version">v{wf.workflowVersion}</span>
+                </div>
+                <ReadinessBadge status={wf.overallStatus} />
+                {wf.blockers?.length > 0 && (
+                  <div className="readiness-blockers">
+                    <span className="readiness-blockers-heading">عوائق تمنع التشغيل</span>
+                    <ul className="readiness-blocker-list">
+                      {wf.blockers.map((b) => (
+                        <li key={b}>{b}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {wf.warnings?.length > 0 && (
+                  <ul className="readiness-advisory-caption">
+                    {wf.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="readiness-unknown-hint">
+            الحالة "غير معروف" لا تُعدّ جاهزة — يُمنع تشغيل المسار حتى تُحسم.
+          </p>
+        </div>
       </section>
 
       <section className="sys-audit-grid">
@@ -1469,5 +1532,145 @@ const styles = `
   .sys-table-row {
     min-width: 760px;
   }
+}
+
+.sys-readiness-section {
+  background: var(--card, rgba(255, 255, 255, 0.96));
+  border: 1px solid var(--border, #e7edf3);
+  border-radius: 26px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.readiness-stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.readiness-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border, #e7edf3);
+  min-width: 72px;
+}
+
+.readiness-stat strong {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.readiness-stat span {
+  font-size: 0.75rem;
+  color: var(--muted-foreground, #667085);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.readiness-stat--ready   { border-color: #bbf7d0; background: #f0fdf4; }
+.readiness-stat--ready strong { color: #166534; }
+
+.readiness-stat--warning { border-color: #fde68a; background: #fffbeb; }
+.readiness-stat--warning strong { color: #92400e; }
+
+.readiness-stat--blocked { border-color: #fecaca; background: #fef2f2; }
+.readiness-stat--blocked strong { color: #991b1b; }
+
+.readiness-stat--unknown { border-color: #e2e8f0; background: #f8fafc; }
+.readiness-stat--unknown strong { color: #475569; }
+
+.readiness-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.readiness-workflow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.readiness-workflow-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #e7edf3);
+  border-radius: 14px;
+  flex-wrap: wrap;
+}
+
+.readiness-workflow-meta {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.readiness-workflow-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.readiness-workflow-version {
+  font-size: 0.75rem;
+  color: var(--muted-foreground, #667085);
+  white-space: nowrap;
+}
+
+.readiness-advisory-caption {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  padding-inline-start: 16px;
+  list-style: disc;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+.readiness-unknown-hint {
+  font-size: 0.78rem;
+  color: var(--muted-foreground, #667085);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.readiness-blockers {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.readiness-blockers-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.readiness-blocker-list {
+  margin: 0;
+  padding: 0;
+  padding-inline-start: 16px;
+  list-style: disc;
+  font-size: 0.78rem;
+  color: #991b1b;
 }
 `;
