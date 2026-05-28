@@ -339,7 +339,7 @@ function checkOutputFieldsReadiness({ output, productName, offer, audience, chan
     "النبرة": "مباشر",
   };
   const ready = required.filter((f) => Boolean(fieldValues[f]));
-  const missing = required.filter((f) => !Boolean(fieldValues[f]));
+  const missing = required.filter((f) => !fieldValues[f]);
   return { required, ready, missing };
 }
 
