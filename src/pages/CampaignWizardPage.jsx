@@ -40,6 +40,14 @@ import {
   readLatestStoreStrategicPlan,
 } from "../utils/storeStrategicPlanStore.js";
 
+import {
+  readPromptRegistry,
+} from "../utils/promptTemplateStore.js";
+
+import {
+  readModelRoutes,
+} from "../utils/modelCostStore.js";
+
 const goals = [
   "زيادة المبيعات",
   "إطلاق منتج جديد",
@@ -325,6 +333,132 @@ function buildMockOutputArtifact({ output, productName, goal, offer, cta, channe
   };
 }
 
+function getOutputTaskType(output) {
+  const type = getOutputTypeLabel(output);
+  if (type === "سيناريو فيديو") return "video_script";
+  if (type === "وصف صورة / أصل بصري") return "image_prompt";
+  if (type === "رسالة واتساب" || type === "بريد تسويقي") return "message_generation";
+  if (type === "صفحة هبوط") return "landing_page_copy";
+  return "ad_copy_generation";
+}
+
+function getOutputRequiredFields(output) {
+  const type = getOutputTypeLabel(output);
+  if (type === "نص إعلان" || type === "منشور اجتماعي") {
+    return ["المنتج", "العرض", "الجمهور", "القنوات", "CTA"];
+  }
+  if (type === "سيناريو فيديو") {
+    return ["المنتج", "العرض", "الأصول", "مدة الفيديو", "CTA"];
+  }
+  if (type === "وصف صورة / أصل بصري") {
+    return ["المنتج", "الأصول", "زاوية الرسالة", "القناة"];
+  }
+  if (type === "صفحة هبوط") {
+    return ["المنتج", "الوعد الرئيسي", "العرض", "الجمهور", "CTA", "الأصول"];
+  }
+  if (type === "رسالة واتساب" || type === "بريد تسويقي") {
+    return ["المنتج", "العرض", "الجمهور", "CTA", "النبرة"];
+  }
+  return ["المنتج", "العرض", "الجمهور", "CTA"];
+}
+
+function resolvePromptForOutput(output, prompts) {
+  if (!Array.isArray(prompts) || !prompts.length) return null;
+  const taskType = getOutputTaskType(output);
+  const typeLabel = getOutputTypeLabel(output);
+  return (
+    prompts.find((p) => p.task === taskType) ||
+    prompts.find((p) => Array.isArray(p.allowedOutputs) && p.allowedOutputs.some((o) => typeLabel.includes(o) || o.includes(typeLabel))) ||
+    prompts[0] ||
+    null
+  );
+}
+
+function resolveRouteForOutput(output, routes) {
+  if (!Array.isArray(routes) || !routes.length) return null;
+  const taskType = getOutputTaskType(output);
+  return (
+    routes.find((r) => r.taskType === taskType) ||
+    routes.find((r) => r.taskType === "general_task") ||
+    routes[0] ||
+    null
+  );
+}
+
+function checkOutputFieldsReadiness({ output, productName, offer, audience, channels, selectedAssets, cta, videoDuration }) {
+  const required = getOutputRequiredFields(output);
+  const fieldValues = {
+    "المنتج": productName,
+    "العرض": offer,
+    "الجمهور": audience,
+    "القنوات": channels?.length,
+    "CTA": cta,
+    "الأصول": selectedAssets?.length,
+    "مدة الفيديو": videoDuration,
+    "الوعد الرئيسي": offer,
+    "زاوية الرسالة": offer,
+    "القناة": channels?.[0],
+    "النبرة": "مباشر",
+  };
+  const ready = required.filter((f) => Boolean(fieldValues[f]));
+  const missing = required.filter((f) => !Boolean(fieldValues[f]));
+  return { required, ready, missing };
+}
+
+function getPromptStatusArabicLabel(status) {
+  const map = {
+    active: "معتمدة",
+    approved: "معتمدة",
+    testing: "تجريبية",
+    draft: "مسودة",
+    blocked: "غير متاحة",
+    needs_review: "تحتاج مراجعة",
+  };
+  return map[String(status)] || "مسودة";
+}
+
+function buildOutputMockContent({ output, productName, goal, offer, cta, channels, selectedAssets, videoDuration, ageGroup, gender }) {
+  const type = getOutputTypeLabel(output);
+  const assetNames = Array.isArray(selectedAssets) && selectedAssets.length
+    ? selectedAssets.map((a) => a.name).join("، ")
+    : "أصول مقترحة لاحقًا";
+  const channelText = Array.isArray(channels) && channels.length ? channels.join("، ") : "القنوات المختارة";
+  const prod = productName || "المنتج";
+  const offerText = offer || "العرض";
+  const ctaText = cta || "تسوق الآن";
+  const age = ageGroup || "الفئة العمرية";
+  const gend = gender || "الكل";
+  const dur = videoDuration || "15 ثانية";
+  const goalText = goal || "هدف الحملة";
+
+  if (type === "نص إعلان") {
+    return `✦ ${prod} — ${offerText}\nاكتشف ${prod} مع عرض ${offerText} حصري. مثالي لفئة ${age}.\n👉 ${ctaText}`;
+  }
+  if (type === "منشور اجتماعي") {
+    return `🌟 ${prod}\n${offerText} لفترة محدودة!\nمناسب لـ${gend} من ${age}.\n${ctaText} الآن على ${channelText}.`;
+  }
+  if (type === "سيناريو فيديو") {
+    const durSec = String(dur).replace(/[^0-9]/g, "") || "15";
+    return `▸ المشهد 1 (0–3 ث): لقطة مشكلة يومية تُبرز الحاجة.\n▸ المشهد 2 (3–8 ث): ظهور ${prod} كحل مع ${offerText}.\n▸ المشهد 3 (8–${durSec} ث): دعوة مباشرة — "${ctaText}".\n📎 الأصول: ${assetNames}\n🎯 الهدف: ${goalText}`;
+  }
+  if (type === "وصف صورة / أصل بصري") {
+    return `📸 وصف الأصل البصري:\nالمنتج في مقدمة الصورة بإضاءة نظيفة ومحايدة.\nنص مدمج: "${offerText}" بخط واضح.\nالأصول المقترحة: ${assetNames}\nالقناة: ${channelText}`;
+  }
+  if (type === "صفحة هبوط") {
+    return `🏠 عنوان الصفحة: ${prod} — ${offerText}\n✦ الوعد الرئيسي: حل بسيط مع ${offerText} حصري.\n✦ القسم 1: مميزات ${prod}\n✦ القسم 2: شهادات العملاء\n✦ القسم 3: العرض والأسئلة الشائعة\n👉 CTA: "${ctaText}" (بارز في الأعلى والأسفل)\n📎 الأصول: ${assetNames}`;
+  }
+  if (type === "رسالة واتساب") {
+    return `السلام عليكم 👋\n${prod} متوفر الآن مع ${offerText}!\nلا تفوت الفرصة — ${ctaText} ⬇️`;
+  }
+  if (type === "بريد تسويقي") {
+    return `الموضوع: ${offerText} حصري على ${prod}\n\nمرحبًا،\nيسعدنا نقدم لك ${prod} مع ${offerText} خاص.\n${ctaText} الآن وابدأ تجربتك.\n\nفريق المتجر`;
+  }
+  if (type === "ملخص حملة") {
+    return `📋 ملخص الحملة:\nالمنتج: ${prod}\nالهدف: ${goalText}\nالعرض: ${offerText}\nالجمهور: ${age} — ${gend}\nالقنوات: ${channelText}\nCTA: ${ctaText}`;
+  }
+  return `مخرج تجريبي لـ${output}:\nالمنتج "${prod}" مع ${offerText}.\nالهدف: ${goalText}. CTA: ${ctaText}.`;
+}
+
 export default function CampaignWizardPage({
   onOpenCampaign = () => {},
   onOpenContentStudio = () => {},
@@ -384,6 +518,11 @@ export default function CampaignWizardPage({
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [textApprovalStatus, setTextApprovalStatus] = useState("unapproved");
   const [outputApprovalStatus, setOutputApprovalStatus] = useState({});
+  const [outputGenerationState, setOutputGenerationState] = useState({});
+  const [generatedOutputContent, setGeneratedOutputContent] = useState({});
+  const [selectedOutputPrompts, setSelectedOutputPrompts] = useState({});
+  const [promptRegistry, setPromptRegistry] = useState([]);
+  const [modelRoutes, setModelRoutes] = useState([]);
   const [campaignGenerated, setCampaignGenerated] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
   const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
@@ -436,6 +575,22 @@ export default function CampaignWizardPage({
       window.removeEventListener("focus", refreshStrategicPlan);
       window.removeEventListener("storage", refreshStrategicPlan);
       window.removeEventListener("nashir-store-strategic-plan-updated", refreshStrategicPlan);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      try { setPromptRegistry(readPromptRegistry([])); } catch { setPromptRegistry([]); }
+      try { setModelRoutes(readModelRoutes([])); } catch { setModelRoutes([]); }
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("nashir-prompt-governance-updated", refresh);
+    window.addEventListener("nashir-model-routing-updated", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("nashir-prompt-governance-updated", refresh);
+      window.removeEventListener("nashir-model-routing-updated", refresh);
     };
   }, []);
 
@@ -583,13 +738,22 @@ export default function CampaignWizardPage({
     [ageGroup, channels, cta, gender, goal, offer, selectedAssets, selectedProduct?.name]
   );
   const textApproved = textApprovalStatus === "approved";
-  const approvedOutputCount = outputs.filter((output) => outputApprovalStatus[output] === "approved").length;
-  const outputsNeedingEditCount = outputs.filter((output) => outputApprovalStatus[output] === "needs_edit").length;
+  const generatedOutputCount = outputs.filter((output) => {
+    const s = outputGenerationState[output];
+    return s === "generated" || s === "approved" || s === "needs_edit";
+  }).length;
+  const approvedOutputCount = outputs.filter((output) => outputGenerationState[output] === "approved").length;
+  const outputsNeedingEditCount = outputs.filter((output) => outputGenerationState[output] === "needs_edit").length;
+  const allRequiredGenerated = outputs.length > 0 && generatedOutputCount === outputs.length;
+  const allRequiredApproved = outputs.length > 0 && approvedOutputCount === outputs.length;
+  const campaignFullyReady = textApproved && allRequiredGenerated && allRequiredApproved;
   const campaignOutputReadiness = !textApproved
     ? "النص الأساسي لم يعتمد بعد."
-    : outputs.length && approvedOutputCount === outputs.length
-      ? "الحملة جاهزة للمراجعة النهائية."
-      : "الحملة غير جاهزة — توجد مخرجات غير معتمدة.";
+    : !allRequiredGenerated
+      ? `الحملة غير جاهزة — ${outputs.length - generatedOutputCount} مخرج لم يُولَّد بعد.`
+      : !allRequiredApproved
+        ? "الحملة غير جاهزة — توجد مخرجات غير معتمدة."
+        : "الحملة جاهزة للمراجعة النهائية.";
 
   const addQuickProduct = () => {
     if (!quickProduct.name.trim()) return;
@@ -1329,14 +1493,40 @@ export default function CampaignWizardPage({
                   <h3>مراجعة مخرجات الحملة</h3>
                   <p>اعتماد النص الأساسي لا يعني اعتماد كل المخرجات. يجب مراجعة كل مخرج مطلوب قبل اعتبار الحملة جاهزة.</p>
                   <div className="asset-readiness-summary compact">
+                    <Info label="النص الأساسي معتمد؟" value={textApproved ? "نعم" : "لا"} />
                     <Info label="عدد المخرجات المطلوبة" value={String(outputs.length)} />
+                    <Info label="عدد المخرجات المولدة" value={String(generatedOutputCount)} />
                     <Info label="عدد المخرجات المعتمدة" value={String(approvedOutputCount)} />
                     <Info label="عدد المخرجات التي تحتاج تعديل" value={String(outputsNeedingEditCount)} />
-                    <Info label="حالة جاهزية الحملة" value={campaignOutputReadiness} />
                   </div>
-                  <Notice tone={textApproved && outputs.length && approvedOutputCount === outputs.length ? "neutral" : "amber"}>
-                    {campaignOutputReadiness}
+                  <Notice tone={campaignFullyReady ? "neutral" : "amber"}>
+                    {campaignFullyReady ? "الحملة جاهزة للمراجعة النهائية." : campaignOutputReadiness}
                   </Notice>
+                </div>
+
+                <div className="output-generation-readiness-block">
+                  <div className="readiness-block-head">
+                    <div>
+                      <h3>جاهزية توليد المخرجات</h3>
+                      <p>بعد اعتماد النص الأساسي، يمكن توليد كل مخرج تجريبيًا حسب نوع المخرج والمطالبة والحقول ومسار النموذج المرتبط.</p>
+                    </div>
+                    <Badge tone={campaignFullyReady ? "green" : textApproved ? "blue" : "amber"}>
+                      {campaignFullyReady ? "جاهز للمراجعة النهائية" : textApproved ? "النص الأساسي معتمد" : "في الانتظار"}
+                    </Badge>
+                  </div>
+                  <div className="asset-readiness-summary compact">
+                    <Info label="النص الأساسي معتمد؟" value={textApproved ? "نعم ✓" : "لا"} />
+                    <Info label="عدد المخرجات المطلوبة" value={String(outputs.length)} />
+                    <Info label="عدد المخرجات المولدة" value={`${generatedOutputCount} / ${outputs.length}`} />
+                    <Info label="عدد المخرجات المعتمدة" value={`${approvedOutputCount} / ${outputs.length}`} />
+                    <Info label="هل الحملة جاهزة للمراجعة النهائية؟" value={campaignFullyReady ? "نعم" : "لا"} />
+                  </div>
+                  <div className="readiness-disclaimer-strip">
+                    <span>توليد تجريبي</span>
+                    <span>لا يوجد استدعاء فعلي للنماذج</span>
+                    <span>لا يوجد نشر فعلي</span>
+                  </div>
+                  <small>يعرض هذا القسم الربط المتوقع بين نوع المخرج والمطالبة والحقول ومسار النموذج.</small>
                 </div>
 
                 <div className="brief-grid">
@@ -1388,7 +1578,7 @@ export default function CampaignWizardPage({
 
               <Card>
                 <h3 className="section-mini-title">مراجعة مخرجات الحملة</h3>
-                <Notice tone="amber">مخرجات تجريبية — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي.</Notice>
+                <Notice tone="amber">مخرجات تجريبية — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي. لا يوجد نشر فعلي.</Notice>
                 <Badge tone={campaignGenerated ? "green" : "neutral"}>
                   {campaignGenerated ? "تم عرض مخرجات تجريبية" : "مسودات قابلة للمراجعة"}
                 </Badge>
@@ -1399,8 +1589,47 @@ export default function CampaignWizardPage({
                   ) : null}
 
                   {outputs.map((output) => {
-                    const outputStatus = outputApprovalStatus[output] || "unapproved";
-                    const outputApproved = outputStatus === "approved";
+                    const genState = outputGenerationState[output] || "ungenerated";
+                    const isGenerated = genState === "generated" || genState === "approved" || genState === "needs_edit";
+                    const typeLabel = getOutputTypeLabel(output);
+
+                    const selectedPromptId = selectedOutputPrompts[output];
+                    const resolvedPrompt = selectedPromptId
+                      ? promptRegistry.find((p) => p.id === selectedPromptId)
+                      : resolvePromptForOutput(output, promptRegistry);
+
+                    const resolvedRoute = resolveRouteForOutput(output, modelRoutes);
+
+                    const fieldCheck = checkOutputFieldsReadiness({
+                      output,
+                      productName: selectedProduct?.name,
+                      offer,
+                      audience: `${ageGroup || "عام"} · ${gender || "الكل"}`,
+                      channels,
+                      selectedAssets,
+                      cta,
+                      videoDuration,
+                    });
+
+                    const hasPrompt = Boolean(resolvedPrompt);
+                    const hasRoute = Boolean(resolvedRoute);
+                    const hasAllFields = fieldCheck.missing.length === 0;
+                    const linkageReady = hasPrompt && hasRoute && hasAllFields;
+                    const overallLinkageReady = textApproved && linkageReady;
+
+                    const readinessReasons = [];
+                    if (!textApproved) readinessReasons.push("اعتمد النص الأساسي قبل توليد المخرجات.");
+                    if (!hasPrompt) readinessReasons.push("لا توجد مطالبة مرتبطة بهذا المخرج");
+                    if (!hasRoute) readinessReasons.push("لم يتم تحديد نموذج مناسب لهذا النوع من المخرجات");
+                    if (!hasAllFields) readinessReasons.push("الحقول المطلوبة غير مكتملة");
+
+                    const readinessLabel = overallLinkageReady ? "جاهز للتوليد التجريبي" : readinessReasons[0] || "غير جاهز";
+
+                    const genStatusLabel = genState === "approved" ? "معتمد" : genState === "generated" ? "مولد" : genState === "needs_edit" ? "يحتاج تعديل" : "غير مولد";
+                    const genStatusTone = genState === "approved" ? "green" : genState === "generated" ? "blue" : genState === "needs_edit" ? "amber" : "neutral";
+
+                    const generatedContent = generatedOutputContent[output] || null;
+
                     const item = generatedTexts[output] || {
                       customerText: makeCustomerText({
                         output,
@@ -1425,36 +1654,15 @@ export default function CampaignWizardPage({
                       }),
                       regeneratedAt: "مبدئي",
                     };
-                    const artifact = buildMockOutputArtifact({
-                      output,
-                      productName: selectedProduct?.name || "المنتج",
-                      goal,
-                      offer,
-                      cta,
-                      channels,
-                      selectedAssets,
-                      videoDuration,
-                      textApproved: textApproved && outputApproved,
-                    });
-                    const outputReadiness = !textApproved
-                      ? "مسودة بانتظار اعتماد النص الأساسي"
-                      : outputApproved
-                        ? "معتمد كمخرج تجريبي للمراجعة"
-                        : outputStatus === "needs_edit"
-                          ? "يحتاج تعديل"
-                          : "غير معتمد";
 
                     return (
                       <div key={output} className="output-card">
                         <div className="output-card-header">
                           <div>
-                            <strong>{artifact.type}</strong>
+                            <strong>{typeLabel}</strong>
                             <span>{output}</span>
                           </div>
-                          <Badge tone={outputApproved ? "green" : outputStatus === "needs_edit" ? "amber" : "neutral"}>
-                            {getApprovalLabel(outputStatus)}
-                          </Badge>
-
+                          <Badge tone={genStatusTone}>{genStatusLabel}</Badge>
                           <button
                             type="button"
                             className="button secondary compact"
@@ -1465,44 +1673,167 @@ export default function CampaignWizardPage({
                           </button>
                         </div>
 
-                        <div className="generated-artifact-grid">
-                          <Info label="نوع المخرج" value={artifact.type} />
-                          <Info label="القنوات المرتبطة" value={artifact.channelText} />
-                          <Info label="ملخص المخرج" value={artifact.summary} />
-                          <Info label="حالة الجاهزية" value={outputReadiness} />
-                          <Info label="يحتاج مراجعة؟" value={artifact.reviewRequired ? "نعم" : "لا"} />
+                        <div className="output-linkage-panel">
+                          <div className="linkage-panel-title">
+                            <span>ربط التوليد</span>
+                            <Badge tone={overallLinkageReady ? "green" : "amber"}>
+                              {overallLinkageReady ? "جاهز للتوليد التجريبي" : "غير جاهز"}
+                            </Badge>
+                          </div>
+
+                          <div className="linkage-info-grid">
+                            <Info label="نوع المخرج" value={typeLabel} />
+                            <Info
+                              label="المطالبة المرتبطة"
+                              value={resolvedPrompt ? resolvedPrompt.name : "لا توجد مطالبة مرتبطة بهذا المخرج"}
+                            />
+                            {resolvedPrompt ? (
+                              <Info label="حالة المطالبة" value={getPromptStatusArabicLabel(resolvedPrompt.status)} />
+                            ) : null}
+                            <Info
+                              label="النموذج المستخدم"
+                              value={resolvedRoute ? (resolvedRoute.taskType || "مسار توليد عام") : "لم يتم تحديد نموذج مناسب لهذا النوع من المخرجات"}
+                            />
+                            <Info
+                              label="مسار النموذج"
+                              value={resolvedRoute ? resolvedRoute.taskType : "—"}
+                            />
+                            <Info
+                              label="حالة المسار"
+                              value={resolvedRoute ? (resolvedRoute.governance?.humanReviewRequired ? "يتطلب مراجعة" : "جاهز") : "غير متاح"}
+                            />
+                          </div>
+
+                          {!resolvedPrompt && promptRegistry.length > 0 ? (
+                            <div className="linkage-prompt-select">
+                              <span>اختر مطالبة من القائمة:</span>
+                              <select
+                                value={selectedOutputPrompts[output] || ""}
+                                onChange={(e) => setSelectedOutputPrompts((prev) => ({ ...prev, [output]: e.target.value }))}
+                              >
+                                <option value="">— اختر مطالبة —</option>
+                                {promptRegistry.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name} ({getPromptStatusArabicLabel(p.status)})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : null}
+
+                          {!promptRegistry.length ? (
+                            <div className="linkage-empty-notice">لا توجد مطالبات متاحة. أضف المطالبات من حوكمة المطالبات.</div>
+                          ) : null}
+
+                          <div className="fields-readiness-grid">
+                            <div className="fields-group">
+                              <span>الحقول الجاهزة</span>
+                              <div className="fields-chip-row">
+                                {fieldCheck.ready.length ? fieldCheck.ready.map((f) => (
+                                  <span key={f} className="field-chip ready">{f}</span>
+                                )) : <span className="field-chip missing">لا توجد حقول جاهزة</span>}
+                              </div>
+                            </div>
+                            {fieldCheck.missing.length > 0 ? (
+                              <div className="fields-group">
+                                <span>الحقول الناقصة</span>
+                                <div className="fields-chip-row">
+                                  {fieldCheck.missing.map((f) => (
+                                    <span key={f} className="field-chip missing">{f}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="linkage-readiness-row">
+                            <Info label="حالة الجاهزية" value={readinessLabel} />
+                            {readinessReasons.length > 0 ? (
+                              <Info label="سبب عدم الجاهزية" value={readinessReasons.join(" — ")} />
+                            ) : null}
+                          </div>
+
+                          <div className="linkage-generate-action">
+                            <button
+                              type="button"
+                              className="button primary compact"
+                              disabled={!overallLinkageReady}
+                              onClick={() => {
+                                if (!overallLinkageReady) return;
+                                const content = buildOutputMockContent({
+                                  output,
+                                  productName: selectedProduct?.name || "المنتج",
+                                  goal,
+                                  offer,
+                                  cta,
+                                  channels,
+                                  selectedAssets,
+                                  videoDuration,
+                                  ageGroup,
+                                  gender,
+                                  style,
+                                });
+                                setGeneratedOutputContent((prev) => ({ ...prev, [output]: content }));
+                                setOutputGenerationState((prev) => ({ ...prev, [output]: "generated" }));
+                              }}
+                            >
+                              <Sparkles size={14} />
+                              توليد هذا المخرج
+                            </button>
+                            {!textApproved ? (
+                              <div className="linkage-warn">اعتمد النص الأساسي قبل توليد المخرجات.</div>
+                            ) : !overallLinkageReady ? (
+                              <div className="linkage-warn">
+                                {readinessReasons.filter((r) => r !== "اعتمد النص الأساسي قبل توليد المخرجات.").join(" — ") || "المخرج غير جاهز للتوليد."}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <small className="linkage-prototype-note">
+                            يعرض هذا القسم الربط المتوقع بين نوع المخرج والمطالبة والحقول ومسار النموذج. توليد تجريبي — لا يوجد استدعاء فعلي للنماذج.
+                          </small>
                         </div>
 
-                        <div className="output-approval-actions">
-                          <Info label="حالة اعتماد المخرج" value={getApprovalLabel(outputStatus)} />
-                          <button
-                            type="button"
-                            className="button primary compact"
-                            onClick={() => setOutputApprovalStatus((prev) => ({ ...prev, [output]: "approved" }))}
-                          >
-                            اعتماد هذا المخرج
-                          </button>
-                          <button
-                            type="button"
-                            className="button secondary compact"
-                            onClick={() => setOutputApprovalStatus((prev) => ({ ...prev, [output]: "needs_edit" }))}
-                          >
-                            طلب تعديل هذا المخرج
-                          </button>
-                        </div>
-
-                        {artifact.details.length ? (
-                          <div className="generated-output-detail-grid">
-                            {artifact.details.map(([label, value]) => (
-                              <Info key={label} label={label} value={value} />
-                            ))}
+                        {isGenerated && generatedContent ? (
+                          <div className="generated-output-display">
+                            <div className="generated-output-display-header">
+                              <strong>المخرج التجريبي</strong>
+                              <Badge tone={genStatusTone}>{genStatusLabel}</Badge>
+                            </div>
+                            <div className="generated-content-body">
+                              <pre>{generatedContent}</pre>
+                            </div>
+                            <div className="generated-output-helper">
+                              هذا مخرج تجريبي داخل النموذج الأولي، ولم يتم استدعاء أي نموذج ذكاء اصطناعي.
+                            </div>
+                            <div className="output-approval-actions">
+                              <Info label="حالة اعتماد المخرج" value={genStatusLabel} />
+                              <button
+                                type="button"
+                                className="button primary compact"
+                                onClick={() => {
+                                  setOutputGenerationState((prev) => ({ ...prev, [output]: "approved" }));
+                                  setOutputApprovalStatus((prev) => ({ ...prev, [output]: "approved" }));
+                                }}
+                              >
+                                اعتماد هذا المخرج
+                              </button>
+                              <button
+                                type="button"
+                                className="button secondary compact"
+                                onClick={() => {
+                                  setOutputGenerationState((prev) => ({ ...prev, [output]: "needs_edit" }));
+                                  setOutputApprovalStatus((prev) => ({ ...prev, [output]: "needs_edit" }));
+                                }}
+                              >
+                                طلب تعديل هذا المخرج
+                              </button>
+                            </div>
                           </div>
                         ) : null}
 
-                        {artifact.helper ? <Notice tone="neutral">{artifact.helper}</Notice> : null}
-
                         <div className="customer-output">
-                          <h4>المخرج الظاهر للعميل</h4>
+                          <h4>المخرج الظاهر للعميل (مسودة)</h4>
                           <p>{item.customerText}</p>
                         </div>
 
@@ -3044,6 +3375,266 @@ const styles = `
 
   .context-badges {
     justify-content: flex-start;
+  }
+}
+
+.output-generation-readiness-block {
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  border-radius: 20px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.output-generation-readiness-block h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #176b2c;
+}
+
+.output-generation-readiness-block p {
+  margin: 6px 0 12px;
+  color: #52604c;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.output-generation-readiness-block small {
+  display: block;
+  margin-top: 8px;
+  color: #52604c;
+  font-size: 11px;
+}
+
+.readiness-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.readiness-disclaimer-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.readiness-disclaimer-strip span {
+  border: 1px solid #9fd0a6;
+  background: #fff;
+  color: #176b2c;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.output-linkage-panel {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 16px;
+  padding: 12px;
+  margin: 10px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.linkage-panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.linkage-panel-title > span {
+  font-size: 13px;
+  font-weight: 900;
+  color: #1f241d;
+}
+
+.linkage-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.linkage-prompt-select {
+  display: grid;
+  gap: 6px;
+}
+
+.linkage-prompt-select > span {
+  font-size: 12px;
+  font-weight: 900;
+  color: #6f746b;
+}
+
+.linkage-prompt-select select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #e4e7df;
+  border-radius: 12px;
+  background: #fff;
+  color: #1f241d;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.linkage-empty-notice {
+  border: 1px solid #e4e7df;
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #6f746b;
+  font-weight: 800;
+}
+
+.fields-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fields-group {
+  display: grid;
+  gap: 6px;
+}
+
+.fields-group > span {
+  font-size: 11px;
+  font-weight: 900;
+  color: #6f746b;
+}
+
+.fields-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.field-chip {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.field-chip.ready {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.field-chip.missing {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+.linkage-readiness-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.linkage-generate-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.linkage-warn {
+  border: 1px solid #fde68a;
+  background: #fff7e6;
+  color: #92400e;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.linkage-prototype-note {
+  display: block;
+  color: #6f746b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.generated-output-display {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  border-radius: 16px;
+  padding: 12px;
+  margin: 10px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.generated-output-display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.generated-output-display-header strong {
+  font-size: 14px;
+  color: #166534;
+}
+
+.generated-content-body {
+  border: 1px solid #d9ead7;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.generated-content-body pre {
+  margin: 0;
+  font-family: inherit;
+  white-space: pre-wrap;
+  line-height: 1.8;
+  font-size: 13px;
+  color: #1f241d;
+  direction: rtl;
+}
+
+.generated-output-helper {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #6f746b;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .linkage-info-grid,
+  .fields-readiness-grid,
+  .linkage-readiness-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .linkage-info-grid,
+  .fields-readiness-grid,
+  .linkage-readiness-row {
+    grid-template-columns: 1fr;
+  }
+
+  .readiness-block-head {
+    flex-direction: column;
   }
 }
 `;
