@@ -58,7 +58,7 @@ The following conditions must be respected throughout this review. Violations in
 | S3 | `secretValue` is formally forbidden from any schema, response, log, or header |
 | S4 | `unknown` must not be treated as `ready` by any consumer |
 | S5 | Blockers, not score, determine execution denial |
-| ID1 | `workflowStepKey` is stable within `(workflowDefinitionId, version)` composite scope only |
+| ID1 | `workflowStepKey` is stable within `(workflowDefinitionId, workflowVersion)` composite scope only |
 | ID2 | `workflowStepKey` is not a user-facing display label |
 | RequestIdHeader | `X-Request-Id` is established in Slice 1/2 and must be applied via `$ref` to every Slice 3 endpoint |
 
@@ -155,7 +155,7 @@ No excluded item appears in the proposed endpoint surface or schema definitions 
 | Blockers prevent operation; score does not | Correctly stated; `overallStatus: blocked` tied to non-empty `blockers[]` (Condition S5) |
 | `ReadinessSignal` must carry `dimension` discriminator | Correctly stated; field present in schema table with constraint (Condition S2) |
 | `secretValue` formally forbidden | Correctly stated in Section 6 and restated under `ReadinessSignal` and `ProviderReadinessSnapshot` (Condition S3) |
-| `workflowStepKey` stability | Correctly scoped to `(workflowDefinitionId, version)` composite (Conditions ID1, ID2) |
+| `workflowStepKey` stability | Correctly scoped to `(workflowDefinitionId, workflowVersion)` composite (Conditions ID1, ID2) |
 | Run artifacts and audits deferred | Correctly stated; `artifactId` and `auditEventId` marked as forward-looking only |
 | `RequestIdHeader` on every endpoint | Correctly stated; every endpoint section specifies the `$ref` requirement (RequestIdHeader condition) |
 | No page-to-page state dependency | Correctly stated in Section 6; correct ownership pattern quoted |
@@ -252,7 +252,7 @@ Eight fields: `workspaceId`, `overallStatus`, `totalActiveWorkflows`, `blockedWo
 
 ### `WorkflowReadinessSnapshot`
 
-Five fields: `workflowDefinitionId`, `workflowVersion`, `overallStatus`, `stepReadiness[]`, `blockers[]`, `warnings[]`, `updatedAt`. `workflowVersion` present and consistent with Slice 1/2 version convention. PASS.
+Seven fields: `workflowDefinitionId`, `workflowVersion`, `overallStatus`, `stepReadiness[]`, `blockers[]`, `warnings[]`, `updatedAt`. `workflowVersion` present and consistent with Slice 1/2 version convention. PASS.
 
 ### `ProviderReadinessSnapshot`
 
@@ -316,7 +316,7 @@ No schema field in Section 8 is named `secretValue`, `apiKey`, `credential`, `ra
 
 **Findings:**
 
-Section 6 states: "`workflowStepKey` is stable within the composite scope `(workflowDefinitionId, version)`. It is not a user-facing display label. Consumers must not use `workflowStepKey` alone as a durable cross-version reference. The durable reference is the tuple `(workflowDefinitionId, version, stepKey)`."
+Section 6 states: "`workflowStepKey` is stable within the composite scope `(workflowDefinitionId, workflowVersion)`. It is not a user-facing display label. Consumers must not use `workflowStepKey` alone as a durable cross-version reference. The durable reference is the tuple `(workflowDefinitionId, workflowVersion, stepKey)`."
 
 This rule is applied in schemas as follows:
 
