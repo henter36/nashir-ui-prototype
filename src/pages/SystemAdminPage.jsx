@@ -687,16 +687,16 @@ export default function SystemAdminPage() {
                   <div className="readiness-blockers">
                     <span className="readiness-blockers-heading">عوائق تمنع التشغيل</span>
                     <ul className="readiness-blocker-list">
-                      {wf.blockers.map((b, idx) => (
-                        <li key={idx}>{b}</li>
+                      {wf.blockers.map((b) => (
+                        <li key={b}>{b}</li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {wf.warnings?.length > 0 && (
                   <ul className="readiness-advisory-caption">
-                    {wf.warnings.map((w, idx) => (
-                      <li key={idx}>{w}</li>
+                    {wf.warnings.map((w) => (
+                      <li key={w}>{w}</li>
                     ))}
                   </ul>
                 )}
