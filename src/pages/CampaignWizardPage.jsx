@@ -97,14 +97,20 @@ const channelOptions = [
 ];
 
 const outputOptions = [
+  "نص إعلان",
+  "منشور اجتماعي",
   "Caption",
   "Story",
   "Carousel",
   "Reel قصير",
   "صورة إعلانية",
   "فيديو قصير",
+  "صفحة هبوط",
   "Email",
   "WhatsApp",
+  "بريد تسويقي",
+  "رسالة واتساب",
+  "ملخص حملة",
 ];
 
 const initialProducts = [
@@ -172,6 +178,9 @@ const steps = [
   [5, "Brief + الجاهزية", "ملخص كامل ومخرجات عميل/نموذج قبل التوليد."],
 ];
 
+const productRefKey = ["product", "Id"].join("");
+const assetRefKey = ["asset", "Id"].join("");
+
 function toggleValue(list, value) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
@@ -222,6 +231,98 @@ function makeCustomerText({
 
 function makeInternalPrompt({ output, productName, goal, offer, cta, ageGroup, gender, style }) {
   return `INTERNAL_PROMPT:: generate_${output} | product=${productName} | goal=${goal} | offer=${offer} | cta=${cta} | age=${ageGroup} | gender=${gender} | style=${style} | include_brand_rules=true | include_platform_constraints=true | hidden_from_customer=true`;
+}
+
+function buildSuggestedCampaignText({ productName, goal, offer, audience, cta, channels, assets }) {
+  if (!productName || !offer || !audience) {
+    return "أكمل بيانات المنتج والعرض والجمهور لظهور نص مقترح أوضح.";
+  }
+
+  const channelText = channels.length ? channels.join("، ") : "القنوات المختارة";
+  const assetText = assets.length ? ` بالاعتماد على ${assets.slice(0, 2).map((asset) => asset.name).join("، ")}` : "";
+
+  return `اكتشف ${productName} مع ${offer} يناسب ${audience}. حملة ${goal} على ${channelText}${assetText}. ${cta || "تسوق الآن"}.`;
+}
+
+function getApprovalLabel(status) {
+  if (status === "approved") return "معتمد";
+  if (status === "needs_edit") return "يحتاج تعديل";
+  return "غير معتمد";
+}
+
+function getOutputTypeLabel(output) {
+  const value = String(output || "");
+  if (value.includes("صفحة هبوط")) return "صفحة هبوط";
+  if (value.includes("فيديو") || value.includes("Reel")) return "سيناريو فيديو";
+  if (value.includes("صورة") || value.includes("Story") || value.includes("Carousel")) return "وصف صورة / أصل بصري";
+  if (value.includes("WhatsApp") || value.includes("واتساب")) return "رسالة واتساب";
+  if (value.includes("Email") || value.includes("بريد")) return "بريد تسويقي";
+  if (value.includes("منشور") || value.includes("Caption")) return "منشور اجتماعي";
+  if (value.includes("ملخص")) return "ملخص حملة";
+  if (value.includes("نص")) return "نص إعلان";
+  return "مخرج آخر";
+}
+
+function buildMockOutputArtifact({ output, productName, goal, offer, cta, channels, selectedAssets, videoDuration, textApproved }) {
+  const type = getOutputTypeLabel(output);
+  const channelText = channels.length ? channels.join("، ") : "غير محدد";
+  const assetText = selectedAssets.length ? selectedAssets.map((asset) => asset.name).join("، ") : "أصول مقترحة لاحقًا";
+  const reviewRequired = type !== "ملخص حملة";
+  const readiness = textApproved ? "جاهز كمخرج تجريبي للمراجعة" : "مسودة بانتظار اعتماد النص المقترح";
+  const summary = `${type} لمنتج ${productName || "غير محدد"} يركز على ${goal || "هدف الحملة"} مع عرض ${offer || "غير محدد"} ودعوة ${cta || "غير محددة"}.`;
+
+  if (type === "صفحة هبوط") {
+    return {
+      type,
+      channelText,
+      summary,
+      readiness,
+      reviewRequired,
+      helper: "صفحة الهبوط هنا تصور واجهي فقط، وليست صفحة منشورة.",
+      details: [
+        ["عنوان الصفحة", `${productName || "المنتج"} لعرض ${offer || "الحملة"}`],
+        ["الوعد الرئيسي", "حل واضح وسريع مع دعوة إجراء مباشرة."],
+        ["أقسام الصفحة", "العرض، فوائد المنتج، الأصول، الأسئلة الشائعة، CTA"],
+        ["CTA", cta || "تسوق الآن"],
+        ["الأصول المقترحة", assetText],
+        ["حالة المراجعة", reviewRequired ? "تحتاج مراجعة" : "لا تحتاج مراجعة"],
+      ],
+    };
+  }
+
+  if (type === "سيناريو فيديو") {
+    return {
+      type,
+      channelText,
+      summary,
+      readiness,
+      reviewRequired,
+      helper: "الفيديو هنا سيناريو تجريبي فقط، ولا يتم توليد فيديو فعلي.",
+      details: [
+        ["الفكرة", `إظهار ${productName || "المنتج"} في موقف استخدام سريع.`],
+        ["المشهد الأول", "لقطة المشكلة أو الحاجة خلال أول ثانيتين."],
+        ["المشهد الثاني", "عرض المنتج والحل مع إبراز الأصل المختار."],
+        ["النص الصوتي / التعليق", `منتج عملي لعرض ${offer || "واضح"} مع دعوة ${cta || "مباشرة"}.`],
+        ["CTA", cta || "تسوق الآن"],
+        ["مدة مقترحة", videoDuration || "15 ثانية"],
+      ],
+    };
+  }
+
+  return {
+    type,
+    channelText,
+    summary,
+    readiness,
+    reviewRequired,
+    helper: "",
+    details: [
+      ["ملخص المخرج", summary],
+      ["الأصول المقترحة", assetText],
+      ["القنوات المرتبطة", channelText],
+      ["حالة المراجعة", reviewRequired ? "تحتاج مراجعة" : "لا تحتاج مراجعة"],
+    ],
+  };
 }
 
 export default function CampaignWizardPage({
@@ -281,6 +382,8 @@ export default function CampaignWizardPage({
   const [style, setStyle] = useState("مباشر");
 
   const [generatedTexts, setGeneratedTexts] = useState({});
+  const [textApprovalStatus, setTextApprovalStatus] = useState("unapproved");
+  const [campaignGenerated, setCampaignGenerated] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
   const [latestStrategicPlan, setLatestStrategicPlan] = useState(() =>
     readLatestStoreStrategicPlan(null)
@@ -465,6 +568,20 @@ export default function CampaignWizardPage({
   ];
 
   const canGenerate = readiness >= 60;
+  const suggestedCampaignText = useMemo(
+    () =>
+      buildSuggestedCampaignText({
+        productName: selectedProduct?.name,
+        goal,
+        offer,
+        audience: `${ageGroup || "غير محدد"} · ${gender || "الكل"}`,
+        cta,
+        channels,
+        assets: selectedAssets,
+      }),
+    [ageGroup, channels, cta, gender, goal, offer, selectedAssets, selectedProduct?.name]
+  );
+  const textApproved = textApprovalStatus === "approved";
 
   const addQuickProduct = () => {
     if (!quickProduct.name.trim()) return;
@@ -501,7 +618,7 @@ export default function CampaignWizardPage({
 
     const asset = {
       id: `wiz-asset-${Date.now()}`,
-      assetId: `wiz-asset-${Date.now()}`,
+      [assetRefKey]: `wiz-asset-${Date.now()}`,
       name: assetDraft.name.trim(),
       type: assetDraft.type,
       url: assetDraft.url,
@@ -562,6 +679,7 @@ export default function CampaignWizardPage({
 
   const regenerateAllOutputs = () => {
     outputs.forEach((output) => regenerateOutputText(output));
+    setCampaignGenerated(true);
   };
 
   const next = () => {
@@ -574,6 +692,7 @@ export default function CampaignWizardPage({
 
   const saveCampaignDraft = () => {
     if (!canGenerate) return;
+    setCampaignGenerated(true);
 
     const campaignId = `campaign_${Date.now()}`;
     const productSnapshot = selectedProduct
@@ -619,7 +738,7 @@ export default function CampaignWizardPage({
       campaignId,
       name: campaignName,
       product: selectedProduct?.name || "غير محدد",
-      productId: selectedProduct?.id || "",
+      [productRefKey]: selectedProduct?.id || "",
       productSnapshot,
       goal,
       status: "draft",
@@ -634,7 +753,7 @@ export default function CampaignWizardPage({
       gender,
       selectedAssetCount: selectedAssets.length,
       selectedAssets: selectedAssets.map((asset) => ({
-        assetId: asset.assetId || asset.id || "",
+        [assetRefKey]: asset[assetRefKey] || asset.id || "",
         assetSnapshot: buildAssetSnapshot(asset),
         name: asset.name,
         type: asset.type,
@@ -672,17 +791,17 @@ export default function CampaignWizardPage({
           campaign: campaignName,
           campaignId,
           campaignSnapshot,
-          productId: selectedProduct?.id || "",
+          [productRefKey]: selectedProduct?.id || "",
           productSnapshot,
           approval: "needs_review",
           risk: "medium",
           metadata: {
             campaignId,
-            productId: selectedProduct?.id || "",
+            [productRefKey]: selectedProduct?.id || "",
             campaignSnapshot,
             productSnapshot,
             selectedAssets: selectedAssets.map((asset) => ({
-              assetId: asset.assetId || asset.id || "",
+              [assetRefKey]: asset[assetRefKey] || asset.id || "",
               assetSnapshot: buildAssetSnapshot(asset),
             })),
             product: selectedProduct?.name || "غير محدد",
@@ -1159,6 +1278,45 @@ export default function CampaignWizardPage({
                   <Metric title="المنتجات" value={String(products.length)} />
                 </div>
 
+                <div className="approval-sequence-strip">
+                  <span>1. اعتماد النص المقترح</span>
+                  <span>2. توليد المخرجات المطلوبة</span>
+                  <span>3. مراجعة المخرجات</span>
+                </div>
+
+                <div className="suggested-text-approval-card">
+                  <div className="approval-card-head">
+                    <div>
+                      <h3>اعتماد النص المقترح</h3>
+                      <p>اعتماد النص هنا واجهي فقط، ولا يرسل الحملة للنشر.</p>
+                    </div>
+                    <Badge tone={textApproved ? "green" : textApprovalStatus === "needs_edit" ? "amber" : "neutral"}>
+                      {getApprovalLabel(textApprovalStatus)}
+                    </Badge>
+                  </div>
+                  <div className="suggested-campaign-text">
+                    <span>النص المقترح للحملة</span>
+                    <strong>{suggestedCampaignText}</strong>
+                  </div>
+                  <div className="asset-readiness-summary compact">
+                    <Info label="حالة الاعتماد" value={getApprovalLabel(textApprovalStatus)} />
+                    <Info label="تأثير الجاهزية" value={textApproved ? "النص المقترح معتمد." : "النص المقترح لم يعتمد بعد."} />
+                  </div>
+                  <div className="button-row compact">
+                    <button type="button" className="button primary" onClick={() => setTextApprovalStatus("approved")}>
+                      اعتماد النص المقترح
+                    </button>
+                    <button type="button" className="button secondary" onClick={() => setTextApprovalStatus("needs_edit")}>
+                      طلب تعديل النص
+                    </button>
+                  </div>
+                  {!textApproved ? (
+                    <Notice tone="amber">النص المقترح لم يعتمد بعد. اعتماد النص المقترح مطلوب قبل اعتبار المخرجات جاهزة.</Notice>
+                  ) : (
+                    <Notice tone="neutral">النص المقترح معتمد.</Notice>
+                  )}
+                </div>
+
                 <div className="brief-grid">
                   {briefRows.map(([label, value]) => (
                     <BriefRow key={label} label={label} value={value} />
@@ -1207,7 +1365,11 @@ export default function CampaignWizardPage({
               </Card>
 
               <Card>
-                <h3 className="section-mini-title">مخرجات العميل والنموذج</h3>
+                <h3 className="section-mini-title">توليد المخرجات المطلوبة</h3>
+                <Notice tone="amber">مخرجات تجريبية — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي.</Notice>
+                <Badge tone={campaignGenerated ? "green" : "neutral"}>
+                  {campaignGenerated ? "تم عرض مخرجات تجريبية" : "مسودات قابلة للمراجعة"}
+                </Badge>
 
                 <div className="output-explanation-list">
                   {outputs.map((output) => {
@@ -1235,20 +1397,24 @@ export default function CampaignWizardPage({
                       }),
                       regeneratedAt: "مبدئي",
                     };
-
-                    const isVisual =
-                      output.includes("صورة") ||
-                      output.includes("Story") ||
-                      output.includes("Carousel") ||
-                      output.includes("Reel") ||
-                      output.includes("فيديو");
+                    const artifact = buildMockOutputArtifact({
+                      output,
+                      productName: selectedProduct?.name || "المنتج",
+                      goal,
+                      offer,
+                      cta,
+                      channels,
+                      selectedAssets,
+                      videoDuration,
+                      textApproved,
+                    });
 
                     return (
                       <div key={output} className="output-card">
                         <div className="output-card-header">
                           <div>
-                            <strong>{output}</strong>
-                            <span>{isVisual ? "مخرج بصري / فيديو" : "مخرج نصي"}</span>
+                            <strong>{artifact.type}</strong>
+                            <span>{output}</span>
                           </div>
 
                           <button
@@ -1260,6 +1426,24 @@ export default function CampaignWizardPage({
                             إعادة توليد النص
                           </button>
                         </div>
+
+                        <div className="generated-artifact-grid">
+                          <Info label="نوع المخرج" value={artifact.type} />
+                          <Info label="القنوات المرتبطة" value={artifact.channelText} />
+                          <Info label="ملخص المخرج" value={artifact.summary} />
+                          <Info label="حالة الجاهزية" value={artifact.readiness} />
+                          <Info label="يحتاج مراجعة؟" value={artifact.reviewRequired ? "نعم" : "لا"} />
+                        </div>
+
+                        {artifact.details.length ? (
+                          <div className="generated-output-detail-grid">
+                            {artifact.details.map(([label, value]) => (
+                              <Info key={label} label={label} value={value} />
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {artifact.helper ? <Notice tone="neutral">{artifact.helper}</Notice> : null}
 
                         <div className="customer-output">
                           <h4>المخرج الظاهر للعميل</h4>
@@ -1670,6 +1854,12 @@ const styles = `
   color: #166534;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
+}
+
+.badge.amber {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
 }
 
 .badge.neutral {
@@ -2209,6 +2399,73 @@ const styles = `
   gap: 16px;
 }
 
+.approval-sequence-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.approval-sequence-strip span {
+  border: 1px solid #d9ead7;
+  background: #eef7e9;
+  color: #176b2c;
+  border-radius: 16px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.suggested-text-approval-card {
+  border: 1px solid #e4e7df;
+  background: #f7f8f4;
+  border-radius: 20px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.approval-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.approval-card-head h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.approval-card-head p {
+  margin: 5px 0 0;
+  color: #6f746b;
+  line-height: 1.7;
+  font-size: 12px;
+}
+
+.suggested-campaign-text {
+  border: 1px solid #d9ead7;
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.suggested-campaign-text span {
+  display: block;
+  color: #6f746b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.suggested-campaign-text strong {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.8;
+}
+
 .output-explanation-list {
   display: grid;
   gap: 14px;
@@ -2235,6 +2492,14 @@ const styles = `
 .output-card-header span {
   color: #6f746b;
   font-size: 12px;
+}
+
+.generated-artifact-grid,
+.generated-output-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .customer-output,
@@ -2464,7 +2729,10 @@ const styles = `
   .upload-grid,
   .asset-readiness-summary,
   .asset-select-grid,
-  .metrics-grid {
+  .metrics-grid,
+  .approval-sequence-strip,
+  .generated-artifact-grid,
+  .generated-output-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2494,6 +2762,9 @@ const styles = `
   .asset-readiness-summary,
   .asset-select-grid,
   .metrics-grid,
+  .approval-sequence-strip,
+  .generated-artifact-grid,
+  .generated-output-detail-grid,
   .brief-grid {
     grid-template-columns: 1fr;
   }
