@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
   CircleAlert,
-  DollarSign,
   FileText,
   Globe2,
   KeyRound,
@@ -151,19 +150,8 @@ const DEFAULT_OUTPUT_SETTINGS = {
   requireCustomerSafeSummary: true,
 };
 
-const providerOptions = [
-  "غير محدد",
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "Runway",
-  "Replicate",
-  "مزود داخلي لاحقًا",
-];
-
 const toneOptions = ["ودية", "رسمية", "فاخرة", "شبابية", "عملية", "جريئة", "هادئة"];
 const languageOptions = ["العربية", "الإنجليزية", "العربية والإنجليزية"];
-const riskLevels = ["منخفض", "متوسط", "مرتفع"];
 
 const TABS = [
   ["overview", "نظرة عامة"],
@@ -339,8 +327,8 @@ export default function SettingsPage() {
   ]);
 
   const [workspace, setWorkspace] = useState(DEFAULT_WORKSPACE);
-  const [aiSettings, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
-  const [governance, setGovernance] = useState(DEFAULT_GOVERNANCE);
+  const [, setAiSettings] = useState(DEFAULT_AI_SETTINGS);
+  const [, setGovernance] = useState(DEFAULT_GOVERNANCE);
   const [outputSettings, setOutputSettings] = useState(DEFAULT_OUTPUT_SETTINGS);
 
   const refreshSharedConnections = () => {

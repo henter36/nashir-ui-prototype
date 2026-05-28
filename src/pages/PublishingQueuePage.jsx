@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -324,16 +324,6 @@ export default function PublishingQueuePage() {
 
   const addAudit = (action, actor = "Publishing Queue") => {
     setAuditLog((prev) => [[action, actor, "الآن"], ...prev]);
-  };
-
-  const updateSelected = (key, value) => {
-    const updatedItem = {
-      ...selected,
-      [key]: value,
-    };
-    const next = upsertPublishingQueueItem(updatedItem, initialItems);
-
-    setItems(next);
   };
 
   const updateChecklist = (key) => {

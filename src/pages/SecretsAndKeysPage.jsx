@@ -1,14 +1,10 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
   CircleAlert,
   Copy,
-  DollarSign,
-  Edit3,
-  Eye,
-  EyeOff,
   KeyRound,
   Lock,
   Plus,
@@ -16,12 +12,7 @@ import {
   Save,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
   TestTube2,
-  Trash2,
-  Wand2,
-  X,
 } from "lucide-react";
 
 const ROUTING_COMPAT_MODEL_FIELD = `fallback${"Model"}`;
@@ -1704,15 +1695,6 @@ function SelectField({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
-  );
-}
-
-function Section({ title, children }) {
-  return (
-    <section className="config-section">
-      <h3>{title}</h3>
-      {children}
-    </section>
   );
 }
 
