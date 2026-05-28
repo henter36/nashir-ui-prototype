@@ -630,6 +630,94 @@ const EVENT_SOURCES = [
   ["previous_workflow", "مسار سابق"],
 ];
 
+const TRIGGER_START_WHEN_OPTIONS = [
+  ["required_data_complete", "عند اكتمال البيانات المطلوبة"],
+  ["always", "دائمًا عند التشغيل"],
+  ["after_previous_approved", "بعد اعتماد المسار السابق"],
+  ["new_event_received", "عند وصول حدث جديد"],
+  ["manual_by_user", "عند تشغيل يدوي بواسطة المستخدم"],
+  ["performance_threshold_exceeded", "عند تجاوز مؤشر الأداء"],
+  ["campaign_status_changed", "عند تغيير حالة الحملة"],
+  ["scheduled_time", "في وقت مجدول"],
+];
+
+const TRIGGER_UPDATE_POLICIES = [
+  ["", "لا توجد سياسة تحديث محددة"],
+  ["replace_previous_output", "استبدال المخرج السابق"],
+  ["append_to_previous", "إضافة إلى المخرج السابق"],
+  ["create_new_version", "إنشاء نسخة جديدة"],
+  ["merge_with_existing", "دمج مع البيانات القائمة"],
+  ["skip_if_unchanged", "تخطي إذا لم تتغير البيانات"],
+];
+
+const DESTINATION_FIELD_MAP = {
+  store_setup: [
+    ["store_name", "اسم المتجر"],
+    ["store_category", "تصنيف المتجر"],
+    ["channels", "القنوات"],
+    ["audience", "الجمهور"],
+    ["offer", "العرض"],
+  ],
+  store_profile: [
+    ["store_description", "وصف المتجر"],
+    ["brand_voice", "نبرة العلامة"],
+    ["competitor_analysis", "تحليل المنافسين"],
+  ],
+  data_sources: [
+    ["data_source", "مصدر البيانات"],
+    ["performance_metrics", "مؤشرات الأداء"],
+    ["analytics_metrics", "مؤشرات التحليلات"],
+  ],
+  product_catalog: [
+    ["product_name", "اسم المنتج"],
+    ["product_description", "وصف المنتج"],
+    ["product_media", "وسائط المنتج"],
+    ["category", "التصنيف"],
+    ["price", "السعر"],
+  ],
+  asset_library: [
+    ["selected_assets", "الأصول المختارة"],
+    ["linked_assets", "الأصول المرتبطة"],
+    ["asset_usage", "استخدام الأصل"],
+  ],
+  campaign_detail: [
+    ["campaign_brief", "ملخص الحملة"],
+    ["audience", "الجمهور المستهدف"],
+    ["channels", "القنوات"],
+    ["cta", "دعوة الإجراء"],
+    ["offer", "العرض"],
+  ],
+  content_studio: [
+    ["campaign_content", "محتوى الحملة"],
+    ["content_draft", "مسودة المحتوى"],
+    ["previous_outputs", "المخرجات السابقة"],
+    ["cta", "دعوة الإجراء"],
+  ],
+  review: [
+    ["review_notes", "ملاحظات المراجعة"],
+    ["campaign_content", "محتوى الحملة"],
+    ["previous_outputs", "المخرجات السابقة"],
+  ],
+  publishing_queue: [
+    ["publishing_item", "عنصر جاهزية النشر"],
+    ["scheduled_date", "تاريخ الجدولة"],
+    ["channel_specs", "مواصفات القناة"],
+  ],
+  analytics: [
+    ["performance_metrics", "مؤشرات الأداء"],
+    ["analytics_metrics", "مؤشرات التحليلات"],
+    ["previous_outputs", "المخرجات السابقة"],
+  ],
+  workflow_runs: [
+    ["run_result", "نتيجة التشغيل"],
+    ["run_log", "سجل التشغيل"],
+  ],
+  audit_log: [
+    ["audit_entry", "سجل المراجعة"],
+    ["risk_report", "تقرير المخاطر"],
+  ],
+};
+
 const TABS = [
   ["builder", "مصمم مسارات التشغيل"],
   ["map", "خريطة تدفق البيانات"],
@@ -1129,7 +1217,8 @@ function getDefaultTrigger(template) {
     type,
     startCondition: type === "manual" ? "manual_always" : "required_data_complete",
     eventSource: triggerScreen,
-    startWhen: template?.triggerAction || "اختبار يدوي",
+    startWhen: type === "manual" ? "manual_by_user" : "required_data_complete",
+    updatePolicy: "",
   };
 }
 
@@ -1492,6 +1581,7 @@ export default function WorkflowRunsPage() {
           outputType: "content_draft",
           outputFormat: "text",
           destination: "content_studio",
+          destinationField: "",
           visibility: "reviewer_only",
           reviewRequired: true,
           feedsNextWorkflow: false,
@@ -1896,29 +1986,34 @@ export default function WorkflowRunsPage() {
         <div>
           <h2>خريطة تدفق البيانات</h2>
           <p>
-            توضح انتقال البيانات من المصدر إلى المعالجة ثم المخرجات والوجهات.
+            توضح انتقال البيانات من المشغل إلى المدخلات ثم المعالجة والمخرج والصفحة المستهدفة والحقل المستهدف والمراجعة والمسار التالي.
             هذا مصمم تدفق واجهي فقط. لا يتم تنفيذ المسارات أو استدعاء النماذج فعليًا في هذا النموذج.
           </p>
         </div>
       </div>
 
-      <div className="flow-lanes">
-        <div className="lane-title">من أين تأتي البيانات؟</div>
-        <div className="lane-title">ماذا تعالج الخطوة؟</div>
-        <div className="lane-title">ماذا تنتج؟</div>
-        <div className="lane-title">أين يذهب المخرج؟</div>
+      <div className="flow-lanes flow-lanes-8">
+        <div className="lane-title">ما الذي يبدأ المسار؟</div>
+        <div className="lane-title">المدخلات المختارة</div>
+        <div className="lane-title">الخطوة</div>
+        <div className="lane-title">المخرج</div>
+        <div className="lane-title">الصفحة المستهدفة</div>
+        <div className="lane-title">الحقل أو القسم</div>
+        <div className="lane-title">المراجعة</div>
+        <div className="lane-title">المسار التالي</div>
       </div>
 
       <div className="flow-map-enhanced">
-        <div className="flow-trigger-card">
+        <div className="flow-trigger-card flow-trigger-card-wide">
           <strong>ما الذي يبدأ المسار؟</strong>
-          <div className="trigger-info-grid">
+          <div className="trigger-info-grid trigger-info-grid-wide">
             <Info label="نوع المشغل" value={getOptionLabel(TRIGGER_TYPES, getWorkflowTrigger(workflowDraft).type)} />
-            <Info label="متى يبدأ المسار؟" value={getWorkflowTrigger(workflowDraft).startWhen} />
+            <Info label="متى يبدأ المسار؟" value={getOptionLabel(TRIGGER_START_WHEN_OPTIONS, getWorkflowTrigger(workflowDraft).startWhen) || getWorkflowTrigger(workflowDraft).startWhen || "—"} />
             <Info label="شرط البدء" value={getOptionLabel(START_CONDITIONS, getWorkflowTrigger(workflowDraft).startCondition)} />
             <Info label="مصدر الحدث" value={getOptionLabel(EVENT_SOURCES, getWorkflowTrigger(workflowDraft).eventSource)} />
+            <Info label="سياسة التحديث" value={getOptionLabel(TRIGGER_UPDATE_POLICIES, getWorkflowTrigger(workflowDraft).updatePolicy) || "غير محددة"} />
           </div>
-          <p>هذا المشغل يوضح متى يبدأ المسار، ولا ينفذ أي تشغيل فعلي داخل النموذج.</p>
+          <p>هذا المشغل يوضح متى يبدأ المسار، ولا يتضمن إعداد النماذج أو مصادر البيانات. ولا ينفذ أي تشغيل فعلي داخل النموذج.</p>
         </div>
 
         {workflowDraft.steps.map((step, index) => {
@@ -1932,25 +2027,32 @@ export default function WorkflowRunsPage() {
             (step.visibility === "customer_visible" && !step.reviewRequired) ||
             (step.feedsNextWorkflow && !step.reviewRequired);
 
+          const destinationLabel = getOptionLabel(DESTINATION_OPTIONS, step.destination) || "—";
+          const destinationFieldOptions = DESTINATION_FIELD_MAP[step.destination] || [];
+          const destinationFieldLabel =
+            destinationFieldOptions.find(([id]) => id === step.destinationField)?.[1] ||
+            step.destinationField ||
+            null;
+
           return (
-            <div key={`${step.id}-map-enhanced`} className="flow-row">
+            <div key={`${step.id}-map-enhanced`} className="flow-row flow-row-8">
               <div className="flow-index">{index + 1}</div>
 
               <div className="flow-cell inputs">
-                <strong>من أين تأتي البيانات؟</strong>
-                <small>المدخلات المختارة من عدة صفحات أو مجالات</small>
+                <strong>المدخلات</strong>
+                <small>من أين تأتي البيانات؟</small>
                 <div className="flow-tags">
                   {normalizeInputRefs(step).map((input) => (
                     <span key={`${input.domain}-${input.field}`}>{getInputRefLabel(input)}</span>
                   ))}
-                  {!normalizeInputRefs(step).length ? <span>لم يتم اختيار مدخلات لهذه الخطوة.</span> : null}
+                  {!normalizeInputRefs(step).length ? <span>لم يتم اختيار مدخلات.</span> : null}
                 </div>
               </div>
 
               <div className="flow-arrow">←</div>
 
               <div className="flow-cell processor">
-                <strong>ماذا تعالج الخطوة؟ {step.name}</strong>
+                <strong>{step.name}</strong>
                 <span>{processorLabel}</span>
                 <small>{PROCESSOR_TYPES.find(([id]) => id === step.processorType)?.[1]}</small>
                 <ModelRoutingSummary step={step} readinessContext={readinessContext} compact />
@@ -1959,29 +2061,56 @@ export default function WorkflowRunsPage() {
               <div className="flow-arrow">←</div>
 
               <div className={`flow-cell output ${step.visibility}`}>
-                <strong>ماذا تنتج؟ {getStepOutputName(step)}</strong>
+                <strong>{getStepOutputName(step)}</strong>
                 <span>{getOptionLabel(OUTPUT_TYPE_OPTIONS, step.outputType)}</span>
-                <small>صيغة المخرج: {getOptionLabel(OUTPUT_FORMATS, step.outputFormat || "text")}</small>
-                <small>مستوى الظهور: {visibilityLabel}</small>
+                <small>الصيغة: {getOptionLabel(OUTPUT_FORMATS, step.outputFormat || "text")}</small>
+                <small>الظهور: {visibilityLabel}</small>
               </div>
 
               <div className="flow-arrow">←</div>
 
-              <div className="flow-cell destination">
-                <strong>أين يذهب المخرج؟ {getOptionLabel(DESTINATION_OPTIONS, step.destination)}</strong>
-                <span>
-                  {step.feedsNextWorkflow
-                    ? `هل يفتح مسارًا تاليًا؟ نعم · ${getWorkflowLabel(step.nextWorkflowType)}`
-                    : "هل يفتح مسارًا تاليًا؟ لا"}
-                </span>
-                <small>هل يحتاج المخرج مراجعة؟ {step.reviewRequired ? "نعم" : "لا"}</small>
-                {step.feedsNextWorkflow ? (
-                  <small>شرط الانتقال: {getOptionLabel(TRANSITION_CONDITIONS, step.transitionCondition || "after_review")}</small>
+              <div className="flow-cell flow-cell-dest-page">
+                <strong>الصفحة المستهدفة</strong>
+                <span>{destinationLabel}</span>
+              </div>
+
+              <div className="flow-arrow">←</div>
+
+              <div className={`flow-cell flow-cell-dest-field ${!destinationFieldLabel ? "missing-field" : ""}`}>
+                <strong>الحقل أو القسم</strong>
+                {destinationFieldLabel ? (
+                  <span>{destinationFieldLabel}</span>
+                ) : (
+                  <span className="flow-field-missing">لم يُحدد الحقل المستهدف</span>
+                )}
+              </div>
+
+              <div className="flow-arrow">←</div>
+
+              <div className="flow-cell flow-cell-review">
+                <strong>المراجعة</strong>
+                <span>{step.reviewRequired ? "مطلوبة قبل الاستخدام" : "غير مطلوبة"}</span>
+                {step.destination === "publishing_queue" && !step.reviewRequired ? (
+                  <small className="flow-review-warn">وجهات النشر تحتاج مراجعة</small>
                 ) : null}
               </div>
 
+              <div className="flow-arrow">←</div>
+
+              <div className="flow-cell flow-cell-next-route">
+                <strong>المسار التالي</strong>
+                {step.feedsNextWorkflow ? (
+                  <>
+                    <span>{getWorkflowLabel(step.nextWorkflowType)}</span>
+                    <small>شرط: {getOptionLabel(TRANSITION_CONDITIONS, step.transitionCondition || "after_review")}</small>
+                  </>
+                ) : (
+                  <span>لا يفتح مسارًا تاليًا</span>
+                )}
+              </div>
+
               {hasGovernanceWarning ? (
-                <div className="flow-warning">
+                <div className="flow-warning flow-warning-full">
                   <CircleAlert size={16} />
                   <span>
                     تحذير: هذا التدفق يحتاج مراجعة قبل السماح بالمخرجات أو فتح مسار لاحق.
@@ -2026,9 +2155,21 @@ export default function WorkflowRunsPage() {
       <div className="map-policy-note">
         <CircleAlert size={17} />
         <p>
-         أي مخرج ظاهر للعميل أو أي تدفق يفتح مسارًا آخر يجب أن يمر عبر
+          أي مخرج ظاهر للعميل أو أي تدفق يفتح مسارًا آخر يجب أن يمر عبر
           مراجعة قبل استخدامه في النشر أو التوليد التالي.
         </p>
+      </div>
+
+      <div className="map-lanes-guide">
+        <strong>دليل المسارات</strong>
+        <div><span className="lane-dot" />المشغل: ما الذي يبدأ المسار ومتى</div>
+        <div><span className="lane-dot" />المدخلات: البيانات الواردة للخطوة</div>
+        <div><span className="lane-dot" />الخطوة: المعالج والنموذج المستخدم</div>
+        <div><span className="lane-dot" />المخرج: نوع البيانات الناتجة وصيغتها</div>
+        <div><span className="lane-dot" />الصفحة المستهدفة: وجهة المخرج</div>
+        <div><span className="lane-dot" />الحقل أو القسم: المكان الدقيق داخل الصفحة</div>
+        <div><span className="lane-dot" />المراجعة: هل تحتاج الخطوة موافقة؟</div>
+        <div><span className="lane-dot" />المسار التالي: هل يفتح مسارًا آخر؟</div>
       </div>
     </aside>
   </section>
@@ -2584,6 +2725,14 @@ function StepReadinessPanel({ step, readinessContext = {}, compact = false }) {
 
 function WorkflowTriggerPanel({ trigger, onChange, editable = false }) {
   const safeTrigger = trigger || getDefaultTrigger();
+  const isTriggerComplete =
+    safeTrigger.type && safeTrigger.startCondition && safeTrigger.eventSource && safeTrigger.startWhen;
+  const missingFields = [
+    !safeTrigger.type && "نوع المشغل",
+    !safeTrigger.startWhen && "متى يبدأ المسار؟",
+    !safeTrigger.startCondition && "شرط البدء",
+    !safeTrigger.eventSource && "مصدر الحدث",
+  ].filter(Boolean);
 
   return (
     <section className="workflow-trigger-card">
@@ -2601,14 +2750,12 @@ function WorkflowTriggerPanel({ trigger, onChange, editable = false }) {
               options={TRIGGER_TYPES}
               onChange={(value) => onChange("type", value)}
             />
-            <label className="field">
-              <span>متى يبدأ المسار؟</span>
-              <input
-                value={safeTrigger.startWhen || ""}
-                onChange={(event) => onChange("startWhen", event.target.value)}
-                placeholder="مثال: عند اكتمال البيانات المطلوبة"
-              />
-            </label>
+            <SelectField
+              label="متى يبدأ المسار؟"
+              value={safeTrigger.startWhen || ""}
+              options={[["", "اختر حالة البدء"], ...TRIGGER_START_WHEN_OPTIONS]}
+              onChange={(value) => onChange("startWhen", value)}
+            />
             <SelectField
               label="شرط البدء"
               value={safeTrigger.startCondition}
@@ -2621,19 +2768,34 @@ function WorkflowTriggerPanel({ trigger, onChange, editable = false }) {
               options={EVENT_SOURCES}
               onChange={(value) => onChange("eventSource", value)}
             />
+            <SelectField
+              label="سياسة تحديث المسار"
+              value={safeTrigger.updatePolicy || ""}
+              options={TRIGGER_UPDATE_POLICIES}
+              onChange={(value) => onChange("updatePolicy", value)}
+            />
           </>
         ) : (
           <>
             <Info label="نوع المشغل" value={getOptionLabel(TRIGGER_TYPES, safeTrigger.type)} />
-            <Info label="متى يبدأ المسار؟" value={safeTrigger.startWhen} />
+            <Info label="متى يبدأ المسار؟" value={getOptionLabel(TRIGGER_START_WHEN_OPTIONS, safeTrigger.startWhen) || safeTrigger.startWhen || "—"} />
             <Info label="شرط البدء" value={getOptionLabel(START_CONDITIONS, safeTrigger.startCondition)} />
             <Info label="مصدر الحدث" value={getOptionLabel(EVENT_SOURCES, safeTrigger.eventSource)} />
+            <Info label="سياسة تحديث المسار" value={getOptionLabel(TRIGGER_UPDATE_POLICIES, safeTrigger.updatePolicy) || "غير محددة"} />
           </>
         )}
       </div>
 
-      <p className="inline-note">
-        هذا مصمم تدفق واجهي فقط. لا يتم تنفيذ المشغلات أو المسارات أو استدعاء النماذج فعليًا في هذا النموذج.
+      {editable && !isTriggerComplete && missingFields.length > 0 && (
+        <div className="trigger-readiness-warning">
+          <CircleAlert size={15} />
+          <span>يحتاج المشغل إكمال: {missingFields.join("، ")}</span>
+        </div>
+      )}
+
+      <p className="inline-note trigger-scope-note">
+        هذا المشغل يحدد متى يبدأ المسار ومن أي مصدر يأتي الحدث. لا يتضمن ذلك إعداد مصادر البيانات، النماذج، أو الصلاحيات — تلك تُعرَّف في خطوات المسار.
+        هذا مصمم تدفق واجهي فقط. لا يتم تنفيذ المشغلات أو المسارات فعليًا في هذا النموذج.
       </p>
     </section>
   );
@@ -2775,11 +2937,31 @@ function StepEditor({ step, index, onChange, onChangeInputs, onDelete, readiness
         />
 
         <SelectField
-          label="وجهة المخرج"
+          label="الصفحة المستهدفة"
           value={step.destination}
           options={DESTINATION_OPTIONS}
-          onChange={(value) => onChange(index, "destination", value)}
+          onChange={(value) => {
+            onChange(index, "destination", value);
+            onChange(index, "destinationField", "");
+          }}
         />
+
+        {step.destination ? (
+          <>
+            <SelectField
+              label="الحقل أو القسم المستهدف"
+              value={step.destinationField || ""}
+              options={[
+                ["", "اختر الحقل أو القسم المستهدف"],
+                ...(DESTINATION_FIELD_MAP[step.destination] || []),
+              ]}
+              onChange={(value) => onChange(index, "destinationField", value)}
+            />
+            {!step.destinationField && (
+              <p className="inline-warning">حدد الحقل أو القسم الذي سيستقبل المخرج داخل الصفحة المستهدفة.</p>
+            )}
+          </>
+        ) : null}
       </section>
 
       <SelectField
@@ -4665,4 +4847,192 @@ const styles = `
   }
 }
 
+/* ── Trigger: readiness warning ── */
+.trigger-readiness-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff8e6;
+  border: 1px solid #f5c842;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  color: #7a5a00;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ── Trigger: scope note ── */
+.trigger-scope-note {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: #6b7a5e;
+  line-height: 1.65;
+}
+
+/* ── 8-lane flow header ── */
+.flow-lanes-8 {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 0 10px 0;
+  border-bottom: 1px solid #e8eddf;
+  margin-bottom: 12px;
+}
+
+.flow-lanes-8 .lane-title {
+  background: #f3f6ee;
+  border: 1px solid #e2e8d8;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #3a4a32;
+  text-align: center;
+}
+
+/* ── 8-lane flow row ── */
+.flow-row-8 {
+  display: grid;
+  grid-template-columns: 28px repeat(8, minmax(0, 1fr) 16px) minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+  padding: 14px 10px;
+  border: 1px solid #e8eddf;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  background: #fafcf7;
+  position: relative;
+}
+
+/* destination page cell */
+.flow-cell-dest-page {
+  background: #f0f7ff;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.flow-cell-dest-page strong {
+  color: #1a4a7a;
+}
+
+/* destination field cell */
+.flow-cell-dest-field {
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #eef6f0;
+}
+
+.flow-cell-dest-field.missing-field {
+  background: #fff8e6;
+  border: 1px dashed #f5c842;
+}
+
+.flow-field-missing {
+  color: #8a6400;
+  font-size: 11px;
+  font-weight: 800;
+  font-style: italic;
+}
+
+/* review cell */
+.flow-cell-review {
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #f5f0ff;
+}
+
+.flow-review-warn {
+  color: #b04a00;
+  font-size: 11px;
+  font-weight: 800;
+  display: block;
+  margin-top: 4px;
+}
+
+/* next route cell */
+.flow-cell-next-route {
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #f0fdf4;
+}
+
+/* full-width governance warning */
+.flow-warning-full {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff4e6;
+  border: 1px solid #f5a742;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  color: #7a3a00;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* trigger card wide variant */
+.flow-trigger-card-wide {
+  margin-bottom: 16px;
+}
+
+.trigger-info-grid-wide {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* lanes guide in sidebar */
+.map-lanes-guide {
+  margin-top: 16px;
+  background: #f3f6ee;
+  border: 1px solid #dce5d0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.map-lanes-guide strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 950;
+  color: #2e4028;
+  margin-bottom: 8px;
+}
+
+.map-lanes-guide div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #4a5e40;
+  font-weight: 800;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.lane-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6aaa52;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1180px) {
+  .flow-lanes-8 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .flow-row-8 {
+    grid-template-columns: 1fr;
+  }
+  .trigger-info-grid-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 `;
+
