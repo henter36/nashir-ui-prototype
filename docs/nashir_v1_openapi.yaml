@@ -2008,7 +2008,7 @@ components:
         promptReady:
           $ref: "#/components/schemas/ReadinessSignal"
         costReady:
-          $ref: "#/components/schemas/ReadinessSignal"
+          $ref: "#/components/schemas/CostReadinessSnapshot"
         reviewReady:
           $ref: "#/components/schemas/ReadinessSignal"
         outputReady:
@@ -2016,7 +2016,7 @@ components:
         destinationReady:
           $ref: "#/components/schemas/ReadinessSignal"
         dataSourceReady:
-          $ref: "#/components/schemas/ReadinessSignal"
+          $ref: "#/components/schemas/DataSourceReadinessSnapshot"
         overallStatus:
           $ref: "#/components/schemas/ReadinessStatus"
         blockers:
