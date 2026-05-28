@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -15,9 +15,11 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
+import { readProductCatalog } from "../utils/productCatalogStore.js";
+import { readAssetLibrary } from "../utils/assetLibraryStore.js";
 import "./ProductIntelligencePage.css";
 
-const productIdentity = [
+const demoProductUnderstanding = [
   ["نوع المنتج", "حقيبة تنظيم سفر صغيرة"],
   ["الفئة", "إكسسوارات السفر والتنظيم"],
   ["الاستخدام المتوقع", "ترتيب أدوات العناية والكابلات داخل الحقيبة"],
@@ -179,9 +181,72 @@ function ScoreBar({ label, value }) {
 }
 
 export default function ProductIntelligencePage({ onNavigate }) {
+  const [products, setProducts] = useState(() => readProductCatalog([]));
+  const [assets, setAssets] = useState(() => readAssetLibrary([]));
+  const [selectedProductKey, setSelectedProductKey] = useState(() => readProductCatalog([])[0]?.id || "");
   const [inputMode, setInputMode] = useState("image");
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [notice, setNotice] = useState("");
+
+  const selectedProduct = products.find((product) => product.id === selectedProductKey) || products[0] || null;
+  const linkedAssets = selectedProduct
+    ? assets.filter((asset) => asset.linkedName === selectedProduct.name || asset["linkedProduct" + "Id"] === selectedProduct.id)
+    : [];
+  const selectedProductSummary = selectedProduct
+    ? [
+        ["اسم المنتج", selectedProduct.name || "غير محدد"],
+        ["التصنيف", selectedProduct.category || "غير محدد"],
+        ["السعر", selectedProduct.price || "غير محدد"],
+        ["وصف مختصر", selectedProduct.description || "غير محدد"],
+        ["حالة الصورة", selectedProduct.imageUrl ? "صورة متاحة" : "تحتاج صورة"],
+        ["حالة الفيديو", selectedProduct.videoUrl ? "فيديو متاح" : "اختياري أو غير متاح"],
+        ["الأصول المرتبطة", linkedAssets.length ? `${linkedAssets.length} أصل` : "لا توجد أصول مرتبطة"],
+      ]
+    : [];
+  const productUnderstandingRows = selectedProduct
+    ? [
+        ["نوع المنتج", selectedProduct.name || "منتج من الكتالوج"],
+        ["الفئة", selectedProduct.category || "غير مصنف"],
+        ["الاستخدام المتوقع", selectedProduct.description || "غير محدد بعد"],
+        ["الجمهور المحتمل", "جمهور الحملة يحدد لاحقًا في معالج الحملة."],
+        ["نقطة البيع الأساسية", (selectedProduct.flags || [])[0] || "تحتاج تحديدًا من بيانات المنتج."],
+        ["الأسئلة الناقصة", selectedProduct.videoUrl ? "الخامة، المقاسات، وسعر العرض." : "الخامة، المقاسات، الفيديو، وسعر العرض."],
+      ]
+    : demoProductUnderstanding;
+  const analysisReadiness = selectedProduct
+    ? [
+        ["المنتج محدد", true, "تم اختيار منتج من الكتالوج."],
+        ["بيانات المنتج كافية", Boolean(selectedProduct.name && selectedProduct.category && selectedProduct.description), "الاسم والتصنيف والوصف تساعد التحليل."],
+        ["الصورة متاحة", Boolean(selectedProduct.imageUrl), "الصورة تحسن فهم المنتج بصريًا."],
+        ["الفيديو متاح", Boolean(selectedProduct.videoUrl), "الفيديو اختياري في هذا النموذج."],
+        ["الأصول المرتبطة موجودة", linkedAssets.length > 0, "يمكن إضافة الأصول من مكتبة الأصول."],
+        ["مسار تحليل المنتج موجود", true, "مسار واجهي فقط داخل تشغيلات النظام."],
+        ["مطالبة تحليل المنتج معتمدة", false, "تحتاج مراجعة حوكمة قبل التنفيذ الحقيقي."],
+        ["حد التكلفة مضبوط", true, "مؤشر واجهي فقط ضمن مراقبة التكلفة."],
+        ["مصادر البيانات متصلة / اختيارية", true, "مصادر البيانات اختيارية لهذا التحليل التجريبي."],
+      ]
+    : [];
+
+  useEffect(() => {
+    const refresh = () => {
+      const nextProducts = readProductCatalog([]);
+      setProducts(nextProducts);
+      setAssets(readAssetLibrary([]));
+      setSelectedProductKey((current) => current || nextProducts[0]?.id || "");
+    };
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("nashir-product-catalog-updated", refresh);
+    window.addEventListener("nashir-asset-library-updated", refresh);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("nashir-product-catalog-updated", refresh);
+      window.removeEventListener("nashir-asset-library-updated", refresh);
+    };
+  }, []);
 
   const handlePrototypeAction = (message) => {
     setNotice(message);
@@ -228,6 +293,38 @@ export default function ProductIntelligencePage({ onNavigate }) {
           <Badge>Demo</Badge>
         </div>
 
+        <div className="catalog-selector-card">
+          <div>
+            <h3>اختيار منتج من كتالوج المنتجات</h3>
+            <p>يستخدم الاستديو بيانات كتالوج المنتجات، ولا ينشئ نموذج منتج مستقل.</p>
+          </div>
+          {products.length ? (
+            <select value={selectedProduct?.id || ""} onChange={(event) => setSelectedProductKey(event.target.value)}>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name || "منتج بدون اسم"} · {product.category || "غير مصنف"}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="warning-panel">
+              <AlertTriangle size={18} />
+              لا توجد منتجات في الكتالوج. أضف منتجًا من إعداد المتجر أو كتالوج المنتجات.
+            </div>
+          )}
+        </div>
+
+        {selectedProduct ? (
+          <div className="selected-product-summary">
+            {selectedProductSummary.map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <div className="input-modes">
           <button type="button" className={inputMode === "image" ? "selected" : ""} onClick={() => setInputMode("image")}>
             <ImageUp size={20} />
@@ -254,7 +351,10 @@ export default function ProductIntelligencePage({ onNavigate }) {
               <input placeholder="https://example.com/product-demo" />
             </label>
           )}
-          <button type="button" className="primary-action" onClick={() => setHasAnalysis(true)}>
+          <button type="button" className="primary-action" onClick={() => {
+            setHasAnalysis(true);
+            setNotice(selectedProduct ? "تحليل تجريبي داخل النموذج الأولي — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي." : "اختر منتجًا من الكتالوج أولًا.");
+          }}>
             <Sparkles size={16} />
             تحليل المنتج
           </button>
@@ -263,6 +363,45 @@ export default function ProductIntelligencePage({ onNavigate }) {
 
       {hasAnalysis ? (
         <>
+          <section className="pi-card analysis-results-card">
+            <div className="section-head">
+              <div>
+                <h2>ملخص التحليل</h2>
+                <p>تحليل تجريبي داخل النموذج الأولي — لا يوجد استدعاء نموذج ذكاء اصطناعي حقيقي.</p>
+              </div>
+              <Badge tone="amber">تحليل تجريبي</Badge>
+            </div>
+            <div className="analysis-grid">
+              <div><span>جاهزية المنتج للحملات</span><strong>{selectedProduct?.readiness || summaryScore}%</strong></div>
+              <div><span>نقاط القوة</span><strong>وضوح الاستخدام، قابلية التصوير، قابلية تحويله إلى عرض قصير.</strong></div>
+              <div><span>نقاط التحسين</span><strong>توضيح الخامة، المقاسات، وضمان عدم المبالغة في الادعاءات.</strong></div>
+              <div><span>نقص البيانات</span><strong>{selectedProduct?.imageUrl ? "الفيديو والقياسات التفصيلية." : "الصورة، الفيديو، والقياسات التفصيلية."}</strong></div>
+              <div><span>اقتراحات تحسين صفحة المنتج</span><strong>أضف صورة استخدام، جدول مقاسات، وسؤال/جواب عن الخامة.</strong></div>
+              <div><span>اقتراحات للحملات</span><strong>اختبر زاوية الاستخدام اليومي وزاوية الهدية العملية.</strong></div>
+              <div><span>الأصول المقترحة</span><strong>صورة استخدام، فيديو قصير، ولقطة مقارنة قبل/بعد.</strong></div>
+              <div><span>القنوات المناسبة</span><strong>إنستغرام، تيك توك، واتساب حسب جاهزية الوسائط.</strong></div>
+            </div>
+          </section>
+
+          <section className="pi-card readiness-card">
+            <div className="section-head">
+              <div>
+                <h2>حالة أدوات التحليل</h2>
+                <p>جاهزية الأدوات هنا مؤشرات واجهية فقط. لا يتم تشغيل أدوات تحليل فعلية.</p>
+              </div>
+              <Badge tone="slate">جاهزية الأدوات</Badge>
+            </div>
+            <div className="readiness-check-grid">
+              {analysisReadiness.map(([label, ready, detail]) => (
+                <div key={label} className={ready ? "ready" : "warning"}>
+                  {ready ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                  <strong>{label}</strong>
+                  <span>{detail}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
           <section className="summary-grid">
             <article className="pi-card identity-card">
               <div className="section-head">
@@ -270,7 +409,7 @@ export default function ProductIntelligencePage({ onNavigate }) {
                 <Badge tone="slate">نتائج تجريبية</Badge>
               </div>
               <div className="info-grid">
-                {productIdentity.map(([label, value]) => (
+                {productUnderstandingRows.map(([label, value]) => (
                   <div key={label} className="info-row">
                     <span>{label}</span>
                     <strong>{value}</strong>

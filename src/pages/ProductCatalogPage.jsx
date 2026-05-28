@@ -141,9 +141,32 @@ function buildMarketingPriority(product = {}) {
   };
 }
 
+function buildLatestProductAnalysis(product = {}) {
+  const gaps = [];
+  if (!String(product.description || "").trim()) gaps.push("وصف مختصر");
+  if (!product.imageUrl) gaps.push("صورة المنتج");
+  if (!product.videoUrl) gaps.push("فيديو المنتج");
+  if (!String(product.price || "").trim()) gaps.push("السعر");
+
+  const readiness = Math.min(95, Math.max(Number(product.readiness || 35), gaps.length ? 55 : 82));
+  const notes = [
+    product.imageUrl ? "الصورة متاحة كبداية." : "الصورة غير مكتملة.",
+    product.videoUrl ? "الفيديو متاح لقنوات الفيديو." : "الفيديو اختياري لكنه مفيد للحملات.",
+    (product.flags || []).length ? `خصائص المنتج: ${(product.flags || []).slice(0, 2).join("، ")}` : "الخصائص تحتاج تحديدًا.",
+  ];
+
+  return {
+    hasAnalysis: Boolean(product.name || product.description || product.imageUrl || product.videoUrl),
+    readiness,
+    notes,
+    gaps,
+  };
+}
+
 export default function ProductCatalogPage() {
   const [products, setProducts] = useState(() => readProductCatalog(initialProducts));
   const [query, setQuery] = useState("");
+  const [catalogNotice, setCatalogNotice] = useState("");
   const [selectedId, setSelectedId] = useState(
     () => readProductCatalog(initialProducts)[0]?.id || initialProducts[0].id
   );
@@ -188,6 +211,7 @@ export default function ProductCatalogPage() {
   const selectedProduct =
     products.find((product) => product.id === selectedId) || products[0] || initialProducts[0];
   const selectedMarketingPriority = buildMarketingPriority(selectedProduct);
+  const selectedAnalysis = buildLatestProductAnalysis(selectedProduct);
 
   const stats = useMemo(() => {
     return {
@@ -587,6 +611,27 @@ export default function ProductCatalogPage() {
             <Info label="القناة الأنسب" value={selectedMarketingPriority.channel} />
             <Info label="نوع المحتوى المناسب" value={selectedMarketingPriority.contentType} />
             <Info label="النقص المطلوب استكماله" value={selectedMarketingPriority.gap} />
+          </div>
+
+          <div className="marketing-priority-card">
+            <h3>آخر تحليل للمنتج</h3>
+            <p>هذا ملخص فقط. Product Analysis Studio يبقى مساحة التحليل الكاملة.</p>
+            {selectedAnalysis.hasAnalysis ? (
+              <>
+                <Info label="درجة جاهزية المنتج" value={`${selectedAnalysis.readiness}%`} />
+                <Info label="أهم الملاحظات" value={selectedAnalysis.notes.join(" ")} />
+                <Info label="نواقص المنتج" value={selectedAnalysis.gaps.length ? selectedAnalysis.gaps.join("، ") : "لا توجد نواقص واضحة"} />
+                <button type="button" className="secondary-button analysis-link" onClick={() => setCatalogNotice("فتح تحليل المنتج متاح من استوديو تحليل المنتج في التنقل.")}>
+                  فتح تحليل المنتج
+                </button>
+                <button type="button" className="secondary-button analysis-link" onClick={() => setCatalogNotice("عرض ملخص التحليل ظاهر هنا فقط؛ التقرير الكامل في استوديو تحليل المنتج.")}>
+                  عرض ملخص التحليل
+                </button>
+              </>
+            ) : (
+              <Info label="حالة التحليل" value="لم يتم تحليل المنتج بعد." />
+            )}
+            {catalogNotice ? <div className="catalog-analysis-notice">{catalogNotice}</div> : null}
           </div>
 
           <h3>خصائص المنتج</h3>
@@ -1099,6 +1144,23 @@ const styles = `
   gap: 7px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.analysis-link {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.catalog-analysis-notice {
+  border: 1px solid #d9ead7;
+  background: #f5fbf1;
+  color: #176b2c;
+  border-radius: 14px;
+  padding: 10px;
+  margin-top: 10px;
+  line-height: 1.7;
+  font-size: 12px;
+  font-weight: 850;
 }
 
 @media (max-width: 1100px) {
