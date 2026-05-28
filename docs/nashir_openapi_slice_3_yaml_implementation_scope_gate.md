@@ -113,7 +113,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/readiness` |
 | Method | `GET` |
-| operationId direction | `getWorkspaceReadiness` |
+| operationId | `getWorkspaceReadiness` |
 | Response schema | `WorkspaceReadinessSummary` |
 | Purpose | Advisory rollup of readiness status across all active workflow definitions in a workspace |
 | Parameters | `WorkspaceIdPath` (`$ref`), `RequestIdHeader` (`$ref`) |
@@ -126,7 +126,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/readiness` |
 | Method | `GET` |
-| operationId direction | `getWorkflowReadiness` |
+| operationId | `getWorkflowReadiness` |
 | Response schema | `WorkflowReadinessSnapshot` |
 | Purpose | Per-workflow readiness covering all steps across all ten dimensions |
 | Parameters | `WorkspaceIdPath` (`$ref`), `workflowDefinitionId` (path), `RequestIdHeader` (`$ref`) |
@@ -139,7 +139,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/steps/{stepKey}/readiness` |
 | Method | `GET` |
-| operationId direction | `getWorkflowStepReadiness` |
+| operationId | `getWorkflowStepReadiness` |
 | Response schema | `WorkflowStepReadiness` |
 | Purpose | Per-step readiness with all ten dimension signals, blockers, warnings, checks, next actions, evidence summary, and timestamp |
 | Parameters | `WorkspaceIdPath` (`$ref`), `workflowDefinitionId` (path), `stepKey` (path), `RequestIdHeader` (`$ref`) |
@@ -152,7 +152,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/ai-providers/{providerId}/readiness` |
 | Method | `GET` |
-| operationId direction | `getProviderReadiness` |
+| operationId | `getProviderReadiness` |
 | Response schema | `ProviderReadinessSnapshot` |
 | Purpose | Read-only snapshot of provider health, capabilities, and secret reference; does not probe the live provider |
 | Parameters | `WorkspaceIdPath` (`$ref`), `providerId` (path), `RequestIdHeader` (`$ref`) |
@@ -165,7 +165,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/model-routes/{modelRouteId}/readiness` |
 | Method | `GET` |
-| operationId direction | `getModelRouteReadiness` |
+| operationId | `getModelRouteReadiness` |
 | Response schema | `RouteReadinessSnapshot` |
 | Purpose | Read-only snapshot of model route health, provider binding, and policy as evaluated |
 | Parameters | `WorkspaceIdPath` (`$ref`), `modelRouteId` (path), `RequestIdHeader` (`$ref`) |
@@ -178,7 +178,7 @@ A future YAML implementation PR **may add** only the following six read-only GET
 |---|---|
 | Path | `/workspaces/{workspaceId}/prompts/{promptId}/readiness` |
 | Method | `GET` |
-| operationId direction | `getPromptReadiness` |
+| operationId | `getPromptReadiness` |
 | Response schema | `PromptReadinessSnapshot` |
 | Purpose | Read-only snapshot of prompt version approval status, required checks, allowed outputs, and blocked patterns |
 | Parameters | `WorkspaceIdPath` (`$ref`), `promptId` (path), `RequestIdHeader` (`$ref`) |
@@ -512,7 +512,7 @@ A future YAML implementation PR may proceed only after all of the following prec
 | **`unknown` treated as `ready`.** A `ReadinessStatus` YAML description omits the `unknown` warning. | Constraint in Section 8. Reviewer checklist in Section 13 must verify the YAML description states `unknown` is not `ready`. |
 | **Score treated as execution guarantee.** A `ReadinessSignal.score` description omits the advisory-only constraint. | Constraint in Section 8. Reviewer checklist must verify score description states it must not gate execution. |
 | **Blockers ignored in favor of score.** Consumer or schema description implies that a passing score is sufficient for execution. | `WorkflowStepReadiness.overallStatus` and `blockers[]` are the authoritative execution denial signals per Conditions S1 and S5. Schema descriptions must state this. |
-| **`workflowStepKey` instability.** A schema description omits the composite key scope rule; consumers store `stepKey` alone. | Constraint in Section 8. YAML description for `WorkflowStepReadiness.stepKey` must state stability is scoped to `(workflowDefinitionId, workflowVersion)` only. |
+| **`stepKey` instability.** A schema description omits the composite key scope rule; consumers store `stepKey` alone. | Constraint in Section 8. YAML description for `WorkflowStepReadiness.stepKey` must state stability is scoped to `(workflowDefinitionId, workflowVersion)` only. |
 | **Hidden UI-to-UI coupling.** Backend implementation mirrors React-local state reading between pages. | Section 11 ownership rule is binding. Consumer boundary documentation in Section 11 must be cited in any future consumer implementation gate. |
 | **Cost / Data Source scope ambiguity.** A future YAML PR reintroduces the omitted standalone cost or data source endpoints. | Condition R1 is binding. Section 5 explicitly lists both endpoints as omitted. Section 12 lists them as out of scope. A new planning and review cycle is required before they may be added. |
 | **Deferred schemas accidentally reintroduced.** `ReadinessBlocker` or `ReadinessUnknownReason` appear in a future YAML PR without re-entering the review cycle. | Conditions R2 and R3 are binding. Section 7 lists both schemas as deferred. Section 12 lists them as out of scope. |
