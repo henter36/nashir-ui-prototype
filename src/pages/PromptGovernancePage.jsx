@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ClipboardCheck,
   Copy,
-  Eye,
   EyeOff,
   Link2,
   FileText,
@@ -18,7 +17,6 @@ import {
   ShieldCheck,
   Trash2,
   Unlink,
-  Sparkles,
   Wand2,
   XCircle,
 } from "lucide-react";
@@ -138,11 +136,6 @@ const auditEvents = [
   { id: "a1", event: "تم اعتماد v2.1", prompt: "Risk Review Prompt", actor: "Governance", time: "اليوم", severity: "success" },
   { id: "a2", event: "تم حظر مسودة بسبب كشف أسماء نماذج", prompt: "Customer Safe Summary Prompt", actor: "Policy Check", time: "أمس", severity: "warning" },
   { id: "a3", event: "تمت إضافة asset_rights_check", prompt: "Image Direction Prompt", actor: "Creative Admin", time: "قبل 4 أيام", severity: "info" },
-];
-
-const reviewQueue = [
-  { id: "rq1", prompt: "Image Direction Prompt", reason: "نسخة تجريبية ولم تعتمد بعد", owner: "Creative Admin", priority: "عالية" },
-  { id: "rq2", prompt: "Customer Safe Summary Prompt", reason: "قد تظهر للعميل وتحتاج فحص تسريب المطالبات", owner: "Product Ops", priority: "متوسطة" },
 ];
 
 const STATUS_LABELS = {

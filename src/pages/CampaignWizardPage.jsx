@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -271,68 +271,6 @@ function getOutputTypeLabel(output) {
   return "مخرج آخر";
 }
 
-function buildMockOutputArtifact({ output, productName, goal, offer, cta, channels, selectedAssets, videoDuration, textApproved }) {
-  const type = getOutputTypeLabel(output);
-  const channelText = channels.length ? channels.join("، ") : "غير محدد";
-  const assetText = selectedAssets.length ? selectedAssets.map((asset) => asset.name).join("، ") : "أصول مقترحة لاحقًا";
-  const reviewRequired = type !== "ملخص حملة";
-  const readiness = textApproved ? "جاهز كمخرج تجريبي للمراجعة" : "مسودة بانتظار اعتماد النص المقترح";
-  const summary = `${type} لمنتج ${productName || "غير محدد"} يركز على ${goal || "هدف الحملة"} مع عرض ${offer || "غير محدد"} ودعوة ${cta || "غير محددة"}.`;
-
-  if (type === "صفحة هبوط") {
-    return {
-      type,
-      channelText,
-      summary,
-      readiness,
-      reviewRequired,
-      helper: "صفحة الهبوط هنا تصور واجهي فقط، وليست صفحة منشورة.",
-      details: [
-        ["عنوان الصفحة", `${productName || "المنتج"} لعرض ${offer || "الحملة"}`],
-        ["الوعد الرئيسي", "حل واضح وسريع مع دعوة إجراء مباشرة."],
-        ["أقسام الصفحة", "العرض، فوائد المنتج، الأصول، الأسئلة الشائعة، CTA"],
-        ["CTA", cta || "تسوق الآن"],
-        ["الأصول المقترحة", assetText],
-        ["حالة المراجعة", reviewRequired ? "تحتاج مراجعة" : "لا تحتاج مراجعة"],
-      ],
-    };
-  }
-
-  if (type === "سيناريو فيديو") {
-    return {
-      type,
-      channelText,
-      summary,
-      readiness,
-      reviewRequired,
-      helper: "الفيديو هنا سيناريو تجريبي فقط، ولا يتم توليد فيديو فعلي.",
-      details: [
-        ["الفكرة", `إظهار ${productName || "المنتج"} في موقف استخدام سريع.`],
-        ["المشهد الأول", "لقطة المشكلة أو الحاجة خلال أول ثانيتين."],
-        ["المشهد الثاني", "عرض المنتج والحل مع إبراز الأصل المختار."],
-        ["النص الصوتي / التعليق", `منتج عملي لعرض ${offer || "واضح"} مع دعوة ${cta || "مباشرة"}.`],
-        ["CTA", cta || "تسوق الآن"],
-        ["مدة مقترحة", videoDuration || "15 ثانية"],
-      ],
-    };
-  }
-
-  return {
-    type,
-    channelText,
-    summary,
-    readiness,
-    reviewRequired,
-    helper: "",
-    details: [
-      ["ملخص المخرج", summary],
-      ["الأصول المقترحة", assetText],
-      ["القنوات المرتبطة", channelText],
-      ["حالة المراجعة", reviewRequired ? "تحتاج مراجعة" : "لا تحتاج مراجعة"],
-    ],
-  };
-}
-
 function getOutputTaskType(output) {
   const type = getOutputTypeLabel(output);
   if (type === "سيناريو فيديو") return "video_script";
@@ -517,7 +455,7 @@ export default function CampaignWizardPage({
 
   const [generatedTexts, setGeneratedTexts] = useState({});
   const [textApprovalStatus, setTextApprovalStatus] = useState("unapproved");
-  const [outputApprovalStatus, setOutputApprovalStatus] = useState({});
+  const [, setOutputApprovalStatus] = useState({});
   const [outputGenerationState, setOutputGenerationState] = useState({});
   const [generatedOutputContent, setGeneratedOutputContent] = useState({});
   const [selectedOutputPrompts, setSelectedOutputPrompts] = useState({});
@@ -595,17 +533,6 @@ export default function CampaignWizardPage({
   }, []);
 
   const selectedProduct = products.find((product) => product.id === selectedProductKey) || products[0];
-
-  const sortedAssets = useMemo(() => {
-    const productName = selectedProduct?.name || "";
-
-    return [...availableAssets].sort((a, b) => {
-      const aLinked = a.linkedType === "product" && a.linkedName === productName;
-      const bLinked = b.linkedType === "product" && b.linkedName === productName;
-      if (aLinked === bLinked) return String(a.name).localeCompare(String(b.name), "ar");
-      return aLinked ? -1 : 1;
-    });
-  }, [availableAssets, selectedProduct?.name]);
 
   const selectedAssets = useMemo(
     () => availableAssets.filter((asset) => selectedAssetKeys.includes(asset.id)),
@@ -2061,16 +1988,6 @@ function MultiChoice({ title, options, selected, setSelected }) {
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function UploadBox({ title }) {
-  return (
-    <div className="upload-box">
-      <UploadCloud size={24} />
-      <strong>{title}</strong>
-      <span>إرفاق ملف أو رابط مرجعي — واجهة فقط</span>
     </div>
   );
 }

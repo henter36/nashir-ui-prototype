@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
-  CheckCircle2,
   Clock3,
   Edit3,
   Eye,
@@ -138,10 +137,6 @@ const TABS = [
 
 function getCampaignProductName(campaign = {}) {
   return campaign.productSnapshot?.name || campaign.product || "منتج غير محدد";
-}
-
-function getProductReferenceLabel(campaign = {}) {
-  return campaign.productId ? "مرتبط بمنتج محفوظ" : "مرجع المنتج غير متوفر";
 }
 
 function getCampaignAssetsCount(campaign = {}) {

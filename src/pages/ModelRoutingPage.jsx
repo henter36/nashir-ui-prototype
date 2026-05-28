@@ -4,11 +4,7 @@ import {
   BarChart3,
   Bot,
   CheckCircle2,
-  Clock3,
-  Copy,
-  Eye,
   FileSearch,
-  Gauge,
   ImageIcon,
   Layers,
   ListChecks,
@@ -19,11 +15,9 @@ import {
   Save,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Store,
   TestTube2,
-  Trash2,
   Wand2,
 } from "lucide-react";
 import {
