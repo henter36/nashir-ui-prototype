@@ -1,8 +1,8 @@
 export const workspaceReadinessFixture = {
   workspaceId: "ws-nashir-demo",
   overallStatus: "warning",
-  totalActiveWorkflows: 3,
-  blockedWorkflows: 0,
+  totalActiveWorkflows: 4,
+  blockedWorkflows: 1,
   warningWorkflows: 2,
   readyWorkflows: 1,
   unknownWorkflows: 0,
@@ -23,7 +23,7 @@ export const workspaceReadinessFixture = {
       overallStatus: "warning",
       blockers: [],
       warnings: [
-        "مزود الذكاء الاصطناعي لم يُختبر مؤخرًا",
+        "إعدادات المزود تحتاج مراجعة قبل الاعتماد",
         "مسار النموذج يفتقر لنموذج احتياطي",
       ],
     },
@@ -34,6 +34,14 @@ export const workspaceReadinessFixture = {
       overallStatus: "warning",
       blockers: [],
       warnings: ["قالب المطالبة بحاجة لمراجعة الاعتماد"],
+    },
+    {
+      workflowDefinitionId: "wf-004",
+      workflowVersion: "1.0",
+      name: "مسار التقارير الدورية",
+      overallStatus: "blocked",
+      blockers: ["وجهة إخراج البيانات غير مهيأة — لا يمكن تشغيل المسار"],
+      warnings: [],
     },
   ],
 };

@@ -683,6 +683,16 @@ export default function SystemAdminPage() {
                   <span className="readiness-workflow-version">v{wf.workflowVersion}</span>
                 </div>
                 <ReadinessBadge status={wf.overallStatus} />
+                {wf.blockers.length > 0 && (
+                  <div className="readiness-blockers">
+                    <span className="readiness-blockers-heading">عوائق تمنع التشغيل</span>
+                    <ul className="readiness-blocker-list">
+                      {wf.blockers.map((b) => (
+                        <li key={b}>{b}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {wf.warnings.length > 0 && (
                   <ul className="readiness-advisory-caption">
                     {wf.warnings.map((w) => (
@@ -1638,5 +1648,33 @@ const styles = `
   border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+}
+
+.readiness-blockers {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.readiness-blockers-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.readiness-blocker-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
+  font-size: 0.78rem;
+  color: #991b1b;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 `;

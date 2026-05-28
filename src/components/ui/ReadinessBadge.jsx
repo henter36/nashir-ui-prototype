@@ -4,7 +4,6 @@ const STATUS_CONFIG = {
   blocked:        { tone: "badge-red",     label: "محجوب" },
   unknown:        { tone: "badge-neutral", label: "غير معروف" },
   not_configured: { tone: "badge-neutral", label: "غير مهيأ" },
-  not_applicable: { tone: "badge-neutral", label: "لا ينطبق" },
 };
 
 export default function ReadinessBadge({ status }) {
