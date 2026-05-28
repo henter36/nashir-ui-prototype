@@ -39,7 +39,7 @@ From the Shared Readiness Contract Surface Acceptance Gate:
 - `POST /workflow-definitions` and `PUT /workflow-definitions/{workflowDefinitionId}` are deferred (require Workflow Engine).
 - `POST /dry-run` is deferred (requires `DryRunResult` schema and no-execution guarantee).
 - Run artifacts, run audits, and product analysis result creation are deferred.
-- Thirteen review conditions (A1, B1, F1, H1, I1, J1, DR1, S1–S5, ID1–ID2, RequestIdHeader) must be respected.
+- Fifteen review conditions (A1, B1, F1, H1, I1, J1, DR1, S1–S5, ID1–ID2, RequestIdHeader) must be respected.
 - `RequestIdHeader` (`X-Request-Id`) is an established Slice 1/2 component; every Slice 3 endpoint must carry it.
 - `ReadinessSignal` must carry a `dimension` discriminator field.
 - `workflowStepKey` is stable within `(workflowDefinitionId, version)` composite scope only.
@@ -293,7 +293,8 @@ Aggregate readiness for a single workflow step across all ten dimensions.
 
 | Field | Type | Notes |
 |---|---|---|
-| `workflowKey` | string | Workflow definition reference |
+| `workflowDefinitionId` | string | Workflow definition identifier |
+| `workflowVersion` | string | Version string of the definition |
 | `stepKey` | string | Stable within `(workflowDefinitionId, version)` only |
 | `triggerReady` | `ReadinessSignal` | `dimension` field omitted when embedded (field name is discriminator) |
 | `inputReady` | `ReadinessSignal` | |
