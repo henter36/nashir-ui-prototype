@@ -222,6 +222,9 @@ export default function PublishingQueuePage() {
     time: "09:00",
     contentType: "Post",
   });
+  const effectiveCampaign = campaignOptions.includes(newItem.campaign)
+    ? newItem.campaign
+    : campaignOptions[0] || "حملة تجريبية";
   const [auditLog, setAuditLog] = useState([
     ["تم اعتماد Story عرض الصيف للنشر اليدوي", "Reviewer", "منذ 20 دقيقة"],
     ["تم منع Reel وعي من النشر بسبب حقوق الصوت", "Governance", "قبل ساعة"],
@@ -249,14 +252,6 @@ export default function PublishingQueuePage() {
       window.removeEventListener("nashir-publishing-queue-updated", reloadItems);
     };
   }, []);
-
-  useEffect(() => {
-    setNewItem((prev) =>
-      campaignOptions.includes(prev.campaign)
-        ? prev
-        : { ...prev, campaign: campaignOptions[0] || "حملة تجريبية" }
-    );
-  }, [campaignOptions]);
 
   const selected =
     items.find((item) => getQueueKey(item) === String(selectedId)) ||
@@ -352,7 +347,7 @@ export default function PublishingQueuePage() {
     }
 
     const selectedCampaignName =
-      newItem.campaign || sourceContent.campaign || campaignOptions[0] || "حملة تجريبية";
+      effectiveCampaign || sourceContent.campaign || campaignOptions[0] || "حملة تجريبية";
     const linkedCampaign =
       campaignList.find((campaign) => campaign.name === selectedCampaignName) ||
       campaignList.find((campaign) => campaign.campaignId === sourceContent.campaignId || campaign.id === sourceContent.campaignId);
@@ -644,7 +639,7 @@ export default function PublishingQueuePage() {
             <label>
               <span>الحملة</span>
               <select
-                value={newItem.campaign}
+                value={effectiveCampaign}
                 onChange={(event) => setNewItem((prev) => ({ ...prev, campaign: event.target.value }))}
               >
                 {campaignOptions.map((campaign) => (
