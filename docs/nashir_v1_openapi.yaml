@@ -3411,7 +3411,7 @@ components:
       description: >
         Request body for Prompt Governance transfer draft creation.
         draftId is inherited from CreatorTransferDraftCreateRequest and must be in ready_for_transfer status.
-        reviewReason is informational only and does not override the reviewed context.
+        reviewReason is informational only and does not override the ready_for_transfer context.
       allOf:
         - $ref: "#/components/schemas/CreatorTransferDraftCreateRequest"
         - type: object
