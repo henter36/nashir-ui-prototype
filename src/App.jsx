@@ -15,6 +15,7 @@ import {
   Shield,
   Store,
   Users,
+  Video,
   Workflow,
   Wand2,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const TemplateEnginePage = lazy(() => import("./pages/TemplateEnginePage.jsx"));
 const MultiPlatformPage = lazy(() => import("./pages/MultiPlatformPage.jsx"));
 const TeamCollaborationPage = lazy(() => import("./pages/TeamCollaborationPage.jsx"));
 const ContentStudioPage = lazy(() => import("./pages/ContentStudioPage.jsx"));
+const CreatorStudioPage = lazy(() => import("./pages/CreatorStudioPage.jsx"));
 const ContentReviewPreviewUnifiedPage = lazy(() => import("./pages/ContentReviewPreviewUnifiedPage.jsx"));
 const SystemAdminPage = lazy(() => import("./pages/SystemAdminPage.jsx"));
 const SecretsAndKeysPage = lazy(() => import("./pages/SecretsAndKeysPage.jsx"));
@@ -124,6 +126,7 @@ export default function App() {
       { id: "campaigns", label: "معالج الحملات", icon: Megaphone, enabled: true },
       { id: "campaignsList", label: "الحملات", icon: Megaphone, enabled: true },
 
+      { id: "creatorStudio", label: "استوديو صانع المحتوى", icon: Video, enabled: true },
       { id: "content", label: "المحتوى", icon: FileCheck2, enabled: true },
       { id: "contentReview", label: "المراجعة والمعاينة", icon: FileCheck2, enabled: true },
       { id: "publishingQueue", label: "جدولة النشر", icon: CalendarDays, enabled: true },
@@ -180,6 +183,7 @@ export default function App() {
     );
   }
 
+  if (activeScreen === "creatorStudio") pageContent = <CreatorStudioPage />;
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
   if (activeScreen === "contentReview") pageContent = <ContentReviewPreviewUnifiedPage />;
   if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
