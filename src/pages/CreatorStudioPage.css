@@ -751,6 +751,7 @@
   border-radius: 12px;
   border: 1px solid #e4e7df;
   background: #f7f8f4;
+  font-family: inherit;
   cursor: pointer;
   text-align: right;
   width: 100%;
