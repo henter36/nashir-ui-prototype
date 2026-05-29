@@ -183,7 +183,7 @@ export default function App() {
     );
   }
 
-  if (activeScreen === "creatorStudio") pageContent = <CreatorStudioPage />;
+  if (activeScreen === "creatorStudio") pageContent = <CreatorStudioPage onNavigate={navigateToScreen} />;
   if (activeScreen === "content") pageContent = <ContentStudioPage />;
   if (activeScreen === "contentReview") pageContent = <ContentReviewPreviewUnifiedPage />;
   if (activeScreen === "publishingQueue") pageContent = <PublishingQueuePage />;
