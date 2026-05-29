@@ -1,6 +1,12 @@
 import { useState } from "react";
 import "./CreatorStudioPage.css";
-import { creatorStudioDestinationMapping } from "../data/creatorStudioFlowFixture.js";
+import {
+  ctxCampaignAngles,
+  ctxAudienceSegments,
+  ctxContentIdeas,
+  ctxGovernanceTemplates,
+  ctxPublishWindows,
+} from "../data/creatorStudioFlowFixture.js";
 import {
   AlertTriangle,
   BarChart3,
@@ -177,6 +183,52 @@ const flowActions = [
   { id: "fa4", label: "مراجعة القوالب والحوكمة", desc: "راجع الحوكمة والمطالبات المعتمدة قبل أي إنتاج فعلي.", screen: "promptGovernance", icon: ShieldCheck },
 ];
 
+function buildDestinationMapping(sel, opts) {
+  const idea     = opts.ideas.find((i) => i.id === sel.ideaId)     ?? opts.ideas[0];
+  const angle    = opts.angles.find((a) => a.id === sel.angleId)   ?? opts.angles[0];
+  const segment  = opts.segments.find((s) => s.id === sel.segmentId) ?? opts.segments[0];
+  const win      = opts.windows.find((w) => w.id === sel.windowId) ?? opts.windows[0];
+  const tmpl     = opts.templates.find((t) => t.id === sel.templateId) ?? opts.templates[0];
+  return [
+    {
+      id: "dm1",
+      destination: "استوديو المحتوى",
+      fields: [
+        { id: "dm1f1", label: "الفكرة المختارة", value: idea.label },
+        { id: "dm1f2", label: "النوع والمنصة", value: `${idea.type} — ${idea.platform}` },
+        { id: "dm1f3", label: "الجمهور", value: segment.label },
+      ],
+    },
+    {
+      id: "dm2",
+      destination: "معالج الحملات",
+      fields: [
+        { id: "dm2f1", label: "زاوية الحملة", value: angle.label },
+        { id: "dm2f2", label: "الجمهور المستهدف", value: angle.audience },
+        { id: "dm2f3", label: "فكرة المحتوى", value: idea.label },
+      ],
+    },
+    {
+      id: "dm3",
+      destination: "جدولة النشر",
+      fields: [
+        { id: "dm3f1", label: "نافذة النشر", value: win.label },
+        { id: "dm3f2", label: "ملاحظة التوقيت", value: win.note },
+        { id: "dm3f3", label: "الفكرة المجدولة", value: idea.label },
+      ],
+    },
+    {
+      id: "dm4",
+      destination: "حوكمة المطالبات",
+      fields: [
+        { id: "dm4f1", label: "القالب المقترح", value: tmpl.label },
+        { id: "dm4f2", label: "الجمهور", value: segment.label },
+        { id: "dm4f3", label: "الحالة", value: "استشاري — يتطلب مراجعة بشرية" },
+      ],
+    },
+  ];
+}
+
 function SectionHeader({ icon: Icon, title }) {
   return (
     <div className="cs-section-header">
@@ -221,6 +273,17 @@ export default function CreatorStudioPage({ onNavigate }) {
   const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
   const [handleInput, setHandleInput] = useState("");
   const [analyzeStatus, setAnalyzeStatus] = useState("");
+
+  const [selectedIdeaId, setSelectedIdeaId] = useState(ctxContentIdeas[0].id);
+  const [selectedAngleId, setSelectedAngleId] = useState(ctxCampaignAngles[0].id);
+  const [selectedSegmentId, setSelectedSegmentId] = useState(ctxAudienceSegments[0].id);
+  const [selectedWindowId, setSelectedWindowId] = useState(ctxPublishWindows[0].id);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(ctxGovernanceTemplates[0].id);
+
+  const destinationMapping = buildDestinationMapping(
+    { ideaId: selectedIdeaId, angleId: selectedAngleId, segmentId: selectedSegmentId, windowId: selectedWindowId, templateId: selectedTemplateId },
+    { ideas: ctxContentIdeas, angles: ctxCampaignAngles, segments: ctxAudienceSegments, windows: ctxPublishWindows, templates: ctxGovernanceTemplates }
+  );
 
   const handleAnalyze = () => {
     setAnalyzeStatus("نموذج تجريبي — لا يوجد تحليل فعلي. البيانات المعروضة أدناه هي عينات ثابتة.");
@@ -510,14 +573,45 @@ export default function CreatorStudioPage({ onNavigate }) {
         </ul>
       </section>
 
-      {/* 13. Prototype data/state mapping */}
+      {/* 13. Interactive context selection */}
+      <section className="cs-card cs-ctx-card">
+        <SectionHeader icon={Lightbulb} title="اختيار السياق التجريبي" />
+        <p className="cs-ctx-note">
+          اختر من الخيارات أدناه — يُحدَّث سياق التحويل فوريًا في المتصفح فقط. لا تُخزَّن أي بيانات ولا تُنشأ سجلات.
+        </p>
+        {[
+          { id: "sg1", label: "فكرة المحتوى",      options: ctxContentIdeas,       activeId: selectedIdeaId,     onSelect: setSelectedIdeaId },
+          { id: "sg2", label: "زاوية الحملة",      options: ctxCampaignAngles,     activeId: selectedAngleId,    onSelect: setSelectedAngleId },
+          { id: "sg3", label: "الجمهور المستهدف",  options: ctxAudienceSegments,   activeId: selectedSegmentId,  onSelect: setSelectedSegmentId },
+          { id: "sg4", label: "نافذة النشر",       options: ctxPublishWindows,     activeId: selectedWindowId,   onSelect: setSelectedWindowId },
+          { id: "sg5", label: "قالب الحوكمة",      options: ctxGovernanceTemplates, activeId: selectedTemplateId, onSelect: setSelectedTemplateId },
+        ].map((group) => (
+          <div key={group.id} className="cs-ctx-group">
+            <div className="cs-ctx-group-label">{group.label}</div>
+            <div className="cs-ctx-chips">
+              {group.options.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={`cs-chip${group.activeId === opt.id ? " cs-chip-active" : ""}`}
+                  onClick={() => group.onSelect(opt.id)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* 14. Prototype data/state mapping */}
       <section className="cs-card cs-mapping-card">
         <SectionHeader icon={Globe} title="سياق تجريبي قابل للتحويل — للعرض فقط" />
         <p className="cs-mapping-notice">
-          عرض استشاري ثابت — البيانات لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
+          عرض استشاري — البيانات لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
         </p>
         <div className="cs-mapping-grid">
-          {creatorStudioDestinationMapping.map((dest) => (
+          {destinationMapping.map((dest) => (
             <div key={dest.id} className="cs-mapping-dest">
               <div className="cs-mapping-dest-head">
                 <span className="cs-mapping-dest-title">{dest.destination}</span>
@@ -536,7 +630,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 14. Flow navigation */}
+      {/* 15. Flow navigation */}
       <section className="cs-card cs-flow-card">
         <SectionHeader icon={CheckCircle2} title="حوّل التحليل إلى إجراء — انتقال بروتوتايب فقط" />
         <p className="cs-flow-note">
@@ -565,7 +659,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 15. CTA area */}
+      {/* 16. CTA area */}
       <section className="cs-card cs-cta-card">
         <SectionHeader icon={CheckCircle2} title="الخطوات التالية — نموذج تجريبي" />
         <p className="cs-cta-note">
