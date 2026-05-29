@@ -169,6 +169,13 @@ const governanceRules = [
   { id: "gr5", text: "يلتزم التحليل بسياسات المنصات وأُطر الامتثال القانوني المعمول بها." },
 ];
 
+const flowActions = [
+  { id: "fa1", label: "تحويل الأفكار إلى محتوى", desc: "افتح استوديو المحتوى لبناء نصوص ومنشورات من الأفكار المقترحة.", screen: "content", icon: FileText },
+  { id: "fa2", label: "إنشاء حملة من التحليل", desc: "انطلق إلى معالج الحملات وابدأ حملة مستوحاة من هوية القناة.", screen: "campaigns", icon: Target },
+  { id: "fa3", label: "جدولة محتوى مقترح", desc: "افتح جدولة النشر لتحديد أوقات النشر المثلى.", screen: "publishingQueue", icon: Calendar },
+  { id: "fa4", label: "مراجعة القوالب والحوكمة", desc: "راجع الحوكمة والمطالبات المعتمدة قبل أي إنتاج فعلي.", screen: "promptGovernance", icon: ShieldCheck },
+];
+
 function SectionHeader({ icon: Icon, title }) {
   return (
     <div className="cs-section-header">
@@ -209,7 +216,7 @@ function PillarCard({ icon: Icon, title, desc, strength, tone }) {
   );
 }
 
-export default function CreatorStudioPage() {
+export default function CreatorStudioPage({ onNavigate }) {
   const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
   const [handleInput, setHandleInput] = useState("");
   const [analyzeStatus, setAnalyzeStatus] = useState("");
@@ -502,7 +509,36 @@ export default function CreatorStudioPage() {
         </ul>
       </section>
 
-      {/* 13. CTA area */}
+      {/* 13. Flow navigation */}
+      <section className="cs-card cs-flow-card">
+        <SectionHeader icon={CheckCircle2} title="حوّل التحليل إلى إجراء — انتقال بروتوتايب فقط" />
+        <p className="cs-flow-note">
+          هذه الأزرار تنتقل بين صفحات النموذج التجريبي فقط — لا تُنشئ سجلات حقيقية ولا تُنفذ عمليات فعلية.
+        </p>
+        <div className="cs-flow-grid">
+          {flowActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                className="cs-flow-btn"
+                onClick={() => typeof onNavigate === "function" && onNavigate(action.screen)}
+              >
+                <div className="cs-flow-icon">
+                  <Icon size={18} />
+                </div>
+                <div className="cs-flow-body">
+                  <div className="cs-flow-label">{action.label}</div>
+                  <div className="cs-flow-desc">{action.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 14. CTA area */}
       <section className="cs-card cs-cta-card">
         <SectionHeader icon={CheckCircle2} title="الخطوات التالية — نموذج تجريبي" />
         <p className="cs-cta-note">
