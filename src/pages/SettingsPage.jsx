@@ -315,8 +315,6 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    refreshSharedConnections();
-
     const handleRefresh = () => refreshSharedConnections();
     const handleVisibility = () => {
       if (!document.hidden) refreshSharedConnections();
