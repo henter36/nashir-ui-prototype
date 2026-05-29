@@ -834,7 +834,7 @@ paths:
       description: >
         Creates a Creator Studio session for a workspace actor. V1 source is manual only;
         no platform OAuth ingestion or automated scraping is performed in this slice.
-        Must not be called automatically on page load. creatorHandle is accepted as an opaque reference only and must not be stored raw.
+        Must not be called automatically on page load. creatorHandleRef is accepted as an opaque reference only and must not be stored raw.
         Does not execute AI, scrape platforms, publish content, or create destination records.
       parameters:
         - $ref: "#/components/parameters/WorkspaceIdPath"
@@ -3042,18 +3042,19 @@ components:
       type: object
       description: >
         Request body for creating a Creator Studio session. V1 source is manual only.
-        creatorHandle is stored as an opaque reference only and must not be stored raw.
+        creatorHandleRef is stored as an opaque reference only and must not be stored raw.
         OAuth ingestion and automated scraping are not available in V1.
       required:
         - source
+        - selectedPlatform
       properties:
         source:
           $ref: "#/components/schemas/CreatorStudioSessionSource"
         selectedPlatform:
           $ref: "#/components/schemas/CreatorStudioPlatform"
-        creatorHandle:
+        creatorHandleRef:
           type: string
-          description: Creator handle reference. Stored as opaque reference only. Must not be stored raw.
+          description: Opaque creator handle reference. Stored as reference only. Must not be stored raw. Optional.
         manualContext:
           type: object
           description: Free-form user-provided context notes. Must not contain OAuth tokens or credentials.
@@ -3068,6 +3069,7 @@ components:
         - sessionId
         - workspaceId
         - source
+        - selectedPlatform
         - status
         - createdAt
         - expiresAt
@@ -3110,16 +3112,14 @@ components:
       type: object
       description: >
         Request body for persisting user-selected context references for a session.
+        Only sessionId is required; selection IDs may be omitted while the draft is incomplete.
+        All selection IDs must be provided before the draft status can become ready_for_transfer.
+        Transfer endpoints must reject drafts not in ready_for_transfer status.
         All fields are ID references; no raw values, labels, or platform data are accepted.
         promptTemplateId must reference a non-deprecated prompt template entry.
         templateLinkId is not a valid field name and must not be used.
       required:
         - sessionId
-        - ideaId
-        - angleId
-        - segmentId
-        - windowId
-        - promptTemplateId
       properties:
         sessionId:
           type: string
@@ -3127,19 +3127,23 @@ components:
         ideaId:
           type: string
           minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
         angleId:
           type: string
           minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
         segmentId:
           type: string
           minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
         windowId:
           type: string
           minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
         promptTemplateId:
           type: string
           minLength: 1
-          description: References an approved, non-deprecated prompt template. Use promptTemplateId only.
+          description: References an approved, non-deprecated prompt template. Use promptTemplateId only. Required before draft can reach ready_for_transfer status.
     CreatorContextDraft:
       type: object
       description: >
@@ -3224,6 +3228,8 @@ components:
         - workspaceId
         - overallStatus
         - findings
+        - blockers
+        - warnings
         - createdAt
         - expiresAt
       properties:
@@ -3306,13 +3312,19 @@ components:
         Request body for Content Studio transfer draft creation.
         draftId references CreatorContextDraft; all context selections are resolved from it.
         No raw selection fields are accepted. CreatorContextDraft must be in ready_for_transfer status.
+        promptVersionId is required and must reference an approved, non-deprecated PromptVersion in the same workspace.
       required:
         - draftId
+        - promptVersionId
       properties:
         draftId:
           type: string
           minLength: 1
           description: Canonical context draft identifier. Must be in ready_for_transfer status.
+        promptVersionId:
+          type: string
+          minLength: 1
+          description: Canonical approved PromptVersion identifier. Must reference a non-deprecated, approved PromptVersion in the same workspace.
         overrides:
           $ref: "#/components/schemas/CreatorContentStudioTransferOverrides"
     CreatorCampaignTransferDraftCreateRequest:
