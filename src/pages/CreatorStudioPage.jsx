@@ -6,6 +6,7 @@ import {
   ctxContentIdeas,
   ctxGovernanceTemplates,
   ctxPublishWindows,
+  productionReadinessChecklist,
 } from "../data/creatorStudioFlowFixture.js";
 import {
   AlertTriangle,
@@ -314,7 +315,7 @@ export default function CreatorStudioPage({ onNavigate }) {
 
       {/* 2. Channel/account input panel */}
       <section className="cs-card cs-input-panel">
-        <SectionHeader icon={BarChart3} title="تحليل قناة صانع المحتوى" />
+        <SectionHeader icon={BarChart3} title="ربط حساب القناة — قابل للربط لاحقًا" />
         <div className="cs-platform-chips">
           {PLATFORMS.map((platform) => (
             <button
@@ -352,7 +353,64 @@ export default function CreatorStudioPage({ onNavigate }) {
         </p>
       </section>
 
-      {/* 3. Channel identity summary */}
+      {/* 3. Interactive context selection */}
+      <section className="cs-card cs-ctx-card">
+        <SectionHeader icon={Lightbulb} title="اختيار السياق التجريبي" />
+        <p className="cs-ctx-note">
+          اختر من الخيارات أدناه — يُحدَّث سياق التحويل فوريًا في المتصفح فقط. لا تُخزَّن أي بيانات ولا تُنشأ سجلات.
+        </p>
+        {[
+          { id: "sg1", label: "فكرة المحتوى",      options: ctxContentIdeas,        activeId: selectedIdeaId,     onSelect: setSelectedIdeaId },
+          { id: "sg2", label: "زاوية الحملة",      options: ctxCampaignAngles,      activeId: selectedAngleId,    onSelect: setSelectedAngleId },
+          { id: "sg3", label: "الجمهور المستهدف",  options: ctxAudienceSegments,    activeId: selectedSegmentId,  onSelect: setSelectedSegmentId },
+          { id: "sg4", label: "نافذة النشر",       options: ctxPublishWindows,      activeId: selectedWindowId,   onSelect: setSelectedWindowId },
+          { id: "sg5", label: "قالب الحوكمة",      options: ctxGovernanceTemplates, activeId: selectedTemplateId, onSelect: setSelectedTemplateId },
+        ].map((group) => (
+          <div key={group.id} className="cs-ctx-group">
+            <div className="cs-ctx-group-label">{group.label}</div>
+            <div className="cs-ctx-chips">
+              {(group.options ?? []).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={`cs-chip${group.activeId === opt.id ? " cs-chip-active" : ""}`}
+                  onClick={() => group.onSelect(opt.id)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* 4. Transfer context preview */}
+      <section className="cs-card cs-mapping-card">
+        <SectionHeader icon={Globe} title="مسودة سياق التحويل — للعرض فقط" />
+        <p className="cs-mapping-notice">
+          مسودة استشارية — لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
+        </p>
+        <div className="cs-mapping-grid">
+          {(destinationMapping ?? []).map((dest) => (
+            <div key={dest.id} className="cs-mapping-dest">
+              <div className="cs-mapping-dest-head">
+                <span className="cs-mapping-dest-title">{dest.destination}</span>
+                <span className="cs-badge cs-badge-neutral">مسودة — للمراجعة</span>
+              </div>
+              <ul className="cs-mapping-field-list">
+                {(dest.fields ?? []).map((field) => (
+                  <li key={field.id} className="cs-mapping-field">
+                    <span className="cs-mapping-field-label">{field.label}</span>
+                    <span className="cs-mapping-field-value">{field.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. Channel identity summary */}
       <section className="cs-card cs-identity-card">
         <SectionHeader icon={Users} title="هوية الحساب — بيانات توضيحية" />
         <div className="cs-identity-grid">
@@ -383,7 +441,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 4. Performance analysis */}
+      {/* 6. Performance analysis */}
       <section className="cs-two-col">
         <article className="cs-card">
           <SectionHeader icon={TrendingUp} title="تحليل الأداء" />
@@ -406,7 +464,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </article>
       </section>
 
-      {/* 5. Audience summary */}
+      {/* 7. Audience summary */}
       <section className="cs-card">
         <SectionHeader icon={Globe} title="ملخص الجمهور — بيانات توضيحية" />
         <div className="cs-audience-grid">
@@ -443,7 +501,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 6. Strategic signal */}
+      {/* 8. Strategic signal */}
       <section className="cs-card cs-signal-card">
         <SectionHeader icon={Lightbulb} title="إشارة استراتيجية مقترحة — للنقاش فقط" />
         <div className="cs-signal-grid">
@@ -463,7 +521,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </p>
       </section>
 
-      {/* 7. Strategy pillars + gaps */}
+      {/* 9. Strategy pillars + gaps */}
       <section className="cs-card">
         <SectionHeader icon={Target} title="ركائز الاستراتيجية" />
         <div className="cs-pillars-grid">
@@ -489,7 +547,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </ul>
       </section>
 
-      {/* 8. Content ideas */}
+      {/* 10. Content ideas */}
       <section className="cs-card">
         <SectionHeader icon={Lightbulb} title="أفكار محتوى مقترحة — نماذج توضيحية" />
         <div className="cs-ideas-grid">
@@ -505,7 +563,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 9. Weekly content calendar */}
+      {/* 11. Weekly content calendar */}
       <section className="cs-card">
         <SectionHeader icon={Calendar} title="جدول محتوى أسبوعي — نموذج توضيحي" />
         <div className="cs-calendar-table">
@@ -526,7 +584,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 10. Generated content examples */}
+      {/* 12. Generated content examples */}
       <section className="cs-card">
         <SectionHeader icon={Sparkles} title="أمثلة محتوى مُولَّد — توضيحية فقط، تتطلب مراجعة بشرية" />
         <div className="cs-captions-list">
@@ -542,7 +600,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </p>
       </section>
 
-      {/* 11. Competitor / gap analysis */}
+      {/* 13. Competitor / gap analysis */}
       <section className="cs-card">
         <SectionHeader icon={BarChart3} title="تحليل المنافسين — بيانات افتراضية فقط، لا بحث فعلي" />
         <div className="cs-competitor-table">
@@ -566,7 +624,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </p>
       </section>
 
-      {/* 12. Governance and limits */}
+      {/* 14. Governance and limits */}
       <section className="cs-card cs-governance-card">
         <SectionHeader icon={ShieldCheck} title="الحوكمة والحدود" />
         <ul className="cs-gov-list">
@@ -579,64 +637,28 @@ export default function CreatorStudioPage({ onNavigate }) {
         </ul>
       </section>
 
-      {/* 13. Interactive context selection */}
-      <section className="cs-card cs-ctx-card">
-        <SectionHeader icon={Lightbulb} title="اختيار السياق التجريبي" />
-        <p className="cs-ctx-note">
-          اختر من الخيارات أدناه — يُحدَّث سياق التحويل فوريًا في المتصفح فقط. لا تُخزَّن أي بيانات ولا تُنشأ سجلات.
+      {/* 15. Production-readiness review */}
+      <section className="cs-card cs-readiness-card">
+        <SectionHeader icon={ShieldCheck} title="جاهزية التحويل للإنتاج — قائمة تحقق استشارية" />
+        <p className="cs-readiness-note">
+          هذه البنود استشارية فقط ولا تُعدَّل آليًا — كل بند مطلوب قبل أي استخدام إنتاجي فعلي.
         </p>
-        {[
-          { id: "sg1", label: "فكرة المحتوى",      options: ctxContentIdeas,       activeId: selectedIdeaId,     onSelect: setSelectedIdeaId },
-          { id: "sg2", label: "زاوية الحملة",      options: ctxCampaignAngles,     activeId: selectedAngleId,    onSelect: setSelectedAngleId },
-          { id: "sg3", label: "الجمهور المستهدف",  options: ctxAudienceSegments,   activeId: selectedSegmentId,  onSelect: setSelectedSegmentId },
-          { id: "sg4", label: "نافذة النشر",       options: ctxPublishWindows,     activeId: selectedWindowId,   onSelect: setSelectedWindowId },
-          { id: "sg5", label: "قالب الحوكمة",      options: ctxGovernanceTemplates, activeId: selectedTemplateId, onSelect: setSelectedTemplateId },
-        ].map((group) => (
-          <div key={group.id} className="cs-ctx-group">
-            <div className="cs-ctx-group-label">{group.label}</div>
-            <div className="cs-ctx-chips">
-              {group.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  className={`cs-chip${group.activeId === opt.id ? " cs-chip-active" : ""}`}
-                  onClick={() => group.onSelect(opt.id)}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* 14. Prototype data/state mapping */}
-      <section className="cs-card cs-mapping-card">
-        <SectionHeader icon={Globe} title="سياق تجريبي قابل للتحويل — للعرض فقط" />
-        <p className="cs-mapping-notice">
-          عرض استشاري — البيانات لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
-        </p>
-        <div className="cs-mapping-grid">
-          {destinationMapping.map((dest) => (
-            <div key={dest.id} className="cs-mapping-dest">
-              <div className="cs-mapping-dest-head">
-                <span className="cs-mapping-dest-title">{dest.destination}</span>
-                <span className="cs-badge cs-badge-neutral">للمراجعة فقط</span>
+        <ul className="cs-readiness-list">
+          {(productionReadinessChecklist ?? []).map((item) => (
+            <li key={item.id} className="cs-readiness-item">
+              <div className="cs-readiness-row">
+                <span className="cs-readiness-label">{item.label}</span>
+                <span className={`cs-badge ${item.status === "required" ? "cs-badge-red" : "cs-badge-amber"}`}>
+                  {item.status === "required" ? "إلزامي دائمًا" : "مطلوب"}
+                </span>
               </div>
-              <ul className="cs-mapping-field-list">
-                {dest.fields.map((field) => (
-                  <li key={field.id} className="cs-mapping-field">
-                    <span className="cs-mapping-field-label">{field.label}</span>
-                    <span className="cs-mapping-field-value">{field.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              <span className="cs-readiness-note-text">{item.note}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      {/* 15. Flow navigation */}
+      {/* 16. Flow navigation */}
       <section className="cs-card cs-flow-card">
         <SectionHeader icon={CheckCircle2} title="حوّل التحليل إلى إجراء — انتقال بروتوتايب فقط" />
         <p className="cs-flow-note">
@@ -665,7 +687,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 16. CTA area */}
+      {/* 17. CTA area */}
       <section className="cs-card cs-cta-card">
         <SectionHeader icon={CheckCircle2} title="الخطوات التالية — نموذج تجريبي" />
         <p className="cs-cta-note">
