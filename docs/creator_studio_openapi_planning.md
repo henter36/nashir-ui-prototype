@@ -250,7 +250,7 @@ Planning only. No YAML implementation in this slice.
 - **Required fields**: `draftId` (references `CreatorContextDraft`)
 - **Optional fields**: `overrides` (destination-specific override object — see per-destination override schemas)
 - **Sensitive fields**: None — ID and overrides only.
-- **Validation notes**: `draftId` must be in `ready_for_transfer` status. Overrides must be validated; overrides that change reviewed meaning require re-review before the draft is accepted.
+- **Validation notes**: `draftId` must be in `ready_for_transfer` status. Overrides must be validated; overrides that change the approved transfer context require re-review before the draft is accepted.
 
 ### CreatorTransferDraftResponse
 
@@ -265,14 +265,14 @@ Planning only. No YAML implementation in this slice.
 - **Purpose**: Optional destination-specific overrides for Content Studio transfer.
 - **Required fields**: none
 - **Optional fields**: `targetContentType` (enum)
-- **Validation notes**: If provided, `targetContentType` must be a valid content type for the selected platform. Override changes that alter reviewed meaning require re-review.
+- **Validation notes**: If provided, `targetContentType` must be a valid content type for the selected platform. Override changes that alter the approved transfer context require re-review.
 
 ### CreatorCampaignTransferOverrides
 
 - **Purpose**: Optional destination-specific overrides for Campaign Wizard transfer.
 - **Required fields**: none
 - **Optional fields**: `campaignName` (string, max length TBD), `objective` (enum)
-- **Validation notes**: `objective` must match a supported campaign objective enum. These are additive annotations only and must not contradict the reviewed context draft.
+- **Validation notes**: `objective` must match a supported campaign objective enum. These are additive annotations only and must not contradict the ready_for_transfer context draft.
 
 ### CreatorPublishingTransferOverrides
 
@@ -286,7 +286,7 @@ Planning only. No YAML implementation in this slice.
 - **Purpose**: Optional destination-specific overrides for Prompt Governance transfer.
 - **Required fields**: none
 - **Optional fields**: `reviewReason` (string — free-text annotation for the governance reviewer, not a selection override)
-- **Validation notes**: `reviewReason` is informational only and does not alter the reviewed context. Max length TBD.
+- **Validation notes**: `reviewReason` is informational only and does not alter the ready_for_transfer context. Max length TBD.
 
 ### CreatorComplianceFinding
 
@@ -319,7 +319,7 @@ The following names are frozen for all future YAML work:
 
 | Decision | Frozen value |
 |---|---|
-| Context draft ID field | `promptTemplateId` (not `templateLinkId`) |
+| Prompt template reference field | `promptTemplateId` (not `templateLinkId`) |
 | `draftId` | ID of `CreatorContextDraft` |
 | `transferId` | ID of `CreatorTransferDraft` |
 | `contentId` | Required on publishing transfer only; references approved Content Studio item |
@@ -486,7 +486,7 @@ Reusable error codes for all Creator Studio endpoints. To be referenced as enum 
 | `missing_consent` | 422 | Required user consent not obtained |
 | `missing_platform_connection` | 422 | Platform not connected in workspace |
 | `invalid_state` | 422 | Resource status does not permit the requested operation |
-| `invalid_override` | 422 | Override field failed validation or contradicts reviewed context |
+| `invalid_override` | 422 | Override field failed validation or contradicts the ready_for_transfer context |
 | `content_not_approved` | 422 | `contentId` does not resolve to an approved Content Studio item |
 | `content_archived_or_expired` | 422 | `contentId` resolves to an archived or expired item |
 | `duplicate_scheduling_not_supported` | 422 | Content item is already scheduled and rescheduling is not supported |
