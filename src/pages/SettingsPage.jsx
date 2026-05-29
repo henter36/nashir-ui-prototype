@@ -308,13 +308,13 @@ export default function SettingsPage() {
   const [workspace, setWorkspace] = useState(DEFAULT_WORKSPACE);
   const [outputSettings, setOutputSettings] = useState(DEFAULT_OUTPUT_SETTINGS);
 
-  const refreshSharedConnections = () => {
-    const latest = readIntegrationConnections();
-    setSharedConnections(latest);
-    setChannels((prev) => applySharedConnections(prev, latest));
-  };
-
   useEffect(() => {
+    const refreshSharedConnections = () => {
+      const latest = readIntegrationConnections();
+      setSharedConnections(latest);
+      setChannels((prev) => applySharedConnections(prev, latest));
+    };
+
     const handleRefresh = () => refreshSharedConnections();
     const handleVisibility = () => {
       if (!document.hidden) refreshSharedConnections();
