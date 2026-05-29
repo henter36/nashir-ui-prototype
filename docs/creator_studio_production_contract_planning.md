@@ -262,13 +262,13 @@ Transfer endpoints resolve selected idea, angle, segment, window, and template f
 
 ### POST /creator-studio/transfer-drafts/publishing
 
-- **Purpose**: Create a draft transfer payload addressed to Publishing Queue. Selections resolved from `CreatorContextDraft`.
-- **Request summary**: `{ draftId, overrides?: { targetPublishWindow? } }` — `draftId` references `CreatorContextDraft`; window override must be validated against platform policy and triggers re-review if changed.
+- **Purpose**: Create a draft transfer payload addressed to Publishing Queue. Selections resolved from `CreatorContextDraft`; the specific approved content item to schedule is supplied explicitly.
+- **Request summary**: `{ draftId, contentId, overrides?: { targetPublishWindow? } }` — `draftId` references `CreatorContextDraft`; `contentId` references the approved Content Studio item to schedule; `targetPublishWindow` is an optional scheduling override validated against platform policy and triggers re-review if it changes the reviewed timing.
 - **Response summary**: `{ transferId, destinationModule: "publishing_queue", status: "pending_review", payload, humanReviewRequired: true, expiresAt }`.
 - **Required permissions**: `creator_studio:transfer:create`, `publishing:draft:receive`
-- **Readiness gate**: Context draft reviewed. Content must be in `approved` status in Content Studio before scheduling.
+- **Readiness gate**: Context draft reviewed. `contentId` must resolve to a Content Studio item in the same workspace. Content item must be in `approved` status. Content item must not be expired, archived, or already scheduled (unless rescheduling is explicitly supported by the workspace configuration).
 - **Human-review requirement**: MANDATORY. No auto-scheduling.
-- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not auto-schedule. Do not publish without explicit user confirmation and governance approval.
+- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not accept a `contentId` that resolves to unapproved, archived, expired, or cross-workspace content. Do not auto-schedule. Do not publish without explicit user confirmation and governance approval.
 
 ### POST /creator-studio/transfer-drafts/prompt-governance
 
@@ -387,10 +387,10 @@ Lifecycle rule: No child draft may outlive its parent `CreatorStudioSession`. If
 
 | Dimension | Rule |
 | --- | --- |
-| Can transfer | Suggested publish window (advisory), content ref (must be in `approved` state in Content Studio), platform ref |
+| Can transfer | `draftId` (context selections), `contentId` (approved Content Studio item), resolved platform/channel, suggested publish window |
 | Must remain draft | Publish window is advisory only; scheduling requires explicit user action |
-| Cannot transfer | Unapproved content; content without human review; expired draft |
-| Validation required | Content Studio approval confirmed; session reviewed; publish window within policy |
+| Cannot transfer | Unapproved content; content missing `contentId`; archived or expired content; content from a different workspace; content already scheduled (unless rescheduling explicitly supported) |
+| Validation required | `contentId` resolves to an approved, non-expired, non-archived Content Studio item in the same workspace; context draft reviewed; publish window within platform policy |
 | UI warning required | "الجدولة تتطلب موافقة يدوية صريحة — لا يُجدوَل المحتوى تلقائيًا" |
 
 ### → Prompt Governance
