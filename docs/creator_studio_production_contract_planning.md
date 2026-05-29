@@ -144,12 +144,21 @@ Planning only. Not implemented. Each entity below is a candidate for future data
 - **Privacy sensitivity**: MEDIUM — prompt text must remain internal.
 - **Owner module**: Creator Studio → Prompt Governance handoff
 
+### CreatorContextDraft
+
+- **Purpose**: Persists the user's selected context references for a session before any transfer is initiated. Represents the output of `POST /creator-studio/context-drafts` and is the input to all transfer endpoints via `draftId`.
+- **Key fields**: `draftId`, `sessionId`, `ideaId`, `angleId`, `segmentId`, `windowId`, `templateLinkId`, `status`, `humanReviewRequired`, `createdAt`, `expiresAt`
+- **Source**: User selections within a `CreatorStudioSession`; created on explicit user action only.
+- **Persistence**: Short-lived; must expire at or before the parent session's expiry. Not promoted to a permanent record automatically.
+- **Privacy sensitivity**: MEDIUM — references creator handle (via session) and AI-derived selection IDs.
+- **Owner module**: Creator Studio
+
 ### CreatorTransferDraft
 
-- **Purpose**: Packages the selected context for transfer to a destination module as a draft payload. Not a real record in the destination.
-- **Key fields**: `transferId`, `sessionId`, `destinationModule`, `payload`, `status`, `humanReviewRequired`, `createdAt`, `expiresAt`
-- **Source**: Derived from current session selections; created on explicit user action only.
-- **Persistence**: Short-lived; expires. Transfer to destination creates a record in the destination only after human review.
+- **Purpose**: Packages a `CreatorContextDraft` into a destination-addressed payload for transfer. Not a real record in the destination. Created from a `draftId`; does not re-accept raw selection fields already persisted in the context draft.
+- **Key fields**: `transferId`, `sessionId`, `contextDraftId`, `destinationModule`, `payload`, `status`, `humanReviewRequired`, `createdAt`, `expiresAt`
+- **Source**: Derived from an approved/reviewed `CreatorContextDraft` on explicit user transfer action.
+- **Persistence**: Short-lived; must expire at or before the parent session and context draft expiry. Transfer to destination creates a record in the destination only after human review.
 - **Privacy sensitivity**: MEDIUM — payload contains creator handle ref and AI suggestions.
 - **Owner module**: Creator Studio
 
@@ -229,45 +238,47 @@ All endpoints are workspace-scoped. All require authentication. All sensitive ou
 - **Human-review requirement**: Assessment result is advisory only; does not auto-block or auto-approve.
 - **NO-GO conditions**: Do not treat assessment result as a binding gate without human confirmation.
 
+Transfer endpoints resolve selected idea, angle, segment, window, and template from the `CreatorContextDraft` referenced by `draftId`. Destination-specific fields are overrides only and require validation. Overrides that change the reviewed meaning of the context draft require re-review before the transfer draft is accepted.
+
 ### POST /creator-studio/transfer-drafts/content-studio
 
-- **Purpose**: Create a draft transfer payload addressed to Content Studio.
-- **Request summary**: `{ draftId, targetContentType, targetPlatform, audienceRef }`.
+- **Purpose**: Create a draft transfer payload addressed to Content Studio. Selections are resolved from `CreatorContextDraft`; only destination-specific overrides are accepted in the request body.
+- **Request summary**: `{ draftId, overrides?: { targetContentType? } }` — `draftId` references `CreatorContextDraft`; `targetContentType` override must be validated and triggers re-review if it changes reviewed meaning.
 - **Response summary**: `{ transferId, destinationModule: "content_studio", status: "pending_review", payload, humanReviewRequired: true, expiresAt }`.
 - **Required permissions**: `creator_studio:transfer:create`, `content_studio:draft:receive`
-- **Readiness gate**: Draft must be in `reviewed` status. Governance template must reference an approved PromptVersion.
+- **Readiness gate**: `CreatorContextDraft` must be in `reviewed` status. Governance template must reference an approved PromptVersion.
 - **Human-review requirement**: MANDATORY. Content Studio must not auto-accept the payload.
-- **NO-GO conditions**: Do not auto-generate content on transfer. Do not bypass PromptTemplate governance. Do not transfer competitor-derived content.
+- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not auto-generate content on transfer. Do not bypass PromptTemplate governance. Do not transfer competitor-derived content.
 
 ### POST /creator-studio/transfer-drafts/campaign
 
-- **Purpose**: Create a draft transfer payload addressed to Campaign Wizard.
-- **Request summary**: `{ draftId, campaignAngleRef, audienceRef, platformRef }`.
+- **Purpose**: Create a draft transfer payload addressed to Campaign Wizard. Selections resolved from `CreatorContextDraft`.
+- **Request summary**: `{ draftId, overrides?: { campaignName?, objective? } }` — `draftId` references `CreatorContextDraft`; overrides must be validated; changes to reviewed meaning require re-review.
 - **Response summary**: `{ transferId, destinationModule: "campaign_wizard", status: "pending_review", payload, humanReviewRequired: true, expiresAt }`.
 - **Required permissions**: `creator_studio:transfer:create`, `campaign:draft:receive`
-- **Readiness gate**: Draft reviewed. Campaign Wizard session must be initiated by user, not auto-created.
+- **Readiness gate**: Context draft reviewed. Campaign Wizard session must be initiated by user, not auto-created.
 - **Human-review requirement**: MANDATORY.
-- **NO-GO conditions**: Do not auto-launch campaigns. Do not auto-set budget or targeting from transfer payload.
+- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not auto-launch campaigns. Do not auto-set budget or targeting from transfer payload.
 
 ### POST /creator-studio/transfer-drafts/publishing
 
-- **Purpose**: Create a draft transfer payload addressed to Publishing Queue.
-- **Request summary**: `{ draftId, publishWindowRef, contentRef, platformRef }`.
+- **Purpose**: Create a draft transfer payload addressed to Publishing Queue. Selections resolved from `CreatorContextDraft`.
+- **Request summary**: `{ draftId, overrides?: { targetPublishWindow? } }` — `draftId` references `CreatorContextDraft`; window override must be validated against platform policy and triggers re-review if changed.
 - **Response summary**: `{ transferId, destinationModule: "publishing_queue", status: "pending_review", payload, humanReviewRequired: true, expiresAt }`.
 - **Required permissions**: `creator_studio:transfer:create`, `publishing:draft:receive`
-- **Readiness gate**: Draft reviewed. Content must be in `approved` status in Content Studio before scheduling.
+- **Readiness gate**: Context draft reviewed. Content must be in `approved` status in Content Studio before scheduling.
 - **Human-review requirement**: MANDATORY. No auto-scheduling.
-- **NO-GO conditions**: Do not auto-schedule. Do not publish without explicit user confirmation and governance approval.
+- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not auto-schedule. Do not publish without explicit user confirmation and governance approval.
 
 ### POST /creator-studio/transfer-drafts/prompt-governance
 
-- **Purpose**: Create a draft transfer payload addressed to Prompt Governance for template review.
-- **Request summary**: `{ draftId, promptTemplateRef, contentTypeRef, audienceRef }`.
+- **Purpose**: Create a draft transfer payload addressed to Prompt Governance for template review. Selections resolved from `CreatorContextDraft`.
+- **Request summary**: `{ draftId, overrides?: { reviewReason? } }` — `draftId` references `CreatorContextDraft`; `reviewReason` is a free-text annotation for the governance reviewer, not a selection override.
 - **Response summary**: `{ transferId, destinationModule: "prompt_governance", status: "pending_review", payload, humanReviewRequired: true, expiresAt }`.
 - **Required permissions**: `creator_studio:transfer:create`, `prompt_governance:review:receive`
-- **Readiness gate**: Draft reviewed. Referenced PromptTemplate must exist.
+- **Readiness gate**: Context draft reviewed. Referenced PromptTemplate must exist and not be deprecated.
 - **Human-review requirement**: MANDATORY. Prompt Governance must evaluate independently.
-- **NO-GO conditions**: Do not create or modify PromptTemplates autonomously. Transfer is advisory reference only.
+- **NO-GO conditions**: Do not accept raw selection fields in the request body. Do not create or modify PromptTemplates autonomously. Transfer is advisory reference only.
 
 ---
 
@@ -332,9 +343,12 @@ The following rules apply to all production implementation:
 ### What must expire
 
 - Sessions: configurable TTL; suggest 24 hours default
-- Transfer drafts: suggest 48 hours
+- Context drafts (`CreatorContextDraft`): must expire at or before parent session expiry; suggest 24 hours — aligns with session to prevent orphaned drafts referencing an expired session
+- Transfer drafts (`CreatorTransferDraft`): must expire at or before the parent session and context draft expiry; suggest 24 hours — a transfer draft referencing an expired context draft cannot be resolved
 - Readiness assessments: suggest 24 hours (must be re-evaluated for each use)
 - Profile snapshots: suggest 6 hours (stale data risk)
+
+Lifecycle rule: No child draft may outlive its parent `CreatorStudioSession`. If a session expires, all associated `CreatorContextDraft` and `CreatorTransferDraft` records become expired immediately. Backend must enforce this cascade; UI must surface the expired state and prompt the user to start a new session.
 
 ### Audit trail required for
 
