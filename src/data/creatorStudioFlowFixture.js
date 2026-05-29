@@ -31,3 +31,12 @@ export const ctxGovernanceTemplates = [
   { id: "gt2", label: "إلهامي — نبرة دافئة وشخصية" },
   { id: "gt3", label: "تحليلي — نبرة موضوعية مقارنة" },
 ];
+
+export const productionReadinessChecklist = [
+  { id: "pr1", label: "عقد API للمنصة",             note: "قابل للربط لاحقًا",          status: "pending" },
+  { id: "pr2", label: "سياسة موافقة البيانات",      note: "مطلوب قبل الإنتاج",           status: "pending" },
+  { id: "pr3", label: "مراجعة بشرية للمحتوى",      note: "مطلوب دائمًا قبل أي نشر",    status: "required" },
+  { id: "pr4", label: "حوكمة المطالبات معتمدة",    note: "مطلوب قبل النشر التلقائي",    status: "pending" },
+  { id: "pr5", label: "نموذج ثقة البيانات",         note: "مطلوب قبل الإنتاج",           status: "pending" },
+  { id: "pr6", label: "امتثال سياسات المنصة",      note: "مطلوب في كل دورة نشر",        status: "required" },
+];
