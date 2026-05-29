@@ -92,11 +92,22 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Field | Value |
 |---|---|
 | Purpose | Persist user-selected context references for a session before transfer |
-| Minimum request | `{ sessionId, ideaId, angleId, segmentId, windowId, templateLinkId }` — all IDs, no raw values |
+| Minimum request | `{ sessionId, ideaId, angleId, segmentId, windowId, promptTemplateId }` — all IDs, no raw values |
 | Minimum response | `{ draftId, status, humanReviewRequired, expiresAt }` |
 | Permission | `creator_studio:context_draft:create` |
 | Readiness gate | Session valid and not expired; session not in `blocked` status |
 | NO-GO | Do not create real destination records. Do not trigger AI generation. Draft status is always `pending_review` until explicitly approved. |
+
+### GET /creator-studio/context-drafts/{draftId}
+
+| Field | Value |
+|---|---|
+| Purpose | Retrieve a workspace-scoped `CreatorContextDraft` by `draftId` |
+| Minimum request | `draftId` path parameter |
+| Minimum response | `{ draftId, sessionId, ideaId, angleId, segmentId, windowId, promptTemplateId, status, humanReviewRequired, expiresAt }` |
+| Permission | `creator_studio:context_draft:read` (session owner or workspace admin only) |
+| Readiness gate | `draftId` must resolve to a non-expired draft in the same workspace |
+| NO-GO | Must fail if expired, workspace mismatch, unauthorized, blocked, or not found. Must not create records or execute transfer on retrieval. |
 
 ### POST /creator-studio/readiness-assessments
 
@@ -117,7 +128,7 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Minimum request | `{ draftId, overrides?: { targetContentType? } }` — `draftId` references `CreatorContextDraft` |
 | Minimum response | `{ transferId, destinationModule: "content_studio", status: "pending_review", humanReviewRequired: true, expiresAt }` |
 | Permission | `creator_studio:transfer:create`, `content_studio:draft:receive` |
-| Readiness gate | `CreatorContextDraft` in `reviewed` status; governance template references an approved `PromptVersion` |
+| Readiness gate | `CreatorContextDraft` status is `ready_for_transfer`; governance template references an approved `PromptVersion` |
 | NO-GO | Do not accept raw selection fields. Do not auto-generate content. Do not bypass PromptTemplate governance. Do not transfer competitor-derived content. |
 
 ### POST /creator-studio/transfer-drafts/campaign
@@ -128,7 +139,7 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Minimum request | `{ draftId, overrides?: { campaignName?, objective? } }` — `draftId` references `CreatorContextDraft` |
 | Minimum response | `{ transferId, destinationModule: "campaign_wizard", status: "pending_review", humanReviewRequired: true, expiresAt }` |
 | Permission | `creator_studio:transfer:create`, `campaign:draft:receive` |
-| Readiness gate | `CreatorContextDraft` in `reviewed` status; Campaign Wizard session must be user-initiated |
+| Readiness gate | `CreatorContextDraft` status is `ready_for_transfer`; Campaign Wizard session must be user-initiated |
 | NO-GO | Do not accept raw selection fields. Do not auto-launch campaigns. Do not auto-set budget or targeting. |
 
 ### POST /creator-studio/transfer-drafts/publishing
@@ -139,7 +150,7 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Minimum request | `{ draftId, contentId, overrides?: { targetPublishWindow? } }` — `draftId` references `CreatorContextDraft`; `contentId` references approved Content Studio item |
 | Minimum response | `{ transferId, destinationModule: "publishing_queue", status: "pending_review", humanReviewRequired: true, expiresAt }` |
 | Permission | `creator_studio:transfer:create`, `publishing:draft:receive` |
-| Readiness gate | `CreatorContextDraft` reviewed; `contentId` resolves to an approved, non-expired, non-archived Content Studio item in the same workspace |
+| Readiness gate | `CreatorContextDraft` status is `ready_for_transfer`; `contentId` resolves to an approved, non-expired, non-archived Content Studio item in the same workspace |
 | NO-GO | Do not accept unapproved, archived, expired, or cross-workspace `contentId`. Do not auto-schedule. Do not publish without explicit user confirmation and governance approval. |
 
 ### POST /creator-studio/transfer-drafts/prompt-governance
@@ -150,8 +161,19 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Minimum request | `{ draftId, overrides?: { reviewReason? } }` — `draftId` references `CreatorContextDraft`; `reviewReason` is a free-text annotation only |
 | Minimum response | `{ transferId, destinationModule: "prompt_governance", status: "pending_review", humanReviewRequired: true, expiresAt }` |
 | Permission | `creator_studio:transfer:create`, `prompt_governance:draft:receive` |
-| Readiness gate | `CreatorContextDraft` reviewed; referenced `PromptTemplate` exists and is not deprecated |
+| Readiness gate | `CreatorContextDraft` status is `ready_for_transfer`; referenced `PromptTemplate` exists and is not deprecated |
 | NO-GO | Do not accept raw selection fields. Do not create or modify `PromptTemplate` autonomously. Transfer is advisory reference only. |
+
+### GET /creator-studio/transfer-drafts/{transferId}
+
+| Field | Value |
+|---|---|
+| Purpose | Retrieve a workspace-scoped `CreatorTransferDraft` payload by `transferId` so destination modules can fetch the draft for review |
+| Minimum request | `transferId` path parameter |
+| Minimum response | `{ transferId, sessionId, contextDraftId, destinationModule, status, humanReviewRequired, payload, expiresAt }` |
+| Permission | `creator_studio:transfer:read` (session owner, destination module service account, or workspace admin only) |
+| Readiness gate | `transferId` must resolve to a non-expired draft in the same workspace |
+| NO-GO | Must fail if expired, workspace mismatch, unauthorized, blocked, or not found. Must not create destination records or execute transfer on retrieval. |
 
 ---
 
@@ -174,13 +196,15 @@ The following endpoints are approved for OpenAPI planning only. No implementatio
 | Entity | Persistence | TTL | Sensitivity | Owner |
 |---|---|---|---|---|
 | `CreatorStudioSession` | Short-lived; explicit user action | 24 hours default | HIGH — creator handle ref, platform token ref | Creator Studio |
-| `CreatorContextDraft` | Short-lived; at or before session expiry | 24 hours | MEDIUM — AI-derived selection IDs, handle ref via session | Creator Studio |
-| `CreatorTransferDraft` | Short-lived; at or before session and context draft expiry | 24 hours | MEDIUM — payload contains handle ref and AI suggestions | Creator Studio |
+| `CreatorContextDraft` | Short-lived; at or before session expiry | Max 24 hours (capped by parent session TTL) | MEDIUM — AI-derived selection IDs, handle ref via session | Creator Studio |
+| `CreatorTransferDraft` | Short-lived; at or before session and context draft expiry | Max 24 hours (capped by parent session and context draft TTL) | MEDIUM — payload contains handle ref and AI suggestions | Creator Studio |
 | `CreatorReadinessAssessment` | Tied to session; advisory record | 24 hours | LOW | Creator Studio |
 | `CreatorComplianceFinding` | Tied to assessment | Inherits assessment TTL | LOW | Creator Studio |
 | `CreatorProfileSnapshot` | Ephemeral; consent-gated | 6 hours (stale data risk) | HIGH — third-party creator data; requires explicit consent | Creator Studio (deferred to post-V1 or extended V1) |
 
 `CreatorProfileSnapshot` is listed for awareness only. It is deferred until OAuth and consent model are approved.
+
+Lifecycle rule: No child draft may outlive its parent `CreatorStudioSession`. If the session expires, all associated `CreatorContextDraft` and `CreatorTransferDraft` records become expired immediately. Backend must enforce this cascade on session expiry.
 
 ---
 
@@ -208,8 +232,10 @@ The UI must not infer `ready_for_transfer` from local state. Backend must be the
 | `creator_studio:session:create` | Create a Creator Studio session |
 | `creator_studio:session:read` | Read session state (owner or workspace admin only) |
 | `creator_studio:context_draft:create` | Persist context draft selections |
+| `creator_studio:context_draft:read` | Read a context draft by `draftId` (owner or workspace admin only) |
 | `creator_studio:readiness:create` | Trigger readiness assessment |
 | `creator_studio:transfer:create` | Create a transfer draft to any destination |
+| `creator_studio:transfer:read` | Read a transfer draft by `transferId` (owner, destination module service account, or workspace admin only) |
 | `content_studio:draft:receive` | Accept a transfer draft in Content Studio |
 | `campaign:draft:receive` | Accept a transfer draft in Campaign Wizard |
 | `publishing:draft:receive` | Accept a transfer draft in Publishing Queue |
@@ -243,11 +269,12 @@ The following capabilities are explicitly out of scope for V1 OpenAPI planning. 
 
 GO to "Creator Studio OpenAPI Planning Slice" only if all of the following are confirmed:
 
-- [ ] V1 candidate endpoints (Section 4) approved
+- [ ] V1 candidate endpoints (Section 4) approved, including read endpoints (`GET /creator-studio/context-drafts/{draftId}`, `GET /creator-studio/transfer-drafts/{transferId}`)
 - [ ] Payload principles (Section 5) approved
-- [ ] V1 entities (Section 6) approved
-- [ ] Permissions (Section 8) approved
-- [ ] Readiness states (Section 7) approved
+- [ ] V1 entities (Section 6) approved, including TTL caps and lifecycle cascade rule
+- [ ] `promptTemplateId` field naming approved
+- [ ] Permissions (Section 8) approved, including read permissions
+- [ ] Readiness states (Section 7) approved; `ready_for_transfer` confirmed as the gate state for all transfer endpoints
 - [ ] Deferred scope (Section 9) accepted
 - [ ] NO-GO conditions in Section 4 accepted per endpoint
 
