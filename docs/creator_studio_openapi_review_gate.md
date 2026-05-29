@@ -192,76 +192,85 @@ No duplicate or conflicting schema names introduced.
 
 ## 12. Findings
 
+### Rationale for blocking classification
+
+Generated-client planning must not start while schema-shape risks remain unresolved. Generated clients freeze the contract into downstream code — weak or ambiguous schemas become typed interfaces that are expensive to change after code generation. All four findings below must be resolved in the YAML before any generated-client work begins.
+
 ### Blocking findings
 
-None.
-
-### Non-blocking findings
-
-**NB-1 — `CreatorTransferDraftCreateRequest` generic schema absent**
+**B-1 — `CreatorTransferDraftCreateRequest` generic schema absent**
 
 | Field | Value |
 |---|---|
-| Severity | Non-blocking |
-| Evidence | Planning doc `creator_studio_openapi_planning.md` lists `CreatorTransferDraftCreateRequest` as a required schema. YAML instead has 4 destination-specific schemas (`CreatorContentStudioTransferDraftCreateRequest`, etc.). No generic base schema exists. |
-| Assessment | Design improvement — destination-specific schemas are more precise and avoid ambiguous `overrides` typing. Zero functional impact. |
-| Recommendation | Update `creator_studio_openapi_planning.md` in a future docs slice to reflect the destination-specific schema approach and remove `CreatorTransferDraftCreateRequest` from the required schema list. |
-| Next slice owner | Docs — low priority |
+| Severity | Blocking |
+| Evidence | Planning doc `creator_studio_openapi_planning.md` lists `CreatorTransferDraftCreateRequest` as a required schema. YAML instead has 4 destination-specific schemas; no generic base exists. |
+| Impact | Generated clients cannot share a common transfer-creation interface. If the design intent is destination-specific schemas only, this must be explicitly documented in the YAML and the planning doc corrected before code generation. |
+| Required fix | Either: (a) add `CreatorTransferDraftCreateRequest` as a shared base with `allOf` composition in each destination request; or (b) explicitly declare destination-specific-only design in the YAML and update the planning doc. Decision must be made before generated-client planning. |
+| Next slice | Creator Studio OpenAPI YAML Fix Slice |
 
-### Watch items for generated-client planning
-
-**W-1 — `payloadSummary` uses `additionalProperties: true`**
+**B-2 — `payloadSummary` uses unrestricted `additionalProperties: true`**
 
 | Field | Value |
 |---|---|
-| Severity | Watch |
-| Evidence | `CreatorTransferDraft.payloadSummary` is defined as `type: object, additionalProperties: true`. |
-| Impact | Generated clients will type this as `Record<string, unknown>` or equivalent — no compile-time field safety on payload contents. |
-| Recommendation | In the generated-client planning gate, decide whether `payloadSummary` should be typed more narrowly per destination module, or whether the open type is intentional and callers must treat it as opaque. |
-| Next slice owner | Generated-client planning gate |
+| Severity | Blocking |
+| Evidence | `CreatorTransferDraft.payloadSummary` is `type: object, additionalProperties: true`. |
+| Impact | Generated clients will type this as `Record<string, unknown>` — no field safety. Risk of inadvertently accepting raw tokens or credentials in the payload surface. This field is in the primary transfer response schema, so the weakness propagates to all four transfer destinations. |
+| Required fix | Either: (a) define a safe typed `CreatorTransferPayloadSummary` schema with explicit allowed fields per destination and remove `additionalProperties: true`; or (b) formally declare it opaque and document that callers must treat the object as an advisory blob with no field expectations. |
+| Next slice | Creator Studio OpenAPI YAML Fix Slice |
 
-**W-2 — `CreatorContextDraftStatus` enum shared between session and draft**
-
-| Field | Value |
-|---|---|
-| Severity | Watch |
-| Evidence | `CreatorStudioSession.status` and `CreatorContextDraft.status` both reference `CreatorContextDraftStatus`. Some enum values (`draft`, `incomplete`) may not be semantically valid session states. |
-| Impact | Generated client will use the same type for both resources, which may allow invalid status values to pass type checks. |
-| Recommendation | In the generated-client planning gate, consider introducing `CreatorStudioSessionStatus` as a separate enum with a narrower set of valid values, and update the session schema to reference it. |
-| Next slice owner | Generated-client planning gate; optionally an OpenAPI YAML fix slice |
-
-**W-3 — `manualContext` is untyped free-form object**
+**B-3 — `CreatorContextDraftStatus` enum shared between session and draft, mixing semantics**
 
 | Field | Value |
 |---|---|
-| Severity | Watch |
+| Severity | Blocking |
+| Evidence | `CreatorStudioSession.status` and `CreatorContextDraft.status` both reference `CreatorContextDraftStatus`. Values such as `draft` and `incomplete` are not semantically valid session states. |
+| Impact | Generated client uses the same type for two distinct resources. Invalid status values pass compile-time type checks. Backend implementations may diverge on which values are valid per resource, causing inconsistent behavior. |
+| Required fix | Introduce `CreatorStudioSessionStatus` as a separate enum with values valid only for sessions (e.g., `active`, `expired`, `blocked`). Update `CreatorStudioSession.status` to reference the new enum. |
+| Next slice | Creator Studio OpenAPI YAML Fix Slice |
+
+**B-4 — `manualContext` is open and untyped**
+
+| Field | Value |
+|---|---|
+| Severity | Blocking |
 | Evidence | `CreatorStudioSessionCreateRequest.manualContext` is `type: object, additionalProperties: true`. |
-| Impact | Generated clients cannot validate or type the contents. Implementations may inadvertently accept OAuth tokens or credentials if callers misuse this field. |
-| Recommendation | Define a concrete `CreatorManualContext` schema with explicit allowed fields before backend implementation. |
-| Next slice owner | Generated-client planning gate |
+| Impact | Generated clients cannot validate or type the contents. Callers may pass OAuth tokens, credentials, or PII into this field without any schema-level rejection. This is a privacy and security boundary risk at the API layer. |
+| Required fix | Define `CreatorManualContext` schema with explicit allowed fields (e.g., `notes`, `tags`) and replace the inline open object with `$ref: "#/components/schemas/CreatorManualContext"`. No `additionalProperties: true` on security-boundary inputs. |
+| Next slice | Creator Studio OpenAPI YAML Fix Slice |
 
 ---
 
 ## 13. Decision
 
-No blocking findings.
+Four blocking findings. See Section 12.
 
-**GO to Creator Studio Generated Client Planning Gate.**
+**NO-GO to Creator Studio Generated Client Planning Gate.**
 
-**NO-GO to runtime / backend implementation** until generated client planning is reviewed and accepted.
+**GO to Creator Studio OpenAPI YAML Fix Slice.**
+
+**NO-GO to runtime / backend implementation.**
 
 **NO-GO to `docs/nashir_v1_openapi.yaml` changes** in this slice.
 
-### Conditions carried into generated-client planning
+### Required fixes for the OpenAPI YAML Fix Slice
 
-- Resolve W-1: decide `payloadSummary` typing strategy per destination module.
-- Resolve W-2: decide whether `CreatorStudioSessionStatus` should be a separate enum.
-- Resolve W-3: define `CreatorManualContext` schema before backend implementation.
-- Address NB-1: update planning doc to reflect destination-specific request schema approach.
+- **B-1**: Add `CreatorTransferDraftCreateRequest` as a shared base schema, or explicitly declare destination-specific-only design and correct the planning doc.
+- **B-2**: Constrain `payloadSummary` — define `CreatorTransferPayloadSummary` with typed fields, or formally declare it opaque with a documented contract.
+- **B-3**: Introduce `CreatorStudioSessionStatus` enum; update `CreatorStudioSession.status` to reference it.
+- **B-4**: Define `CreatorManualContext` schema with explicit allowed fields; replace the open object in `CreatorStudioSessionCreateRequest`.
+
+### GO conditions for resuming generated-client planning
+
+Generated-client planning may resume only after all four blocking findings are resolved and a follow-up review confirms:
+
+- [ ] B-1 resolved: transfer schema structure decided and documented
+- [ ] B-2 resolved: `payloadSummary` is typed or formally declared opaque
+- [ ] B-3 resolved: session and draft status enums are separated
+- [ ] B-4 resolved: `manualContext` is typed or removed
 
 ### Reference documents
 
 - `docs/creator_studio_production_contract_planning.md`
 - `docs/creator_studio_api_boundary_gate.md`
 - `docs/creator_studio_openapi_planning.md`
-- `docs/nashir_v1_openapi.yaml` — reviewed contract
+- `docs/nashir_v1_openapi.yaml` — reviewed contract (YAML Fix Slice required)
