@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -246,7 +246,6 @@ export default function ContentStudioPage() {
     setCopied(false);
   };
 
-  const ActiveIcon = getSafeContentIcon(activeItem);
   const activeStatus = getSafeStatusConfig(activeItem?.status);
   const StatusIcon = activeStatus.icon;
   const activeCampaignName = activeItem?.campaignSnapshot?.name || activeItem?.campaign || "حملة غير محددة";
@@ -404,7 +403,7 @@ export default function ContentStudioPage() {
           <div className="editor-header">
             <div className="editor-title">
               <div className="editor-icon">
-                <ActiveIcon size={24} />
+                {createElement(getSafeContentIcon(activeItem), { size: 24 })}
               </div>
 
               <div>
