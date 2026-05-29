@@ -42,7 +42,7 @@ All 10 approved V1 paths are present. Lines confirmed by `grep`.
 | `POST .../transfer-drafts/prompt-governance` | 1168 | `createCreatorPromptGovernanceTransferDraft` | `CreatorPromptGovernanceTransferDraftCreateRequest` | `CreatorTransferDraftResponse` | PRESENT |
 | `GET .../transfer-drafts/{transferId}` | 1216 | `getCreatorTransferDraft` | path param only | `CreatorTransferDraftResponse` | PRESENT |
 
-All paths use `/workspaces/{workspaceId}/creator-studio/...` convention — consistent with existing V1 scoping.
+All Creator Studio paths are workspace-scoped under `/workspaces/{workspaceId}/creator-studio/...`, matching the V1 workspace-scoped pattern established by existing modules (Products, Assets, Campaign Content, AI Readiness). Transfer draft paths are correctly nested under `/workspaces/{workspaceId}/creator-studio/transfer-drafts/...` — not at a flat `/transfer-drafts/` root. This is consistent with the V1 convention.
 
 ---
 
@@ -123,10 +123,14 @@ No duplicate or conflicting schema names introduced.
 | `CreatorContextDraftCreateRequest` requires only `sessionId` (partial allowed) | PASS | Required list at line 3116 contains only `sessionId`; selection IDs are optional with descriptions clarifying gate requirement |
 | Selection IDs documented as required before `ready_for_transfer` | PASS | Each optional field description states "Required before draft can reach ready_for_transfer status" |
 | `CreatorContentStudioTransferDraftCreateRequest` requires `draftId` and `promptVersionId` | PASS | Lines 3318 required list |
+| `CreatorCampaignTransferDraftCreateRequest` requires `draftId`; `overrides` optional | PASS | Lines 3324 required list; `overrides` is not in required |
 | `CreatorPublishingTransferDraftCreateRequest` requires `draftId` and `contentId` | PASS | Lines 3358 required list |
+| `CreatorPromptGovernanceTransferDraftCreateRequest` requires `draftId`; `overrides` optional | PASS | Lines 3370 required list; `overrides` is not in required |
 | `CreatorReadinessAssessment` requires `blockers` and `warnings` | PASS | Lines 3231–3232 |
 | `humanReviewRequired` required in `CreatorTransferDraft` | PASS | Line 3396 |
 | Transfer endpoints describe `ready_for_transfer` gate | PASS | All four POST transfer-draft endpoint descriptions explicitly state the requirement |
+
+> **Review-document correction note (§3 and §7):** The path scoping wording and two required-field rows (campaign and prompt-governance transfer requests) were added in response to automated review comments on this gate document. These are documentation clarifications only — the YAML contract itself passes both checks. No new OpenAPI contract findings are introduced by these corrections.
 
 ---
 
