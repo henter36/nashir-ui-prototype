@@ -2971,11 +2971,22 @@ components:
       description: Session creation source. V1 accepts manual only. OAuth and automated scraping are deferred.
       enum:
         - manual
+    CreatorStudioSessionStatus:
+      type: string
+      description: >
+        Status enum for CreatorStudioSession only. Sessions have a simpler lifecycle than context drafts.
+        Do not use this enum for context draft or transfer draft status.
+        Expired session invalidates all child context and transfer drafts.
+      enum:
+        - active
+        - expired
+        - blocked
     CreatorContextDraftStatus:
       type: string
       description: >
-        Creator Studio context draft and session status enum.
+        Context draft readiness status enum. Used for CreatorContextDraft.status only.
         Transfer endpoints require ready_for_transfer. There is no reviewed state in V1.
+        Do not use for session status; use CreatorStudioSessionStatus for sessions.
         Expired parent session invalidates all child context and transfer drafts.
       enum:
         - draft
@@ -3038,6 +3049,36 @@ components:
             - string
             - "null"
           format: date-time
+    CreatorManualContext:
+      type: object
+      description: >
+        User-provided context notes for a Creator Studio session. All fields are optional and informational only.
+        Must not contain OAuth tokens, private platform credentials, scraping output, or personal identifiers.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          description: Short title or topic label for the session context.
+        description:
+          type: string
+          maxLength: 2000
+          description: Free-text description of the creator or content goal.
+        productOrService:
+          type: string
+          maxLength: 200
+          description: Name of the product or service being promoted. Display only; not an identity field.
+        audience:
+          type: string
+          maxLength: 500
+          description: Brief audience description. Must not contain individual personal data.
+        objective:
+          type: string
+          maxLength: 500
+          description: High-level campaign or content objective.
+        notes:
+          type: string
+          maxLength: 2000
+          description: Additional notes. Must not contain credentials, tokens, or scraping output.
     CreatorStudioSessionCreateRequest:
       type: object
       description: >
@@ -3056,9 +3097,7 @@ components:
           type: string
           description: Opaque creator handle reference. Stored as reference only. Must not be stored raw. Optional.
         manualContext:
-          type: object
-          description: Free-form user-provided context notes. Must not contain OAuth tokens or credentials.
-          additionalProperties: true
+          $ref: "#/components/schemas/CreatorManualContext"
     CreatorStudioSession:
       type: object
       description: >
@@ -3088,7 +3127,7 @@ components:
             - "null"
           description: Opaque creator handle reference. Raw handle must not be returned.
         status:
-          $ref: "#/components/schemas/CreatorContextDraftStatus"
+          $ref: "#/components/schemas/CreatorStudioSessionStatus"
         createdAt:
           type: string
           format: date-time
@@ -3306,6 +3345,23 @@ components:
           type: string
           description: Free-text annotation for the governance reviewer. Does not override the ready_for_transfer context.
           maxLength: 2000
+    CreatorTransferDraftCreateRequest:
+      type: object
+      description: >
+        Base schema documenting the minimum common field shared by all Creator Studio transfer draft creation requests.
+        Endpoints use destination-specific specialized schemas directly; this schema is a reference definition only
+        and is not used in allOf composition. It establishes that draftId is required by every transfer request.
+        Specialized schemas: CreatorContentStudioTransferDraftCreateRequest (requires draftId + promptVersionId),
+        CreatorCampaignTransferDraftCreateRequest (requires draftId),
+        CreatorPublishingTransferDraftCreateRequest (requires draftId + contentId),
+        CreatorPromptGovernanceTransferDraftCreateRequest (requires draftId).
+      required:
+        - draftId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must be in ready_for_transfer status.
     CreatorContentStudioTransferDraftCreateRequest:
       type: object
       description: >
@@ -3379,6 +3435,58 @@ components:
           description: Canonical context draft identifier. Must be in ready_for_transfer status.
         overrides:
           $ref: "#/components/schemas/CreatorPromptGovernanceTransferOverrides"
+    CreatorTransferPayloadSummary:
+      type: object
+      description: >
+        Advisory payload summary included in CreatorTransferDraft responses.
+        All fields are optional. Must not expose raw platform tokens, raw prompt text, OAuth credentials,
+        or private platform API payloads. Unknown or raw platform data must not be included.
+      properties:
+        draftId:
+          type: string
+          description: Canonical context draft identifier.
+        contentId:
+          type:
+            - string
+            - "null"
+          description: Canonical Content Studio item identifier. Present for publishing transfers only.
+        promptVersionId:
+          type:
+            - string
+            - "null"
+          description: Canonical PromptVersion identifier. Present for Content Studio transfers only.
+        destinationModule:
+          $ref: "#/components/schemas/CreatorTransferDestinationModule"
+        selectedPlatform:
+          $ref: "#/components/schemas/CreatorStudioPlatform"
+        targetContentType:
+          type:
+            - string
+            - "null"
+          description: Content type override if supplied. Present for Content Studio transfers only.
+        campaignName:
+          type:
+            - string
+            - "null"
+          description: Campaign name annotation if supplied. Present for campaign transfers only.
+        objective:
+          type:
+            - string
+            - "null"
+          description: Campaign objective if supplied. Present for campaign transfers only.
+        targetPublishWindow:
+          type:
+            - string
+            - "null"
+          description: Publish window override if supplied. Present for publishing transfers only.
+        reviewReason:
+          type:
+            - string
+            - "null"
+          description: Governance reviewer annotation if supplied. Present for prompt-governance transfers only.
+        humanReviewRequired:
+          type: boolean
+          description: Always true. Destination module must not auto-accept the payload.
     CreatorTransferDraft:
       type: object
       description: >
@@ -3414,9 +3522,7 @@ components:
           type: boolean
           description: Always true. Destination module must not auto-accept the payload.
         payloadSummary:
-          type: object
-          description: Advisory payload summary. Must not expose raw platform tokens, raw prompt text, or credentials.
-          additionalProperties: true
+          $ref: "#/components/schemas/CreatorTransferPayloadSummary"
         createdAt:
           type: string
           format: date-time
