@@ -3079,6 +3079,7 @@ components:
           type: string
           maxLength: 2000
           description: Additional notes. Must not contain credentials, tokens, or scraping output.
+      additionalProperties: false
     CreatorStudioSessionCreateRequest:
       type: object
       description: >
@@ -3126,6 +3127,8 @@ components:
             - string
             - "null"
           description: Opaque creator handle reference. Raw handle must not be returned.
+        manualContext:
+          $ref: "#/components/schemas/CreatorManualContext"
         status:
           $ref: "#/components/schemas/CreatorStudioSessionStatus"
         createdAt:
@@ -3348,13 +3351,9 @@ components:
     CreatorTransferDraftCreateRequest:
       type: object
       description: >
-        Base schema documenting the minimum common field shared by all Creator Studio transfer draft creation requests.
-        Endpoints use destination-specific specialized schemas directly; this schema is a reference definition only
-        and is not used in allOf composition. It establishes that draftId is required by every transfer request.
-        Specialized schemas: CreatorContentStudioTransferDraftCreateRequest (requires draftId + promptVersionId),
-        CreatorCampaignTransferDraftCreateRequest (requires draftId),
-        CreatorPublishingTransferDraftCreateRequest (requires draftId + contentId),
-        CreatorPromptGovernanceTransferDraftCreateRequest (requires draftId).
+        Base schema for all Creator Studio transfer draft creation requests.
+        Establishes that draftId is required by every transfer request.
+        Specialized schemas extend this via allOf composition.
       required:
         - draftId
       properties:
@@ -3363,78 +3362,62 @@ components:
           minLength: 1
           description: Canonical context draft identifier. Must be in ready_for_transfer status.
     CreatorContentStudioTransferDraftCreateRequest:
-      type: object
       description: >
         Request body for Content Studio transfer draft creation.
-        draftId references CreatorContextDraft; all context selections are resolved from it.
-        No raw selection fields are accepted. CreatorContextDraft must be in ready_for_transfer status.
+        draftId is inherited from CreatorTransferDraftCreateRequest and must be in ready_for_transfer status.
         promptVersionId is required and must reference an approved, non-deprecated PromptVersion in the same workspace.
-      required:
-        - draftId
-        - promptVersionId
-      properties:
-        draftId:
-          type: string
-          minLength: 1
-          description: Canonical context draft identifier. Must be in ready_for_transfer status.
-        promptVersionId:
-          type: string
-          minLength: 1
-          description: Canonical approved PromptVersion identifier. Must reference a non-deprecated, approved PromptVersion in the same workspace.
-        overrides:
-          $ref: "#/components/schemas/CreatorContentStudioTransferOverrides"
+        No raw selection fields are accepted.
+      allOf:
+        - $ref: "#/components/schemas/CreatorTransferDraftCreateRequest"
+        - type: object
+          required:
+            - promptVersionId
+          properties:
+            promptVersionId:
+              type: string
+              minLength: 1
+              description: Canonical approved PromptVersion identifier. Must reference a non-deprecated, approved PromptVersion in the same workspace.
+            overrides:
+              $ref: "#/components/schemas/CreatorContentStudioTransferOverrides"
     CreatorCampaignTransferDraftCreateRequest:
-      type: object
       description: >
         Request body for Campaign Wizard transfer draft creation.
-        draftId references CreatorContextDraft; all context selections are resolved from it.
-        No raw selection fields are accepted. CreatorContextDraft must be in ready_for_transfer status.
-      required:
-        - draftId
-      properties:
-        draftId:
-          type: string
-          minLength: 1
-          description: Canonical context draft identifier. Must be in ready_for_transfer status.
-        overrides:
-          $ref: "#/components/schemas/CreatorCampaignTransferOverrides"
+        draftId is inherited from CreatorTransferDraftCreateRequest and must be in ready_for_transfer status.
+        No raw selection fields are accepted.
+      allOf:
+        - $ref: "#/components/schemas/CreatorTransferDraftCreateRequest"
+        - type: object
+          properties:
+            overrides:
+              $ref: "#/components/schemas/CreatorCampaignTransferOverrides"
     CreatorPublishingTransferDraftCreateRequest:
-      type: object
       description: >
         Request body for Publishing Queue transfer draft creation.
-        draftId references CreatorContextDraft; all context selections are resolved from it.
+        draftId is inherited from CreatorTransferDraftCreateRequest and must be in ready_for_transfer status.
         contentId is required and must reference an approved, non-expired, non-archived Content Studio item in the same workspace.
-        CreatorContextDraft must be in ready_for_transfer status.
-      required:
-        - draftId
-        - contentId
-      properties:
-        draftId:
-          type: string
-          minLength: 1
-          description: Canonical context draft identifier. Must be in ready_for_transfer status.
-        contentId:
-          type: string
-          minLength: 1
-          description: Canonical Content Studio item identifier. Must be approved, non-expired, non-archived, and in the same workspace.
-        overrides:
-          $ref: "#/components/schemas/CreatorPublishingTransferOverrides"
+      allOf:
+        - $ref: "#/components/schemas/CreatorTransferDraftCreateRequest"
+        - type: object
+          required:
+            - contentId
+          properties:
+            contentId:
+              type: string
+              minLength: 1
+              description: Canonical Content Studio item identifier. Must be approved, non-expired, non-archived, and in the same workspace.
+            overrides:
+              $ref: "#/components/schemas/CreatorPublishingTransferOverrides"
     CreatorPromptGovernanceTransferDraftCreateRequest:
-      type: object
       description: >
         Request body for Prompt Governance transfer draft creation.
-        draftId references CreatorContextDraft; all context selections are resolved from it.
-        No raw selection fields are accepted. reviewReason is informational only.
-        CreatorContextDraft must be in ready_for_transfer status.
-      required:
-        - draftId
-      properties:
-        draftId:
-          type: string
-          minLength: 1
-          description: Canonical context draft identifier. Must be in ready_for_transfer status.
-        overrides:
-          $ref: "#/components/schemas/CreatorPromptGovernanceTransferOverrides"
+        draftId is inherited from CreatorTransferDraftCreateRequest and must be in ready_for_transfer status.
+        reviewReason is informational only and does not override the reviewed context.
+      allOf:
+        - $ref: "#/components/schemas/CreatorTransferDraftCreateRequest"
+        - type: object
+          properties:
+            overrides:
+              $ref: "#/components/schemas/CreatorPromptGovernanceTransferOverrides"
     CreatorTransferPayloadSummary:
       type: object
       description: >
@@ -3487,6 +3470,7 @@ components:
         humanReviewRequired:
           type: boolean
           description: Always true. Destination module must not auto-accept the payload.
+      additionalProperties: false
     CreatorTransferDraft:
       type: object
       description: >
