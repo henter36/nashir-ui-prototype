@@ -909,7 +909,7 @@ paths:
       description: >
         Persists user-selected context references for a Creator Studio session before any destination transfer.
         All request fields are ID references; no raw platform values are accepted.
-        promptTemplateId must reference a non-deprecated prompt template. templateLinkId is not a valid field.
+        promptTemplateId must reference a non-deprecated prompt template.
         Draft status is needs_human_review until explicitly promoted to ready_for_transfer.
         Does not create real destination records or trigger AI generation.
       parameters:
@@ -3117,7 +3117,7 @@ components:
         Transfer endpoints must reject drafts not in ready_for_transfer status.
         All fields are ID references; no raw values, labels, or platform data are accepted.
         promptTemplateId must reference a non-deprecated prompt template entry.
-        templateLinkId is not a valid field name and must not be used.
+        Use promptTemplateId as the canonical prompt template reference field.
       required:
         - sessionId
       properties:
@@ -3181,7 +3181,7 @@ components:
           type: string
         promptTemplateId:
           type: string
-          description: References an approved, non-deprecated prompt template. templateLinkId is not a valid field.
+          description: References an approved, non-deprecated prompt template.
         status:
           $ref: "#/components/schemas/CreatorContextDraftStatus"
         humanReviewRequired:
@@ -3276,14 +3276,14 @@ components:
             $ref: "#/components/schemas/Warning"
     CreatorContentStudioTransferOverrides:
       type: object
-      description: Optional destination-specific overrides for Content Studio transfer. Overrides that alter reviewed meaning require re-review.
+      description: Optional destination-specific overrides for Content Studio transfer. Overrides that alter the ready_for_transfer context require re-review.
       properties:
         targetContentType:
           type: string
           description: Optional content type override. Must be valid for the selected platform.
     CreatorCampaignTransferOverrides:
       type: object
-      description: Optional destination-specific overrides for Campaign Wizard transfer. Must not contradict reviewed context draft.
+      description: Optional destination-specific overrides for Campaign Wizard transfer. Must not contradict the ready_for_transfer context draft.
       properties:
         campaignName:
           type: string
@@ -3304,7 +3304,7 @@ components:
       properties:
         reviewReason:
           type: string
-          description: Free-text annotation for the governance reviewer. Does not override reviewed context.
+          description: Free-text annotation for the governance reviewer. Does not override the ready_for_transfer context.
           maxLength: 2000
     CreatorContentStudioTransferDraftCreateRequest:
       type: object
