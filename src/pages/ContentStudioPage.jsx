@@ -118,6 +118,15 @@ function getSafeStatusConfig(status) {
   };
 }
 
+const emptyContentItem = {
+  id: "empty-content",
+  title: "محتوى غير محدد",
+  type: "محتوى",
+  channel: "عام",
+  status: "draft",
+  content: "",
+};
+
 export default function ContentStudioPage() {
   const [items, setItems] = useState(() => readCampaignContent(initialItems));
   const [approvedTemplates, setApprovedTemplates] = useState(() => getApprovedTemplates([]));
@@ -160,15 +169,6 @@ export default function ContentStudioPage() {
       window.removeEventListener("nashir-prompt-governance-updated", reloadPromptTemplateReadiness);
     };
   }, []);
-
-  const emptyContentItem = {
-    id: "empty-content",
-    title: "محتوى غير محدد",
-    type: "محتوى",
-    channel: "عام",
-    status: "draft",
-    content: "",
-  };
 
   const visibleItems = useMemo(() => {
     return items.length ? items : initialItems;
