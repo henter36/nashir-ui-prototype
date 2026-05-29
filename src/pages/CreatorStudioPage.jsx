@@ -369,7 +369,7 @@ export default function CreatorStudioPage({ onNavigate }) {
           <div key={group.id} className="cs-ctx-group">
             <div className="cs-ctx-group-label">{group.label}</div>
             <div className="cs-ctx-chips">
-              {group.options.map((opt) => (
+              {(group.options ?? []).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
@@ -391,14 +391,14 @@ export default function CreatorStudioPage({ onNavigate }) {
           مسودة استشارية — لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
         </p>
         <div className="cs-mapping-grid">
-          {destinationMapping.map((dest) => (
+          {(destinationMapping ?? []).map((dest) => (
             <div key={dest.id} className="cs-mapping-dest">
               <div className="cs-mapping-dest-head">
                 <span className="cs-mapping-dest-title">{dest.destination}</span>
                 <span className="cs-badge cs-badge-neutral">مسودة — للمراجعة</span>
               </div>
               <ul className="cs-mapping-field-list">
-                {dest.fields.map((field) => (
+                {(dest.fields ?? []).map((field) => (
                   <li key={field.id} className="cs-mapping-field">
                     <span className="cs-mapping-field-label">{field.label}</span>
                     <span className="cs-mapping-field-value">{field.value}</span>
@@ -644,7 +644,7 @@ export default function CreatorStudioPage({ onNavigate }) {
           هذه البنود استشارية فقط ولا تُعدَّل آليًا — كل بند مطلوب قبل أي استخدام إنتاجي فعلي.
         </p>
         <ul className="cs-readiness-list">
-          {productionReadinessChecklist.map((item) => (
+          {(productionReadinessChecklist ?? []).map((item) => (
             <li key={item.id} className="cs-readiness-item">
               <div className="cs-readiness-row">
                 <span className="cs-readiness-label">{item.label}</span>
