@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Nashir V1 API
   version: 0.1.0
-  description: Contract-first API for Nashir V1. Slice 1 covers Products and Assets. Slice 2 adds Campaign Content + Review/Preview metadata only. Slice 3 adds AI readiness snapshot endpoints; all are read-only and advisory only.
+  description: Contract-first API for Nashir V1. Slice 1 covers Products and Assets. Slice 2 adds Campaign Content + Review/Preview metadata only. Slice 3 adds AI readiness snapshot endpoints; all are read-only and advisory only. Slice 4 adds Creator Studio session, context draft, readiness assessment, and transfer draft endpoints; all are draft-only and do not execute AI, publish content, scrape platforms, or create real destination records.
 servers:
   - url: https://api.example.invalid
     description: Placeholder server. Not a production endpoint.
@@ -17,6 +17,8 @@ tags:
     description: Campaign content drafts, review state, and preview metadata. Slice 2 does not execute AI, publish, schedule, upload binaries, or run external integrations.
   - name: AI Readiness
     description: Read-only readiness snapshot endpoints for AI operations. All results are advisory only and do not authorize or gate workflow execution. Slice 3 does not execute AI, trigger workflows, probe providers, create artifacts, or write audit records.
+  - name: Creator Studio
+    description: Creator Studio session, context draft, readiness assessment, and transfer draft endpoints. All transfer drafts are draft-only; no AI execution, scraping, publishing, or real destination record creation occurs. Transfer endpoints require CreatorContextDraft status ready_for_transfer and create pending_review drafts only.
 paths:
   /health:
     get:
@@ -823,6 +825,429 @@ paths:
           $ref: "#/components/responses/InternalServerError"
         default:
           $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/sessions:
+    post:
+      operationId: createCreatorStudioSession
+      tags:
+        - Creator Studio
+      summary: Create Creator Studio session.
+      description: >
+        Creates a Creator Studio session for a workspace actor. V1 source is manual only;
+        no platform OAuth ingestion or automated scraping is performed in this slice.
+        Must not be called automatically on page load. creatorHandleRef is accepted as an opaque reference only and must not be stored raw.
+        Does not execute AI, scrape platforms, publish content, or create destination records.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorStudioSessionCreateRequest"
+      responses:
+        "201":
+          description: Creator Studio session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorStudioSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/sessions/{sessionId}:
+    get:
+      operationId: getCreatorStudioSession
+      tags:
+        - Creator Studio
+      summary: Get Creator Studio session.
+      description: >
+        Retrieves the current state of a Creator Studio session by sessionId.
+        Session owner or workspace admin only. Raw creator handle and platform tokens must not appear in the response.
+        Returns 410 Gone if the session has passed its TTL.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/SessionIdPath"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Creator Studio session response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorStudioSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/context-drafts:
+    post:
+      operationId: createCreatorContextDraft
+      tags:
+        - Creator Studio
+      summary: Create Creator Studio context draft.
+      description: >
+        Persists user-selected context references for a Creator Studio session before any destination transfer.
+        All request fields are ID references; no raw platform values are accepted.
+        promptTemplateId must reference a non-deprecated prompt template.
+        Draft status is needs_human_review until explicitly promoted to ready_for_transfer.
+        Does not create real destination records or trigger AI generation.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorContextDraftCreateRequest"
+      responses:
+        "201":
+          description: Creator Studio context draft created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorContextDraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/context-drafts/{draftId}:
+    get:
+      operationId: getCreatorContextDraft
+      tags:
+        - Creator Studio
+      summary: Get Creator Studio context draft.
+      description: >
+        Retrieves a workspace-scoped CreatorContextDraft by draftId.
+        Session owner or workspace admin only.
+        Returns 410 Gone if the draft or its parent session has passed its TTL.
+        Must not create records or execute transfer on retrieval.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/DraftIdPath"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Creator Studio context draft response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorContextDraftResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/readiness-assessments:
+    post:
+      operationId: createCreatorReadinessAssessment
+      tags:
+        - Creator Studio
+      summary: Create Creator Studio readiness assessment.
+      description: >
+        Evaluates and records the production-readiness state of a Creator Studio context draft.
+        Result is advisory only; must not auto-block or auto-approve the context draft.
+        Assessment does not gate workflow execution or destination transfer.
+        May be triggered at any point during a session.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorReadinessAssessmentCreateRequest"
+      responses:
+        "201":
+          description: Creator Studio readiness assessment created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorReadinessAssessmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/transfer-drafts/content-studio:
+    post:
+      operationId: createCreatorContentStudioTransferDraft
+      tags:
+        - Creator Studio
+      summary: Create Content Studio transfer draft.
+      description: >
+        Creates a draft transfer payload addressed to Content Studio.
+        Context selections are resolved from the CreatorContextDraft identified by draftId.
+        No raw selection fields are accepted in the request body; only validated overrides may be provided.
+        Requires CreatorContextDraft status ready_for_transfer and an approved PromptVersion reference.
+        Creates a pending_review draft only; does not create a real Content Studio record.
+        Does not execute AI, scrape platforms, or publish content.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorContentStudioTransferDraftCreateRequest"
+      responses:
+        "201":
+          description: Content Studio transfer draft created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorTransferDraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/transfer-drafts/campaign:
+    post:
+      operationId: createCreatorCampaignTransferDraft
+      tags:
+        - Creator Studio
+      summary: Create Campaign Wizard transfer draft.
+      description: >
+        Creates a draft transfer payload addressed to Campaign Wizard.
+        Context selections are resolved from the CreatorContextDraft identified by draftId.
+        No raw selection fields are accepted; only validated overrides may be provided.
+        Requires CreatorContextDraft status ready_for_transfer.
+        Campaign Wizard session must be user-initiated; this endpoint must not auto-create campaigns.
+        Creates a pending_review draft only; does not set budget or targeting.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorCampaignTransferDraftCreateRequest"
+      responses:
+        "201":
+          description: Campaign Wizard transfer draft created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorTransferDraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/transfer-drafts/publishing:
+    post:
+      operationId: createCreatorPublishingTransferDraft
+      tags:
+        - Creator Studio
+      summary: Create Publishing Queue transfer draft.
+      description: >
+        Creates a draft transfer payload addressed to Publishing Queue.
+        Context selections are resolved from the CreatorContextDraft identified by draftId.
+        contentId is required and must reference an approved, non-expired, non-archived Content Studio item in the same workspace.
+        Requires CreatorContextDraft status ready_for_transfer.
+        Does not auto-schedule or publish content; scheduling requires explicit user confirmation.
+        Creates a pending_review draft only.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorPublishingTransferDraftCreateRequest"
+      responses:
+        "201":
+          description: Publishing Queue transfer draft created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorTransferDraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/transfer-drafts/prompt-governance:
+    post:
+      operationId: createCreatorPromptGovernanceTransferDraft
+      tags:
+        - Creator Studio
+      summary: Create Prompt Governance transfer draft.
+      description: >
+        Creates a draft transfer payload addressed to Prompt Governance for template review.
+        Context selections are resolved from the CreatorContextDraft identified by draftId.
+        No raw selection fields are accepted. reviewReason is informational only.
+        Requires CreatorContextDraft status ready_for_transfer.
+        Referenced PromptTemplate must exist and not be deprecated.
+        Does not create or modify PromptTemplates autonomously. Transfer is advisory reference only.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorPromptGovernanceTransferDraftCreateRequest"
+      responses:
+        "201":
+          description: Prompt Governance transfer draft created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorTransferDraftResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
+  /workspaces/{workspaceId}/creator-studio/transfer-drafts/{transferId}:
+    get:
+      operationId: getCreatorTransferDraft
+      tags:
+        - Creator Studio
+      summary: Get Creator Studio transfer draft.
+      description: >
+        Retrieves a workspace-scoped CreatorTransferDraft by transferId for destination module review.
+        Session owner, destination module service account, or workspace admin only.
+        Returns 410 Gone if the draft or its parent session or context draft has passed its TTL.
+        Must not create destination records or execute transfer on retrieval.
+        payloadSummary must not expose raw platform tokens, raw prompt text, or credentials.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdPath"
+        - $ref: "#/components/parameters/TransferIdPath"
+        - $ref: "#/components/parameters/RequestIdHeader"
+      responses:
+        "200":
+          description: Creator Studio transfer draft response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorTransferDraftResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          $ref: "#/components/responses/DefaultError"
 components:
   parameters:
     WorkspaceIdPath:
@@ -980,6 +1405,30 @@ components:
       schema:
         type: string
         minLength: 1
+    SessionIdPath:
+      name: sessionId
+      in: path
+      required: true
+      description: Stable opaque Creator Studio session identifier.
+      schema:
+        type: string
+        minLength: 1
+    DraftIdPath:
+      name: draftId
+      in: path
+      required: true
+      description: Stable opaque Creator Studio context draft identifier.
+      schema:
+        type: string
+        minLength: 1
+    TransferIdPath:
+      name: transferId
+      in: path
+      required: true
+      description: Stable opaque Creator Studio transfer draft identifier.
+      schema:
+        type: string
+        minLength: 1
   responses:
     BadRequest:
       description: Bad request.
@@ -1025,6 +1474,12 @@ components:
             $ref: "#/components/schemas/ErrorModel"
     InternalServerError:
       description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorModel"
+    Gone:
+      description: Resource existed but has passed its TTL or been invalidated by an expired parent. Distinguishes from 404 (never existed).
       content:
         application/json:
           schema:
@@ -1075,6 +1530,21 @@ components:
         - model_route.not_ready
         - prompt_template.not_approved
         - cost_policy.exceeded
+        - creator_studio.session.not_found
+        - creator_studio.session.expired
+        - creator_studio.draft.not_found
+        - creator_studio.draft.expired
+        - creator_studio.draft.not_ready
+        - creator_studio.transfer.not_found
+        - creator_studio.transfer.expired
+        - creator_studio.content.not_approved
+        - creator_studio.content.archived_or_expired
+        - creator_studio.workspace.mismatch
+        - creator_studio.governance.blocked
+        - creator_studio.consent.required
+        - creator_studio.platform.not_connected
+        - creator_studio.scheduling.duplicate_not_supported
+        - creator_studio.override.invalid
     ErrorModel:
       type: object
       required:
@@ -2487,3 +2957,509 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Warning"
+    CreatorStudioPlatform:
+      type: string
+      description: Supported Creator Studio platforms in V1.
+      enum:
+        - Instagram
+        - TikTok
+        - YouTube
+        - X
+        - Snapchat
+    CreatorStudioSessionSource:
+      type: string
+      description: Session creation source. V1 accepts manual only. OAuth and automated scraping are deferred.
+      enum:
+        - manual
+    CreatorContextDraftStatus:
+      type: string
+      description: >
+        Creator Studio context draft and session status enum.
+        Transfer endpoints require ready_for_transfer. There is no reviewed state in V1.
+        Expired parent session invalidates all child context and transfer drafts.
+      enum:
+        - draft
+        - incomplete
+        - needs_consent
+        - needs_platform_connection
+        - needs_human_review
+        - ready_for_transfer
+        - blocked
+        - expired
+    CreatorTransferDraftStatus:
+      type: string
+      description: Status of a Creator Studio transfer draft. All transfer drafts begin as pending_review.
+      enum:
+        - pending_review
+        - expired
+    CreatorTransferDestinationModule:
+      type: string
+      description: Destination module for a Creator Studio transfer draft.
+      enum:
+        - content_studio
+        - campaign_wizard
+        - publishing_queue
+        - prompt_governance
+    CreatorComplianceFindingSeverity:
+      type: string
+      enum:
+        - blocker
+        - warning
+        - info
+    CreatorComplianceFinding:
+      type: object
+      description: Individual compliance or readiness finding within a CreatorReadinessAssessment. Advisory only.
+      required:
+        - findingId
+        - rule
+        - status
+        - severity
+        - message
+      properties:
+        findingId:
+          type: string
+        rule:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - resolved
+        severity:
+          $ref: "#/components/schemas/CreatorComplianceFindingSeverity"
+        message:
+          type: string
+        requiredAction:
+          type:
+            - string
+            - "null"
+        resolvedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    CreatorStudioSessionCreateRequest:
+      type: object
+      description: >
+        Request body for creating a Creator Studio session. V1 source is manual only.
+        creatorHandleRef is stored as an opaque reference only and must not be stored raw.
+        OAuth ingestion and automated scraping are not available in V1.
+      required:
+        - source
+        - selectedPlatform
+      properties:
+        source:
+          $ref: "#/components/schemas/CreatorStudioSessionSource"
+        selectedPlatform:
+          $ref: "#/components/schemas/CreatorStudioPlatform"
+        creatorHandleRef:
+          type: string
+          description: Opaque creator handle reference. Stored as reference only. Must not be stored raw. Optional.
+        manualContext:
+          type: object
+          description: Free-form user-provided context notes. Must not contain OAuth tokens or credentials.
+          additionalProperties: true
+    CreatorStudioSession:
+      type: object
+      description: >
+        Creator Studio session record. sessionId is canonical identity.
+        Raw creator handle and platform tokens must not appear in responses.
+        Session expires at or before expiresAt; expired session invalidates all child context and transfer drafts.
+      required:
+        - sessionId
+        - workspaceId
+        - source
+        - selectedPlatform
+        - status
+        - createdAt
+        - expiresAt
+      properties:
+        sessionId:
+          type: string
+        workspaceId:
+          type: string
+        source:
+          $ref: "#/components/schemas/CreatorStudioSessionSource"
+        selectedPlatform:
+          $ref: "#/components/schemas/CreatorStudioPlatform"
+        creatorHandleRef:
+          type:
+            - string
+            - "null"
+          description: Opaque creator handle reference. Raw handle must not be returned.
+        status:
+          $ref: "#/components/schemas/CreatorContextDraftStatus"
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: Max 24 hours. Expired session invalidates all child drafts.
+    CreatorStudioSessionResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatorStudioSession"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CreatorContextDraftCreateRequest:
+      type: object
+      description: >
+        Request body for persisting user-selected context references for a session.
+        Only sessionId is required; selection IDs may be omitted while the draft is incomplete.
+        All selection IDs must be provided before the draft status can become ready_for_transfer.
+        Transfer endpoints must reject drafts not in ready_for_transfer status.
+        All fields are ID references; no raw values, labels, or platform data are accepted.
+        promptTemplateId must reference a non-deprecated prompt template entry.
+        Use promptTemplateId as the canonical prompt template reference field.
+      required:
+        - sessionId
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+        ideaId:
+          type: string
+          minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
+        angleId:
+          type: string
+          minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
+        segmentId:
+          type: string
+          minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
+        windowId:
+          type: string
+          minLength: 1
+          description: Selection ID. Required before draft can reach ready_for_transfer status.
+        promptTemplateId:
+          type: string
+          minLength: 1
+          description: References an approved, non-deprecated prompt template. Use promptTemplateId only. Required before draft can reach ready_for_transfer status.
+    CreatorContextDraft:
+      type: object
+      description: >
+        Creator Studio context draft. draftId is canonical identity.
+        Expires at or before the parent session expiresAt.
+        All fields are ID references; no raw platform values are stored.
+        humanReviewRequired is always true until explicitly promoted to ready_for_transfer.
+      required:
+        - draftId
+        - sessionId
+        - workspaceId
+        - ideaId
+        - angleId
+        - segmentId
+        - windowId
+        - promptTemplateId
+        - status
+        - humanReviewRequired
+        - createdAt
+        - expiresAt
+      properties:
+        draftId:
+          type: string
+        sessionId:
+          type: string
+        workspaceId:
+          type: string
+        ideaId:
+          type: string
+        angleId:
+          type: string
+        segmentId:
+          type: string
+        windowId:
+          type: string
+        promptTemplateId:
+          type: string
+          description: References an approved, non-deprecated prompt template.
+        status:
+          $ref: "#/components/schemas/CreatorContextDraftStatus"
+        humanReviewRequired:
+          type: boolean
+          description: Always true until explicitly promoted to ready_for_transfer.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: Max 24 hours; capped by parent session expiresAt. Expired draft cannot be used for transfer.
+    CreatorContextDraftResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatorContextDraft"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CreatorReadinessAssessmentCreateRequest:
+      type: object
+      description: Request body for triggering a readiness assessment for a context draft. Result is advisory only.
+      required:
+        - draftId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must resolve to a valid, non-expired CreatorContextDraft in the same workspace.
+    CreatorReadinessAssessment:
+      type: object
+      description: >
+        Readiness assessment for a Creator Studio context draft. Advisory only.
+        Result must not auto-block or auto-approve the context draft.
+        Expires after 24 hours and must be re-evaluated for each use.
+      required:
+        - assessmentId
+        - draftId
+        - workspaceId
+        - overallStatus
+        - findings
+        - blockers
+        - warnings
+        - createdAt
+        - expiresAt
+      properties:
+        assessmentId:
+          type: string
+        draftId:
+          type: string
+        workspaceId:
+          type: string
+        overallStatus:
+          $ref: "#/components/schemas/CreatorContextDraftStatus"
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreatorComplianceFinding"
+          description: Advisory findings. Does not auto-block or auto-approve the context draft.
+        blockers:
+          type: array
+          items:
+            type: string
+          description: Aggregate blocker-severity finding messages.
+        warnings:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: Max 24 hours. Assessment must be re-evaluated before each use.
+    CreatorReadinessAssessmentResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatorReadinessAssessment"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CreatorContentStudioTransferOverrides:
+      type: object
+      description: Optional destination-specific overrides for Content Studio transfer. Overrides that alter the ready_for_transfer context require re-review.
+      properties:
+        targetContentType:
+          type: string
+          description: Optional content type override. Must be valid for the selected platform.
+    CreatorCampaignTransferOverrides:
+      type: object
+      description: Optional destination-specific overrides for Campaign Wizard transfer. Must not contradict the ready_for_transfer context draft.
+      properties:
+        campaignName:
+          type: string
+          description: Optional campaign name annotation. Not a selection override.
+        objective:
+          type: string
+          description: Optional campaign objective enum. Must match a supported objective value.
+    CreatorPublishingTransferOverrides:
+      type: object
+      description: Optional destination-specific overrides for Publishing Queue transfer. Changing the publish window triggers re-review.
+      properties:
+        targetPublishWindow:
+          type: string
+          description: Optional publish window override. Must be validated against platform policy. Changes trigger re-review.
+    CreatorPromptGovernanceTransferOverrides:
+      type: object
+      description: Optional destination-specific overrides for Prompt Governance transfer. reviewReason is informational only.
+      properties:
+        reviewReason:
+          type: string
+          description: Free-text annotation for the governance reviewer. Does not override the ready_for_transfer context.
+          maxLength: 2000
+    CreatorContentStudioTransferDraftCreateRequest:
+      type: object
+      description: >
+        Request body for Content Studio transfer draft creation.
+        draftId references CreatorContextDraft; all context selections are resolved from it.
+        No raw selection fields are accepted. CreatorContextDraft must be in ready_for_transfer status.
+        promptVersionId is required and must reference an approved, non-deprecated PromptVersion in the same workspace.
+      required:
+        - draftId
+        - promptVersionId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must be in ready_for_transfer status.
+        promptVersionId:
+          type: string
+          minLength: 1
+          description: Canonical approved PromptVersion identifier. Must reference a non-deprecated, approved PromptVersion in the same workspace.
+        overrides:
+          $ref: "#/components/schemas/CreatorContentStudioTransferOverrides"
+    CreatorCampaignTransferDraftCreateRequest:
+      type: object
+      description: >
+        Request body for Campaign Wizard transfer draft creation.
+        draftId references CreatorContextDraft; all context selections are resolved from it.
+        No raw selection fields are accepted. CreatorContextDraft must be in ready_for_transfer status.
+      required:
+        - draftId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must be in ready_for_transfer status.
+        overrides:
+          $ref: "#/components/schemas/CreatorCampaignTransferOverrides"
+    CreatorPublishingTransferDraftCreateRequest:
+      type: object
+      description: >
+        Request body for Publishing Queue transfer draft creation.
+        draftId references CreatorContextDraft; all context selections are resolved from it.
+        contentId is required and must reference an approved, non-expired, non-archived Content Studio item in the same workspace.
+        CreatorContextDraft must be in ready_for_transfer status.
+      required:
+        - draftId
+        - contentId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must be in ready_for_transfer status.
+        contentId:
+          type: string
+          minLength: 1
+          description: Canonical Content Studio item identifier. Must be approved, non-expired, non-archived, and in the same workspace.
+        overrides:
+          $ref: "#/components/schemas/CreatorPublishingTransferOverrides"
+    CreatorPromptGovernanceTransferDraftCreateRequest:
+      type: object
+      description: >
+        Request body for Prompt Governance transfer draft creation.
+        draftId references CreatorContextDraft; all context selections are resolved from it.
+        No raw selection fields are accepted. reviewReason is informational only.
+        CreatorContextDraft must be in ready_for_transfer status.
+      required:
+        - draftId
+      properties:
+        draftId:
+          type: string
+          minLength: 1
+          description: Canonical context draft identifier. Must be in ready_for_transfer status.
+        overrides:
+          $ref: "#/components/schemas/CreatorPromptGovernanceTransferOverrides"
+    CreatorTransferDraft:
+      type: object
+      description: >
+        Creator Studio transfer draft addressed to a destination module. transferId is canonical identity.
+        Transfer drafts are draft-only; no destination record creation, AI execution, or publishing occurs.
+        humanReviewRequired is always true. Expires at or before parent session and context draft expiresAt.
+        Raw platform tokens, raw prompt text, and credentials must not appear in payloadSummary.
+      required:
+        - transferId
+        - sessionId
+        - contextDraftId
+        - workspaceId
+        - destinationModule
+        - status
+        - humanReviewRequired
+        - createdAt
+        - expiresAt
+      properties:
+        transferId:
+          type: string
+        sessionId:
+          type: string
+        contextDraftId:
+          type: string
+          description: Canonical context draft identifier. References CreatorContextDraft.
+        workspaceId:
+          type: string
+        destinationModule:
+          $ref: "#/components/schemas/CreatorTransferDestinationModule"
+        status:
+          $ref: "#/components/schemas/CreatorTransferDraftStatus"
+        humanReviewRequired:
+          type: boolean
+          description: Always true. Destination module must not auto-accept the payload.
+        payloadSummary:
+          type: object
+          description: Advisory payload summary. Must not expose raw platform tokens, raw prompt text, or credentials.
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: Max 24 hours; capped by parent session and context draft expiresAt.
+    CreatorTransferDraftResponse:
+      type: object
+      required:
+        - data
+        - warnings
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatorTransferDraft"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    CreatorProfileSnapshotRef:
+      type: object
+      description: >
+        Opaque reference to a creator profile snapshot. Reserved for schema naming consistency only.
+        Not used in V1 endpoints. Deferred until OAuth, consent, and privacy gates are approved.
+        Must never include raw platform API payload, individual audience member data, or OAuth tokens.
+      required:
+        - snapshotRef
+      properties:
+        snapshotRef:
+          type: string
+          description: Opaque snapshot identifier. Not a platform-specific handle or token.
+        platform:
+          $ref: "#/components/schemas/CreatorStudioPlatform"
+        snapshotAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        confidenceLabel:
+          type:
+            - string
+            - "null"
+        dataSource:
+          type:
+            - string
+            - "null"
