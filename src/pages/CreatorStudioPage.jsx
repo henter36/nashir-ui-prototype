@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./CreatorStudioPage.css";
+import { creatorStudioDestinationMapping } from "../data/creatorStudioFlowFixture.js";
 import {
   AlertTriangle,
   BarChart3,
@@ -509,7 +510,33 @@ export default function CreatorStudioPage({ onNavigate }) {
         </ul>
       </section>
 
-      {/* 13. Flow navigation */}
+      {/* 13. Prototype data/state mapping */}
+      <section className="cs-card cs-mapping-card">
+        <SectionHeader icon={Globe} title="سياق تجريبي قابل للتحويل — للعرض فقط" />
+        <p className="cs-mapping-notice">
+          عرض استشاري ثابت — البيانات لا تُخزَّن ولا تُنقَل فعليًا. أي استخدام يتطلب مراجعة بشرية كاملة قبل التطبيق.
+        </p>
+        <div className="cs-mapping-grid">
+          {creatorStudioDestinationMapping.map((dest) => (
+            <div key={dest.id} className="cs-mapping-dest">
+              <div className="cs-mapping-dest-head">
+                <span className="cs-mapping-dest-title">{dest.destination}</span>
+                <span className="cs-badge cs-badge-neutral">للمراجعة فقط</span>
+              </div>
+              <ul className="cs-mapping-field-list">
+                {dest.fields.map((field) => (
+                  <li key={field.id} className="cs-mapping-field">
+                    <span className="cs-mapping-field-label">{field.label}</span>
+                    <span className="cs-mapping-field-value">{field.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 14. Flow navigation */}
       <section className="cs-card cs-flow-card">
         <SectionHeader icon={CheckCircle2} title="حوّل التحليل إلى إجراء — انتقال بروتوتايب فقط" />
         <p className="cs-flow-note">
@@ -538,7 +565,7 @@ export default function CreatorStudioPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 14. CTA area */}
+      {/* 15. CTA area */}
       <section className="cs-card cs-cta-card">
         <SectionHeader icon={CheckCircle2} title="الخطوات التالية — نموذج تجريبي" />
         <p className="cs-cta-note">
