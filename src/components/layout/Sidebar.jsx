@@ -17,6 +17,7 @@ const groups = [
     ids: [
       "campaigns",
       "campaignsList",
+      "creatorStudio",
       "content",
       "publishingQueue",
     ],
