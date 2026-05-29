@@ -225,9 +225,6 @@ export default function PublishingQueuePage() {
   const effectiveCampaign = campaignOptions.includes(newItem.campaign)
     ? newItem.campaign
     : campaignOptions[0] || "حملة تجريبية";
-  if (newItem.campaign !== effectiveCampaign) {
-    setNewItem((prev) => ({ ...prev, campaign: effectiveCampaign }));
-  }
   const [auditLog, setAuditLog] = useState([
     ["تم اعتماد Story عرض الصيف للنشر اليدوي", "Reviewer", "منذ 20 دقيقة"],
     ["تم منع Reel وعي من النشر بسبب حقوق الصوت", "Governance", "قبل ساعة"],
