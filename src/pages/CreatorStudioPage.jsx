@@ -183,12 +183,18 @@ const flowActions = [
   { id: "fa4", label: "مراجعة القوالب والحوكمة", desc: "راجع الحوكمة والمطالبات المعتمدة قبل أي إنتاج فعلي.", screen: "promptGovernance", icon: ShieldCheck },
 ];
 
+const _fbIdea     = { label: "غير محدد", type: "غير محدد", platform: "غير محدد" };
+const _fbAngle    = { label: "غير محدد", audience: "غير محدد" };
+const _fbSegment  = { label: "غير محدد" };
+const _fbWindow   = { label: "غير محدد", note: "غير محدد" };
+const _fbTemplate = { label: "غير محدد" };
+
 function buildDestinationMapping(sel, opts) {
-  const idea     = opts.ideas.find((i) => i.id === sel.ideaId)     ?? opts.ideas[0];
-  const angle    = opts.angles.find((a) => a.id === sel.angleId)   ?? opts.angles[0];
-  const segment  = opts.segments.find((s) => s.id === sel.segmentId) ?? opts.segments[0];
-  const win      = opts.windows.find((w) => w.id === sel.windowId) ?? opts.windows[0];
-  const tmpl     = opts.templates.find((t) => t.id === sel.templateId) ?? opts.templates[0];
+  const idea    = opts?.ideas?.find((i) => i.id === sel?.ideaId)       ?? opts?.ideas?.[0]     ?? _fbIdea;
+  const angle   = opts?.angles?.find((a) => a.id === sel?.angleId)     ?? opts?.angles?.[0]    ?? _fbAngle;
+  const segment = opts?.segments?.find((s) => s.id === sel?.segmentId) ?? opts?.segments?.[0]  ?? _fbSegment;
+  const win     = opts?.windows?.find((w) => w.id === sel?.windowId)   ?? opts?.windows?.[0]   ?? _fbWindow;
+  const tmpl    = opts?.templates?.find((t) => t.id === sel?.templateId) ?? opts?.templates?.[0] ?? _fbTemplate;
   return [
     {
       id: "dm1",
