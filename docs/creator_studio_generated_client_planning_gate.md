@@ -167,9 +167,9 @@ No generator is installed or run in this slice. The following is a conceptual co
 | OpenAPI 3.1 support | YES — v6+ has native 3.1 support including `type: [...]` unions |
 | Output | TypeScript types only (`.d.ts`-style interfaces) — no runtime client code |
 | `allOf` handling | Produces intersection types (`A & B`) — accurate for the specialized transfer create schemas |
-| Null union handling | Generates `string \| null` correctly from `type: ["string", "null"]` |
+| Null union handling | Generates `string &#124; null` correctly from `type: ["string", "null"]` |
 | Package impact | Lightweight devDependency; no runtime dependency added |
-| JSX repo fit | Types-only output can coexist with JSX; no `.tsx` conversion required |
+| JSX repo fit | Types-only output can coexist with JSX via JSDoc imports; no `.tsx` conversion required, but the tooling decision must confirm `.ts` parsing/type consumption support |
 | Suitability | Strong fit for contract verification and future typed access; does not generate a fetch client |
 
 ### Option B — `openapi-generator-cli` (typescript-fetch or typescript-axios)
