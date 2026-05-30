@@ -228,7 +228,7 @@ Additional checks:
 
 - Confirm `git diff -- src/generated/creator-studio-openapi-types/index.d.ts` → no output (generated file unchanged)
 - Confirm `git diff -- package.json package-lock.json` → no output (packages unchanged unless explicitly approved)
-- Grep for no `fetch(`/`axios` introduced in changed files
+- Grep for no fetch or axios calls introduced in changed files
 - Grep for no runtime client import in changed files
 - Grep to confirm any new import from generated path uses types-only JSDoc form, not an ESM import
 - Confirm no API call added to `CreatorStudioPage.jsx` or any other UI file
