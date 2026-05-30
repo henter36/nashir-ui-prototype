@@ -67,8 +67,8 @@ Regeneration produces identical output from the same YAML and lockfile. The arti
 | Output is types-only (no runtime code) | PASS | No `fetch`, `axios`, class or function definitions found |
 | `components` namespace present | PASS | 534 matches in generated file |
 | `paths` and `operations` included | PASS | Path types present (e.g., `operations["createCreatorStudioSession"]`) |
-| `CreatorStudioSession` present | PASS | Line 408 |
-| `CreatorContextDraft` present | PASS | Line 448 |
+| `CreatorStudioSession` schema present | PASS | Line 1219 — `components["schemas"]["CreatorStudioSession"]` |
+| `CreatorContextDraft` schema present | PASS | Line 1255 — `components["schemas"]["CreatorContextDraft"]` |
 | `CreatorTransferPayloadSummary` present | PASS | Line 1356 |
 | `CreatorManualContext` present | PASS | Line 1196 |
 | `CreatorContentStudioTransferDraftCreateRequest` present | PASS | Line 1336 — `components["schemas"]["CreatorTransferDraftCreateRequest"] & { promptVersionId: string; ... }` |
