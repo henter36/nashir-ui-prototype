@@ -242,7 +242,7 @@ grep "CreatorPublishingTransferDraftCreateRequest" src/generated/creator-studio-
 | JSX/JSDoc type-check uncertainty | JSDoc imports may not be type-checked without jsconfig | Keep type-check optional in generated types slice; do not block build on it |
 | Generated file churn | Every YAML change triggers full regeneration | Keep YAML changes behind separate gates; use pinned generator version |
 | `allOf` typing mismatch | Generator may produce `{ draftId: string } & { promptVersionId: string }` vs other shapes | Manually review the intersection output for transfer create request schemas |
-| Null union mismatch | Generator may produce `string &#124; null` or `string | undefined` or `any` | Spot-check `contentId` in `CreatorTransferPayloadSummary` before accepting generated output |
+| Null union mismatch | Generator may produce `string &#124; null` or `string &#124; undefined` or `any` | Spot-check `contentId` in `CreatorTransferPayloadSummary` before accepting generated output |
 | Overclaiming backend readiness | Merged generated types may be interpreted as proof that API is ready | Add clear header comment in generated file: "GENERATED — no backend exists in this repository" |
 | Package-lock churn | Package addition changes lockfile; affects all contributors | Add only `openapi-typescript` as devDep; review lockfile diff in implementation PR |
 
