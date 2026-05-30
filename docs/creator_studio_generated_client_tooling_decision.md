@@ -137,7 +137,7 @@ Manually written TypeScript interfaces that mirror the OpenAPI schemas.
 
 The following path is recommended for generated types output. The final path must be approved before any generation.
 
-**Recommended path:** `src/generated/creator-studio-openapi-types/`
+**Recommended path:** `src/generated/creator-studio-openapi-types/index.d.ts`
 
 **Reasoning:** `generated/` signals automated output; `creator-studio-openapi-types/` is explicit about content and source.
 
@@ -211,7 +211,7 @@ Before the Generated Types Implementation Slice begins:
 - [ ] `openapi-typescript` confirmed to produce `string | null` from `type: ["string", "null"]`
 - [ ] `openapi-typescript` confirmed to produce correct intersection types from `allOf` schemas
 - [ ] No unresolved Gemini / CodeRabbit / Sonar comments on Creator Studio YAML
-- [ ] Final output path approved (`src/generated/creator-studio-openapi-types/` or alternative)
+- [ ] Final output path approved (`src/generated/creator-studio-openapi-types/index.d.ts` or alternative)
 - [ ] Package strategy approved (`devDependency`, pinned version)
 - [ ] Type consumption strategy approved (JSDoc vs separate type-check step)
 - [ ] Generation script name approved (`generate:creator-studio-types` or equivalent)
