@@ -3041,13 +3041,11 @@ components:
         message:
           type: string
         requiredAction:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
         resolvedAt:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           format: date-time
     CreatorManualContext:
       type: object
@@ -3123,9 +3121,8 @@ components:
         selectedPlatform:
           $ref: "#/components/schemas/CreatorStudioPlatform"
         creatorHandleRef:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Opaque creator handle reference. Raw handle must not be returned.
         manualContext:
           $ref: "#/components/schemas/CreatorManualContext"
@@ -3429,43 +3426,36 @@ components:
           type: string
           description: Canonical context draft identifier.
         contentId:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Canonical Content Studio item identifier. Present for publishing transfers only.
         promptVersionId:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Canonical PromptVersion identifier. Present for Content Studio transfers only.
         destinationModule:
           $ref: "#/components/schemas/CreatorTransferDestinationModule"
         selectedPlatform:
           $ref: "#/components/schemas/CreatorStudioPlatform"
         targetContentType:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Content type override if supplied. Present for Content Studio transfers only.
         campaignName:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Campaign name annotation if supplied. Present for campaign transfers only.
         objective:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Campaign objective if supplied. Present for campaign transfers only.
         targetPublishWindow:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Publish window override if supplied. Present for publishing transfers only.
         reviewReason:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           description: Governance reviewer annotation if supplied. Present for prompt-governance transfers only.
         humanReviewRequired:
           type: boolean
@@ -3541,15 +3531,12 @@ components:
         platform:
           $ref: "#/components/schemas/CreatorStudioPlatform"
         snapshotAt:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
           format: date-time
         confidenceLabel:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
         dataSource:
-          type:
-            - string
-            - "null"
+          type: string
+          nullable: true
