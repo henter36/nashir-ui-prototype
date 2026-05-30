@@ -50,10 +50,10 @@ The repo uses React/Vite JSX (`src/` contains `.jsx` files only). No `.ts`/`.tsx
 
 ### Resolved strategy
 
-Generated TypeScript type definitions (`.d.ts` output) may be consumed in JSX files via **JSDoc imports** only, without converting JSX to TSX:
+Generated TypeScript type definitions (`.d.ts` output) may be consumed in JSX files via **JSDoc imports** only, without converting JSX to TSX. Because `openapi-typescript` exports schemas under `components["schemas"]`, JSDoc examples must reference that namespace rather than top-level schema names:
 
 ```js
-/** @type {import('../generated/creator-studio-openapi-types').CreatorStudioSession} */
+/** @type {import('../generated/creator-studio-openapi-types').components["schemas"]["CreatorStudioSession"]} */
 const session = ...;
 ```
 
@@ -197,7 +197,7 @@ Additional checks:
 - Generated file exists at the approved output path.
 - No hand-written source files changed.
 - No UI file (`src/pages/`, `src/components/`, `src/utils/`) imports from generated path.
-- Spot-check grep for key generated types:
+- Spot-check grep for key generated schema names. These names are expected under the generated `components["schemas"]` namespace, not as top-level exports:
 
 ```sh
 grep "CreatorStudioSession" src/generated/creator-studio-openapi-types/index.d.ts
