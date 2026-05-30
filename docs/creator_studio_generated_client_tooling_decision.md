@@ -188,7 +188,7 @@ Generated types live in the output path. JSX files reference them via JSDoc anno
 const session = ...;
 ```
 
-Requires: `allowJs: true` in a minimal `jsconfig.json` or `tsconfig.json` (type-check only, not compilation).
+Requires: `checkJs: true` in a minimal `jsconfig.json`, or both `allowJs: true` and `checkJs: true` in `tsconfig.json` for type-check only usage.
 
 **Strategy B — Separate type-check step**
 
