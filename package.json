@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:creator-studio-types": "openapi-typescript docs/nashir_v1_openapi.yaml -o src/generated/creator-studio-openapi-types/index.d.ts"
   },
   "dependencies": {
     "lucide-react": "^1.16.0",
@@ -23,6 +24,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "openapi-typescript": "^7.13.0",
     "vite": "^8.0.12"
   }
 }
