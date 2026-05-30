@@ -32,9 +32,9 @@ This document closes B-GC-1 and B-GC-2 at the planning level and defines the exa
 
 The future implementation slice must:
 
-- Generate Creator Studio OpenAPI types only (`.d.ts` artifact) using `openapi-typescript`.
+- Generate TypeScript definitions from the full OpenAPI contract for Creator Studio use (`.d.ts` artifact) using `openapi-typescript`.
 - Use `docs/nashir_v1_openapi.yaml` as the sole source of truth.
-- Keep the generated artifact fully isolated in `src/generated/creator-studio-openapi-types/`.
+- Keep the generated artifact fully isolated at `src/generated/creator-studio-openapi-types/index.d.ts`.
 - Not introduce a runtime fetch client.
 - Not connect UI to any API.
 - Not imply a backend exists.
@@ -89,7 +89,7 @@ The implementation slice must complete all of the following before committing ge
 
 | Check | Method |
 |---|---|
-| Null union output | Inspect generated type for `CreatorTransferPayloadSummary.contentId` — expect `string \| null`, not `any` or `string` |
+| Null union output | Inspect generated type for `CreatorTransferPayloadSummary.contentId` — expect `string &#124; null`, not `any` or `string` |
 | `allOf` output | Inspect generated type for `CreatorContentStudioTransferDraftCreateRequest` — expect intersection or merged type with `draftId` and `promptVersionId` both typed |
 | Closed object behavior | Inspect generated type for `CreatorManualContext` — expect no index signature (`[key: string]: unknown`) |
 | Enum output | Inspect generated types for `CreatorStudioSessionStatus`, `CreatorContextDraftStatus`, `CreatorTransferDraftStatus` — expect string literal unions |
@@ -242,7 +242,7 @@ grep "CreatorPublishingTransferDraftCreateRequest" src/generated/creator-studio-
 | JSX/JSDoc type-check uncertainty | JSDoc imports may not be type-checked without jsconfig | Keep type-check optional in generated types slice; do not block build on it |
 | Generated file churn | Every YAML change triggers full regeneration | Keep YAML changes behind separate gates; use pinned generator version |
 | `allOf` typing mismatch | Generator may produce `{ draftId: string } & { promptVersionId: string }` vs other shapes | Manually review the intersection output for transfer create request schemas |
-| Null union mismatch | Generator may produce `string \| null` or `string | undefined` or `any` | Spot-check `contentId` in `CreatorTransferPayloadSummary` before accepting generated output |
+| Null union mismatch | Generator may produce `string &#124; null` or `string | undefined` or `any` | Spot-check `contentId` in `CreatorTransferPayloadSummary` before accepting generated output |
 | Overclaiming backend readiness | Merged generated types may be interpreted as proof that API is ready | Add clear header comment in generated file: "GENERATED — no backend exists in this repository" |
 | Package-lock churn | Package addition changes lockfile; affects all contributors | Add only `openapi-typescript` as devDep; review lockfile diff in implementation PR |
 
