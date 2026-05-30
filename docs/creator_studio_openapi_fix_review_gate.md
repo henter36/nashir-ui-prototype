@@ -146,11 +146,13 @@ Three Creator Studio status enums (`CreatorStudioSessionStatus`, `CreatorContext
 
 ### Nullable / optional field clarity
 
-`CreatorTransferPayloadSummary` optional-nullable fields are defined using `type: ["string", "null"]` (multi-type array syntax). OpenAPI 3.0.x does not support this syntax — nullable strings in 3.0.x must use `type: string` with `nullable: true`. The Nashir V1 contract declares `openapi: 3.1.0`, which does support array type syntax. However, most OpenAPI code generators targeted at V1 APIs still use 3.0.x-based toolchains and will fail to parse or incorrectly type these fields.
+`CreatorTransferPayloadSummary` optional-nullable string fields use `type: ["string", "null"]` (multi-type array syntax). The Nashir V1 contract declares `openapi: 3.1.0`, which formally supports this syntax. Multi-type arrays are a correct and valid 3.1 nullable representation. Migration to `nullable: true` (a 3.0.x pattern) would be incorrect and should not occur unless a separately approved gate downgrades the entire contract to OpenAPI 3.0.x.
+
+Caution: do not mix 3.0.x `nullable: true` with 3.1 `type: [...]` arrays. Any version migration must be repo-wide and separately reviewed.
 
 `payloadSummary` in `CreatorTransferDraft` is not in the required list — generated clients will treat it as optional.
 
-**Risk: BLOCKING** — see B-5 in Section 9.
+**Risk: LOW** — generator toolchain must be confirmed as 3.1-capable in the generated-client planning gate.
 
 ### Payload summary typing
 
@@ -164,15 +166,15 @@ Fully typed with `additionalProperties: false`. All 11 fields are explicit. Gene
 
 ### Blocking findings
 
-**B-5 — OpenAPI 3.0 nullable syntax incompatibility in `CreatorTransferPayloadSummary`**
+None.
+
+~~**B-5 — OpenAPI 3.0 nullable syntax incompatibility in `CreatorTransferPayloadSummary`**~~ **WITHDRAWN**
 
 | Field | Value |
 |---|---|
-| Severity | Blocking before generated-client planning |
-| Evidence | `CreatorTransferPayloadSummary` optional-nullable string fields use `type: ["string", "null"]` (OpenAPI 3.1 multi-type array syntax). The contract header declares `openapi: 3.1.0`, but most code generators (openapi-generator, kiota, orval) target OpenAPI 3.0.x toolchains and will fail to parse or produce incorrect types for these fields. |
-| Risk | Generated nullable fields become untyped or generation fails outright on common 3.0-based toolchains. |
-| Required fix | In Creator Studio OpenAPI YAML Fix Slice 2, update all nullable string fields in `CreatorTransferPayloadSummary` from `type: ["string", "null"]` to `type: string` with `nullable: true`; or explicitly evaluate and document a 3.1-native generator that handles array types, and include that decision in the generated-client planning gate before any code generation proceeds. |
-| Owner | Creator Studio OpenAPI YAML Fix Slice 2 |
+| Status | INVALID — withdrawn |
+| Reason | The Nashir V1 contract declares `openapi: 3.1.0`. `type: ["string", "null"]` is valid OpenAPI 3.1 syntax for nullable fields. The B-5 finding was based on an incorrect assumption that the contract targets 3.0.x. No YAML fix is required for the nullable syntax. Generator toolchain 3.1 compatibility must be confirmed in the generated-client planning gate, but this is a planning condition, not a blocking YAML defect. |
+| Caution | Do not introduce `nullable: true` (3.0.x syntax) into this contract. If the contract is ever downgraded to 3.0.x, that migration must be repo-wide and separately reviewed. |
 
 ### Non-blocking findings
 
@@ -210,27 +212,24 @@ Fully typed with `additionalProperties: false`. All 11 fields are explicit. Gene
 
 ## 10. Decision
 
-B-1 CLOSED. B-2 CLOSED for closed payload shape; B-5 OPEN for nullable syntax compatibility. B-3 CLOSED. B-4 CLOSED. One new blocking finding: B-5.
+B-1 CLOSED. B-2 CLOSED. B-3 CLOSED. B-4 CLOSED. B-5 WITHDRAWN (invalid finding — correct 3.1 syntax). No blocking findings.
 
-**NO-GO to Creator Studio Generated Client Planning Gate.**
+**GO to Creator Studio Generated Client Planning Gate.**
 
-**GO to Creator Studio OpenAPI YAML Fix Slice 2.**
-
-**NO-GO to runtime / backend implementation.**
+**NO-GO to runtime / backend implementation** until generated-client planning is reviewed and accepted.
 
 **NO-GO to `docs/nashir_v1_openapi.yaml` changes** in this slice.
 
-### Required fix for YAML Fix Slice 2
+### Conditions carried into generated-client planning
 
-- **B-5**: Update nullable string fields in `CreatorTransferPayloadSummary` from `type: ["string", "null"]` to `type: string` + `nullable: true`; or evaluate and formally adopt a 3.1-native generator toolchain before code generation proceeds.
-
-### GO conditions for resuming generated-client planning
-
-- [ ] B-5 resolved: nullable syntax aligned with chosen generator toolchain
-- [ ] Follow-up fix review confirms no new blocking findings
+- Carry NB-1: campaign and prompt-governance transfer requests require only `draftId`.
+- Carry W-1: null-guard `payloadSummary` access in generated client code.
+- Carry W-2: document `CreatorManualContext` extension path before generated code is frozen.
+- Confirm generator toolchain supports OpenAPI 3.1 `type: [...]` nullable arrays before code generation begins.
+- Do not introduce `nullable: true` (3.0.x syntax) without a separately approved repo-wide version migration gate.
 
 ### Reference documents
 
-- `docs/creator_studio_openapi_review_gate.md` — prior blocking gate (B-1 through B-4 closed; B-5 newly opened)
+- `docs/creator_studio_openapi_review_gate.md` — prior blocking gate (B-1 through B-4 closed)
 - `docs/creator_studio_openapi_planning.md`
-- `docs/nashir_v1_openapi.yaml` — YAML Fix Slice 2 required before generated-client planning
+- `docs/nashir_v1_openapi.yaml` — reviewed and approved for generated-client planning
