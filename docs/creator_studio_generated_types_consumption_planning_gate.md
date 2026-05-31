@@ -157,7 +157,7 @@ A dedicated type-documentation file only, not a production UI page:
 docs/examples/creator_studio_generated_types_consumption_examples.js
 ```
 
-Contains `@typedef` examples only. No UI logic. No imports into pages. No runtime behavior. Must stay outside `src/generated/` so generated artifacts remain machine-owned and reproducible.
+Contains JSDoc `@typedef` examples only, with no UI logic, page imports, runtime behavior, or placement under `src/generated/`; generated artifacts must remain machine-owned and reproducible.
 
 **Purpose:** Validates that the JSDoc import path resolves correctly and that key schema types render in editor type hints.
 
