@@ -90,7 +90,7 @@ This gate answers:
 
 **What exact future implementation plan should be used for Nashir SQL schema, what repository and files are expected to be touched later, what remains unresolved, and what must be verified before actual migrations are written?**
 
-**Summary:** The implementation slice lives in marketing-os. It modifies `src/rbac.js` for RBAC seed, adds `schema_patch_005.sql` through `schema_patch_011.sql` in `marketing-os/docs/`, extends `scripts/db-migrate.js`, updates `docs/07_database_schema.sql`, extends the RBAC test, and adds Nashir repository tests. No backend routes, auth middleware, or UI changes are included. The implementation is blocked until B-SQL01 (Backend Slice 0 approval) and B-SQL06/07 are resolved, but the planning is sufficiently defined to authorize the implementation slice if those blockers are cleared.
+**Summary:** The implementation slice lives in marketing-os. It modifies `src/rbac.js` for RBAC seed, adds `schema_patch_005.sql` through `schema_patch_012.sql` in `marketing-os/docs/`, extends `scripts/db-migrate.js`, updates `docs/07_database_schema.sql`, extends the RBAC test, and adds Nashir repository tests. No backend routes, auth middleware, or UI changes are included. The implementation is blocked until B-SQL01 (Backend Slice 0 approval) and B-SQL06/07 are resolved, but the planning is sufficiently defined to authorize the implementation slice if those blockers are cleared.
 
 ---
 
@@ -179,6 +179,9 @@ All files in **marketing-os repository only**.
 | Any other file not in the allowed list above | Out of scope |
 
 ---
+
+
+**Patch numbering consistency rule:** Future implementation must preserve the 12-patch sequence defined in Section 9. Section 7 allowed files, Section 18 verification commands, and Section 23 readiness language must all reference patches 001-012 consistently.
 
 ## 9. Migration Sequencing Plan
 
@@ -507,7 +510,7 @@ git diff -- <nashir-ui-prototype-path>/
 
 # 3. Apply migrations (strict mode)
 npm run db:migrate:strict
-# Expected: all patches 001-011 apply cleanly
+# Expected: all patches 001-012 apply cleanly
 
 # 4. Apply seed (will rebuild RBAC from rbac.js)
 npm run db:seed
@@ -615,7 +618,7 @@ git status --short
 
 | Dimension | Rating |
 |---|---|
-| Table plan (10 patches, 21 new tables) | **READY** — tables, columns, PKs, FKs, indexes all documented |
+| Table plan (12-patch sequence, 21 new tables) | **READY** — tables, columns, PKs, FKs, indexes all documented |
 | Migration order (W-SQL-R06 resolved) | **READY** — Patch 009 (prompt) before Patch 010 (creator studio) confirmed |
 | Referential integrity | **READY** — junction table; no uuid[]; FK targets in correct patch order |
 | Workspace/store isolation | **READY** — workspace_id FK on all tables; partial unique on store_profile |
