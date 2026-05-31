@@ -51,8 +51,6 @@ paths:
   /workspaces/{workspaceId}/products:
     get:
       operationId: listProducts
-      security:
-        - bearerAuth: []
       x-permission: nashir.product.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -91,8 +89,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createProduct
-      security:
-        - bearerAuth: []
       x-permission: nashir.product.write
       x-workspace-scope: route
       x-store-scope: implicit
@@ -139,8 +135,6 @@ paths:
   /workspaces/{workspaceId}/products/{productId}:
     get:
       operationId: getProduct
-      security:
-        - bearerAuth: []
       x-permission: nashir.product.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -175,8 +169,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateProduct
-      security:
-        - bearerAuth: []
       x-permission: nashir.product.write
       x-workspace-scope: route
       x-store-scope: implicit
@@ -227,8 +219,6 @@ paths:
   /workspaces/{workspaceId}/assets:
     get:
       operationId: listAssets
-      security:
-        - bearerAuth: []
       x-permission: nashir.asset.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -269,8 +259,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createAsset
-      security:
-        - bearerAuth: []
       x-permission: nashir.asset.write
       x-workspace-scope: route
       x-store-scope: implicit
@@ -317,8 +305,6 @@ paths:
   /workspaces/{workspaceId}/assets/{assetId}:
     get:
       operationId: getAsset
-      security:
-        - bearerAuth: []
       x-permission: nashir.asset.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -353,8 +339,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateAsset
-      security:
-        - bearerAuth: []
       x-permission: nashir.asset.write
       x-workspace-scope: route
       x-store-scope: implicit
@@ -405,8 +389,6 @@ paths:
   /workspaces/{workspaceId}/assets/{assetId}/link-product:
     post:
       operationId: linkAssetToProduct
-      security:
-        - bearerAuth: []
       x-permission: nashir.asset.link
       x-workspace-scope: route
       x-store-scope: implicit
@@ -456,8 +438,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents:
     get:
       operationId: listCampaignContents
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -502,8 +482,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createCampaignContent
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -556,8 +534,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}:
     get:
       operationId: getCampaignContent
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -598,8 +574,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateCampaignContent
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.update
       x-workspace-scope: route
       x-store-scope: implicit
@@ -656,8 +630,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/submit-review:
     post:
       operationId: submitCampaignContentReview
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.submit_review
       x-workspace-scope: route
       x-store-scope: implicit
@@ -715,8 +687,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/approve:
     post:
       operationId: approveCampaignContent
-      security:
-        - bearerAuth: []
       x-permission: nashir.approval.decide
       x-workspace-scope: route
       x-store-scope: implicit
@@ -775,8 +745,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/reject:
     post:
       operationId: rejectCampaignContent
-      security:
-        - bearerAuth: []
       x-permission: nashir.approval.decide
       x-workspace-scope: route
       x-store-scope: implicit
@@ -835,8 +803,6 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/preview-artifacts:
     get:
       operationId: listCampaignContentPreviewArtifacts
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.read
       x-workspace-scope: route
       x-store-scope: implicit
@@ -884,8 +850,6 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createCampaignContentPreviewArtifact
-      security:
-        - bearerAuth: []
       x-permission: nashir.content.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -941,8 +905,6 @@ paths:
   /workspaces/{workspaceId}/readiness:
     get:
       operationId: getWorkspaceReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.workflow.read
       x-workspace-scope: route
       x-store-scope: none
@@ -985,8 +947,6 @@ paths:
   /workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/readiness:
     get:
       operationId: getWorkflowReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.workflow.read
       x-workspace-scope: route
       x-store-scope: none
@@ -1030,8 +990,6 @@ paths:
   /workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/steps/{stepKey}/readiness:
     get:
       operationId: getWorkflowStepReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.workflow.read
       x-workspace-scope: route
       x-store-scope: none
@@ -1076,8 +1034,6 @@ paths:
   /workspaces/{workspaceId}/ai-providers/{providerId}/readiness:
     get:
       operationId: getProviderReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.model_routing.read
       x-workspace-scope: route
       x-store-scope: none
@@ -1121,8 +1077,6 @@ paths:
   /workspaces/{workspaceId}/model-routes/{modelRouteId}/readiness:
     get:
       operationId: getModelRouteReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.model_routing.read
       x-workspace-scope: route
       x-store-scope: none
@@ -1166,8 +1120,6 @@ paths:
   /workspaces/{workspaceId}/prompts/{promptId}/readiness:
     get:
       operationId: getPromptReadiness
-      security:
-        - bearerAuth: []
       x-permission: nashir.prompt_governance.read
       x-workspace-scope: route
       x-store-scope: none
@@ -1211,8 +1163,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/sessions:
     post:
       operationId: createCreatorStudioSession
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.use
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1269,8 +1219,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/sessions/{sessionId}:
     get:
       operationId: getCreatorStudioSession
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.use
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1318,8 +1266,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/context-drafts:
     post:
       operationId: createCreatorContextDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1381,8 +1327,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/context-drafts/{draftId}:
     get:
       operationId: getCreatorContextDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.use
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1431,8 +1375,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/readiness-assessments:
     post:
       operationId: createCreatorReadinessAssessment
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1487,8 +1429,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/content-studio:
     post:
       operationId: createCreatorContentStudioTransferDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1551,8 +1491,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/campaign:
     post:
       operationId: createCreatorCampaignTransferDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1615,8 +1553,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/publishing:
     post:
       operationId: createCreatorPublishingTransferDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-workspace-scope: route
       x-store-scope: implicit
@@ -1679,8 +1615,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/prompt-governance:
     post:
       operationId: createCreatorPromptGovernanceTransferDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.transfer.create
       x-secondary-permission: nashir.prompt_governance.read
       x-workspace-scope: route
@@ -1744,8 +1678,6 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/{transferId}:
     get:
       operationId: getCreatorTransferDraft
-      security:
-        - bearerAuth: []
       x-permission: nashir.creator_studio.use
       x-workspace-scope: route
       x-store-scope: implicit
