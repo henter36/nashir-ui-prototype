@@ -370,7 +370,7 @@ The following controls must be enforced from this gate forward:
 | 5 | **Nashir Generated Types Input Update Gate** | OpenAPI Migration Planning Gate | Approves change to `package.json` generation script input path after contract moves to marketing-os |
 | 6 | **Nashir UI API Integration Planning Gate** | Backend Slice 0 exists and verified; production server URL approved | Plans how nashir-ui-prototype calls the Nashir V1 API; blocked until backend exists and contract migration is complete |
 
-**The Nashir OpenAPI Migration Planning Gate is blocked until Nashir Backend Slice 0 Planning identifies which routes are in scope.** Route ownership must be known before migration can be planned.
+**The Nashir OpenAPI Migration Planning Gate is blocked until Nashir Auth/RBAC and Workspace Identity Gate and Nashir Backend Slice 0 Planning both close.** Route ownership must be known before migration can be planned.
 
 ---
 
