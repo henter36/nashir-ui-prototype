@@ -590,7 +590,7 @@ Conceptual entities only. No SQL DDL. No migrations.
 | Identity model defined | **COMPLETE — documentation only** |
 | Workspace/store isolation model defined | **COMPLETE — documentation only** |
 | V1 role model defined (seven roles) | **COMPLETE — documentation only** |
-| Permission taxonomy defined (dot notation, 34 permission codes) | **COMPLETE — documentation only** |
+| Permission taxonomy defined (dot notation, 35 permission codes) | **COMPLETE — documentation only** |
 | Role-to-permission matrix defined | **COMPLETE — documentation only** |
 | Operation security mapping defined | **COMPLETE — input to OpenAPI security gate** |
 | GO to Nashir Auth/RBAC Review Gate | **GO** |
