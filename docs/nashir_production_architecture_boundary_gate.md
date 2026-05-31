@@ -50,7 +50,7 @@ The scope is strictly: deciding the production architecture boundary and reposit
 | `docs/workspace_and_minimum_identity_decision.md` | V1 single-workspace-single-store boundary decision | Verified |
 | `src/generated/creator-studio-openapi-types/index.d.ts` | Generated type artifact, awareness only, not imported | Verified |
 
-### Verified — henter36/marketing-os (local clone at ~/workspace/marketing-os)
+### Verified — henter36/marketing-os (sibling repository clone)
 
 | Source | Role | Status |
 |---|---|---|
