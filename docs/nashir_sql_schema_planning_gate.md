@@ -420,7 +420,9 @@ All groups below are conceptual only. No SQL DDL.
 
 **nashir_campaigns (EXISTING Patch 004):** nashir_campaign_id (uuid PK), workspace_id (uuid FK), campaign_name (varchar NOT NULL), campaign_status (enum), created_by (uuid FK users), created_at, updated_at. Future column: store_profile_id (nullable FK — add in Patch 005+).
 
-**nashir_campaign_content_items:** campaign_content_id (uuid PK), workspace_id (uuid FK), campaign_id (uuid FK → nashir_campaigns nullable — CampaignContent may exist without a campaign parent in V1), product_id (uuid FK NOT NULL → nashir_products), title (varchar NOT NULL), channel (varchar NOT NULL), content_type (varchar NOT NULL), body_content (text), cta (text), audience_summary (text), offer_summary (text), review_status (enum: draft/ready_for_review/in_review/approved/rejected), selected_asset_ids (uuid[]), version (varchar — optimistic concurrency), created_by (uuid FK users), created_at, updated_at. Indexes: (workspace_id), (workspace_id, review_status), (workspace_id, product_id).
+**nashir_campaign_content_items:** campaign_content_id (uuid PK), workspace_id (uuid FK), campaign_id (uuid FK → nashir_campaigns nullable — CampaignContent may exist without a campaign parent in V1), product_id (uuid FK NOT NULL → nashir_products), title (varchar NOT NULL), channel (varchar NOT NULL), content_type (varchar NOT NULL), body_content (text), cta (text), audience_summary (text), offer_summary (text), review_status (enum: draft/ready_for_review/in_review/approved/rejected), version (varchar — optimistic concurrency), created_by (uuid FK users), created_at, updated_at. Indexes: (workspace_id), (workspace_id, review_status), (workspace_id, product_id).
+
+**nashir_campaign_content_assets:** campaign_content_asset_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK → nashir_campaign_content_items), asset_id (uuid FK → nashir_assets), sort_order (integer nullable), created_at. Purpose: replaces `selected_asset_ids uuid[]` so PostgreSQL can enforce referential integrity, workspace alignment, and asset deletion behavior through foreign keys. Indexes: (workspace_id, campaign_content_id), (workspace_id, asset_id).
 
 **nashir_preview_artifacts:** preview_artifact_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK NOT NULL), channel (varchar NOT NULL), format (varchar NOT NULL), display_summary (text NOT NULL), asset_ids (uuid[]), review_status (enum), created_at. Indexes: (workspace_id, campaign_content_id).
 
@@ -430,7 +432,7 @@ All groups below are conceptual only. No SQL DDL.
 
 **nashir_creator_studio_sessions:** session_id (uuid PK), workspace_id (uuid FK), actor_user_id (uuid FK users NOT NULL), selected_platform (enum: Instagram/TikTok/YouTube/X/Snapchat), creator_handle_ref (text — OPAQUE REFERENCE ONLY; never raw handle), source (enum: manual — V1 only), manual_context (jsonb), status (enum: active/expired/blocked), created_at, expires_at (timestamptz NOT NULL), transferred_at (nullable). Indexes: (workspace_id, actor_user_id), (expires_at) WHERE status = 'active'.
 
-**nashir_creator_content_ideas:** idea_id (uuid PK), workspace_id (uuid FK), session_id (uuid FK → sessions), title, content_type, platform, rationale, confidence_label, status (enum: draft/human_review_required/accepted), created_at, expires_at. Indexes: (workspace_id, session_id).
+**nashir_creator_content_ideas:** idea_id (uuid PK), workspace_id (uuid FK), session_id (uuid FK → nashir_creator_studio_sessions), title, content_type, platform, rationale, confidence_label, status (enum: draft/human_review_required/accepted), created_at, expires_at. Indexes: (workspace_id, session_id).
 
 **nashir_creator_campaign_angles:** angle_id (uuid PK), workspace_id (uuid FK), session_id (uuid FK), label, audience, rationale, confidence_label, status, created_at, expires_at. Indexes: (workspace_id, session_id).
 
@@ -473,7 +475,7 @@ All groups below are conceptual only. No SQL DDL.
 | Workspace | Products (nashir_products) | Has | 1:N | No cascade delete | YES — product create/update | LOW |
 | StoreProfile | Products | Has (nullable in V1) | 1:N (future) | No cascade delete | NO | LOW |
 | Workspace | Assets (nashir_assets) | Has | 1:N | No cascade delete | YES — asset create/update | LOW |
-| Product | Assets | Referenced by | N:M (via linked_product_id) | No cascade | NO | LOW |
+| Product | Assets | Referenced by | 1:N (via linked_product_id) | No cascade | NO | LOW |
 | Workspace | Campaigns (nashir_campaigns) | Has | 1:N | No cascade delete (archive only) | YES — campaign create | LOW |
 | Campaign | CampaignContentItems | Has | 1:N | No cascade delete (content archived) | YES — content create/update | MEDIUM |
 | CampaignContent | PreviewArtifacts | Has | 1:N | No cascade delete | NO | LOW |
@@ -520,14 +522,14 @@ All groups below are conceptual only. No SQL DDL.
 **Core indexes required for V1:**
 - Every workspace-scoped table: `(workspace_id)` — covers list queries
 - Every workspace-scoped table with status: `(workspace_id, status)` — covers filtered list queries
-- Creator Studio TTL entities: `(expires_at) WHERE status = 'active'` or `WHERE expires_at > now()` — covers TTL cleanup
+- Creator Studio TTL entities: table-specific partial indexes on `(expires_at)` for non-terminal TTL statuses; examples: `WHERE status = 'active'` for sessions and `WHERE status = 'pending_review'` for transfer drafts. Do not use `WHERE expires_at > now()` in PostgreSQL partial index predicates; cleanup jobs should compare `expires_at` at runtime.
 - Evidence: `(workspace_id, nashir_campaign_id, evidence_id)` — tenant isolation + lookup
 - AuditLog: existing indexes cover workspace, entity, actor, correlation
 - Session/draft foreign keys: `(workspace_id, session_id)`, `(workspace_id, context_draft_id)`
 
 **Unique constraints:**
-- `nashir_store_profiles.workspace_id` — UNIQUE (1:1 with workspace in V1)
-- `nashir_prompt_governance_versions.(workspace_id, prompt_template_id, version_number)` — UNIQUE
+- `nashir_store_profiles.workspace_id` — UNIQUE PARTIAL for active/non-archived rows only (1:1 with workspace in V1; avoid soft-delete conflicts)
+- `nashir_prompt_governance_versions.(workspace_id, prompt_template_id, version_number)` — UNIQUE PARTIAL for active/non-archived rows only (avoid conflicts with archived versions)
 
 **Check constraints (pattern from marketing-os):**
 - `name_not_empty`: `length(trim(column)) > 0` for all name/title columns
@@ -819,3 +821,5 @@ That gate must:
 - Confirm W-SQL07 (store_profile_id column addition to nashir_campaigns).
 - Confirm W-SQL08 (audit_logs action varchar(160) capacity).
 - Not authorize SQL implementation. Documentation-only review gate.
+
+**Asset relationship decision:** `linked_product_id` on `nashir_assets` represents a 1:N Product → Assets relationship. Any future true N:M product-asset relationship requires a separate junction table and review gate.
