@@ -202,8 +202,8 @@ The following principles govern all entity decisions in this gate:
 | ErrorModel | `src/error-model.js` | **Reuse after reconciliation** | Nashir V1 error codes must bridge to ErrorModel | Nashir ErrorCode enum is Nashir-specific and requires mapping |
 | BrandProfile, BrandVoiceRule | Brand Slice 1 repositories | **Reference only** | Brand identity / voice — partial overlap with Nashir StoreProfile | Nashir StoreProfile is different from BrandProfile; do not conflate |
 | MediaJob (MediaJob not GenerationJob) | ERD authority | **Reference only** | AI media generation job entity | Nashir does not define AI generation jobs in V1; defer |
-| prototype/ directory | marketing-os static prototype | **Reject** | Not source of truth for Nashir UI or backend |
-| Patch 002 connector/notification/runtime | marketing-os runtime | **Reject** | Marketing OS domain runtime; not applicable to Nashir |
+| prototype/ directory | marketing-os static prototype | **Reject** | Not source of truth for Nashir UI or backend | No reusable backend gap; explicitly excluded |
+| Patch 002 connector/notification/runtime | marketing-os runtime | **Reject** | Marketing OS domain runtime; not applicable to Nashir | No Nashir ERD mapping; keep out of scope |
 
 ---
 
@@ -230,7 +230,7 @@ The following principles govern all entity decisions in this gate:
 | CreatorPublishWindow | No equivalent | **Missing** | Create new — `nashir_creator_publish_windows` candidate; session-scoped; advisory | **IN** | Low | Nashir SQL Schema Planning Gate |
 | CreatorContextDraft | No equivalent | **Missing** | Create new — `nashir_creator_context_drafts` candidate; TTL-managed; state machine | **IN** | Medium | Nashir SQL Schema Planning Gate |
 | CreatorTransferDraft | No equivalent | **Missing** | Create new — `nashir_creator_transfer_drafts` candidate; TTL-managed; destination-typed | **IN** | Medium | Nashir SQL Schema Planning Gate |
-| PublishingQueueItem | PublishJob | **Partial** | Map — Nashir publishing queue may extend or reference PublishJob; requires approved CampaignContent reference; human confirmation required | **IN** | Medium | Nashir SQL Schema Planning Gate |
+| PublishingQueueItem | PublishJob | **Partial** | Map — Nashir publishing queue may extend or reference PublishJob; requires an approved CampaignContent reference; human confirmation required | **IN** | Medium | Nashir SQL Schema Planning Gate |
 | Asset (OpenAPI schema name) | MediaAsset | **CONFLICT (naming)** | **Rename SQL only** — SQL table must use `nashir_assets` or align with `MediaAsset` pattern; OpenAPI schema name `Asset` is preserved unchanged; no renaming of generated types | **IN** | **High (naming)** | **Nashir SQL Schema Planning Gate — PRIORITY** |
 | PromptTemplate | No SQL equivalent in marketing-os | **Missing** | Create new — `nashir_prompt_templates` candidate; versioned; approval state | **IN** | Medium | Nashir SQL Schema Planning Gate |
 | PromptGovernanceVersion | No SQL equivalent | **Missing** | Create new or embed — version record inside PromptTemplate entity; approved/deprecated states | **IN** | Medium | Nashir SQL Schema Planning Gate |
@@ -758,8 +758,8 @@ If PromptTemplate conflict with marketing-os template-generation deferral is con
 | Governance (PromptTemplate, Approvals) | Partially reconciled — PromptTemplate scope requires confirmation |
 | AI Operations (ModelRoute, AIProvider, Cost) | Reconciled candidate — advisory-only scope confirmed |
 | Audit | Reconciled — AuditLog reuse confirmed |
-| Auth/RBAC | **NOT RECONCILED** — requires dedicated gate |
-| OpenAPI source-of-truth | **NOT RECONCILED** — requires dedicated gate |
+| Auth/RBAC | **NOT RECONCILED** — requires a dedicated gate |
+| OpenAPI source-of-truth | **NOT RECONCILED** — requires a dedicated gate |
 
 ### Next gate
 
