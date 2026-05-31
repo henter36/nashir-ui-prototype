@@ -314,11 +314,11 @@ Ranked by dependency order:
 | Priority | Gate | Dependency | Rationale |
 |---:|---|---|---|
 | 1 | **Nashir Marketing OS Reconciliation Gate** | This decision | Confirms that marketing-os is a viable backend home by mapping Nashir V1 entities to marketing-os entity naming rules, identifying gaps and conflicts, and producing a reconciliation plan |
-| 2 | **Nashir ERD Reconciliation Gate** | Reconciliation Gate | Translates Nashir conceptual ERD into an approved SQL entity map inside marketing-os that respects both Nashir V1 OpenAPI entities and marketing-os naming constraints |
-| 3 | **Nashir OpenAPI Source-of-Truth Gate** | Backend home selected | Decides whether nashir_v1_openapi.yaml moves to marketing-os, remains in nashir-ui-prototype as UI artifact, or is duplicated with explicit source-of-truth ownership |
-| 4 | **Nashir Auth/RBAC and Workspace Identity Gate** | ERD Gate | Designs Nashir-specific auth model, RBAC permission matrix, workspace/tenant isolation inside marketing-os patterns |
-| 5 | **Nashir Backend Slice 0 Planning** | Auth/RBAC Gate | Plans first implementable Nashir backend slice in marketing-os; must name exact allowed files, forbidden files, verification commands, and rollback criteria |
-| 6 | **Nashir UI API Integration Planning Gate** | Slice 0 exists and verified | Plans how nashir-ui-prototype will consume the Nashir V1 API; must not begin before gates 1–5 close |
+| 2 | **Nashir ERD Reconciliation Gate** | Nashir Marketing OS Reconciliation Gate | Translates Nashir conceptual ERD into an approved SQL entity map inside marketing-os that respects both Nashir V1 OpenAPI entities and marketing-os naming constraints |
+| 3 | **Nashir OpenAPI Source-of-Truth Gate** | This decision | Decides whether nashir_v1_openapi.yaml moves to marketing-os, remains in nashir-ui-prototype as UI artifact, or is duplicated with explicit source-of-truth ownership |
+| 4 | **Nashir Auth/RBAC and Workspace Identity Gate** | Nashir ERD Reconciliation Gate | Designs Nashir-specific auth model, RBAC permission matrix, workspace/tenant isolation inside marketing-os patterns |
+| 5 | **Nashir Backend Slice 0 Planning** | Nashir Auth/RBAC and Workspace Identity Gate | Plans first implementable Nashir backend slice in marketing-os; must name exact allowed files, forbidden files, verification commands, and rollback criteria |
+| 6 | **Nashir UI API Integration Planning Gate** | Nashir Backend Slice 0 Planning | Plans how nashir-ui-prototype will consume the Nashir V1 API; must not begin before gates 1–5 close |
 
 **UI API integration must not proceed before gates 1, 2, 3, and 4 close.**
 
