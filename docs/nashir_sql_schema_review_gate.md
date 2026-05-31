@@ -135,7 +135,7 @@ The planning document is documentation-only, internally consistent, referentiall
 | nashir_assets | Store | IN — NEW | YES | Implicit | uuid PK; workspace FK; linked_product nullable | LOW–MEDIUM | **PASS** |
 | nashir_campaigns | Campaign | IN — EXISTS Patch 004 | YES | — | Verified in Patch 004 | LOW | **PASS — WATCH: add nullable store_profile_id in Patch 005/006** |
 | nashir_campaign_content_items | Campaign | IN — NEW | YES | Implicit | uuid PK; workspace FK; product FK; nullable campaign FK documented | LOW–MEDIUM | **PASS** |
-| nashir_campaign_content_assets | Campaign | IN — NEW (junction) | YES | Implicit | uuid PK; workspace FK; content FK; asset FK | LOW | **PASS — junction table present; resolves uuid[] concern** |
+| nashir_campaign_content_assets | Campaign | IN — NEW (junction) | YES | Implicit | composite PK (campaign_content_id, asset_id); workspace FK; content FK; asset FK | LOW | **PASS — junction table present; resolves uuid[] concern** |
 | nashir_preview_artifacts | Campaign | IN — NEW | YES | Implicit | Asset refs via junction table (not uuid[]); content FK | LOW | **PASS** |
 | nashir_approval_decisions | Governance | IN — NEW | YES | Implicit | uuid PK; workspace FK; content FK; decided_by FK | LOW | **PASS (B-SQL04 resolved: create new, not reuse)** |
 | nashir_publishing_queue_items | Publishing | IN — NEW | YES | Implicit | References approved content; human_confirmed field | LOW | **PASS** |
@@ -286,7 +286,7 @@ The planning document is documentation-only, internally consistent, referentiall
 | Check | Result | Notes |
 |---|---|---|
 | nashir_prompt_templates separate from marketing-os prompt_templates | **PASS** | B-SQL02 resolved: new table required; incompatible type_enum |
-| Prompt governance versions uniqueness | **PASS — WATCH** | `(workspace_id, prompt_template_id, version_number)` unique constraint; if versions can be deprecated and re-used with same number, a partial unique index is needed: `WHERE approval_status NOT IN ('deprecated', 'blocked')`. Note as W-SQL-R05 |
+| Prompt governance versions uniqueness | **PASS — WATCH** | `(prompt_template_id, version_number)` unique constraint; if versions can be deprecated and re-used with same number, a partial unique index is needed: `WHERE approval_status NOT IN ('deprecated', 'blocked')`. Note as W-SQL-R05 |
 | Model routing rules admin-controlled | **PASS** | x-permission: nashir.model_routing.manage; owner/admin only per RBAC matrix |
 | Cost usage records billing/admin read boundary | **PASS** | billing_admin + admin + owner only; is_advisory column documented |
 | Cost records not billing | **PASS** | "is_advisory (boolean default true)" and "NOT billing. NOT invoice. NOT payment." |
@@ -342,8 +342,8 @@ The planning document is documentation-only, internally consistent, referentiall
 | Patch 006 | nashir_store_profiles, nashir_products, nashir_assets | Patch 005 | **PASS** — catalog foundation; store before products |
 | Patch 007 | nashir_campaign_content_items, nashir_campaign_content_assets, nashir_preview_artifacts, nashir_approval_decisions | Patch 006 | **PASS** — junction table in same patch as content items |
 | Patch 008 | nashir_publishing_queue_items | Patch 007 | **PASS** — depends on approved content FKs |
-| Patch 009 | All Creator Studio tables | Patch 006 | **PASS** — prompt_template_id FK requires Patch 010; make nullable until Patch 010 or reorder |
-| Patch 010 | nashir_prompt_templates, nashir_prompt_governance_versions | Patch 005 | **WATCH** — W-SQL-R06: Patch 009 context drafts reference prompt_template_id. If Patch 009 precedes Patch 010, prompt_template_id FK must be nullable in context_drafts until Patch 010 is applied, or patches 009 and 010 must be merged |
+| Patch 009 | nashir_prompt_templates, nashir_prompt_governance_versions | Patch 005 | **PASS** |
+| Patch 010 | All Creator Studio tables | Patch 006, Patch 009 | **PASS** — prompt_template_id FK references Patch 009 |
 | Patch 011 | nashir_model_routing_rules, nashir_ai_providers, nashir_cost_usage_records | Patch 005 | **PASS** |
 | Future | nashir_data_sources, nashir_integration_connections, nashir_workflow_definitions | Post-V1 | **PASS — correctly deferred** |
 
