@@ -297,7 +297,7 @@ Keep it in nashir-ui-prototype as the UI contract artifact and type generation s
 - Which contract is the single source of truth for Nashir V1 API endpoints.
 - Whether nashir_openapi_patch.yaml in marketing-os is superseded by nashir_v1_openapi.yaml.
 - Whether nashir_v1_openapi.yaml moves to marketing-os or remains in nashir-ui-prototype.
-- How generated type generation adapts to the chosen authority.
+- How type generation adapts to the chosen authority.
 
 Until that gate closes:
 
