@@ -19,10 +19,20 @@ tags:
     description: Read-only readiness snapshot endpoints for AI operations. All results are advisory only and do not authorize or gate workflow execution. Slice 3 does not execute AI, trigger workflows, probe providers, create artifacts, or write audit records.
   - name: Creator Studio
     description: Creator Studio session, context draft, readiness assessment, and transfer draft endpoints. All transfer drafts are draft-only; no AI execution, scraping, publishing, or real destination record creation occurs. Transfer endpoints require CreatorContextDraft status ready_for_transfer and create pending_review drafts only.
+security:
+  - bearerAuth: []
 paths:
   /health:
     get:
       operationId: getHealth
+      security: []
+      x-workspace-scope: none
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
       tags:
         - Health
       summary: Get service health.
@@ -41,6 +51,21 @@ paths:
   /workspaces/{workspaceId}/products:
     get:
       operationId: listProducts
+      security:
+        - bearerAuth: []
+      x-permission: nashir.product.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Products
       summary: List products.
@@ -66,6 +91,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createProduct
+      security:
+        - bearerAuth: []
+      x-permission: nashir.product.write
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Products
       summary: Create product.
@@ -98,6 +139,21 @@ paths:
   /workspaces/{workspaceId}/products/{productId}:
     get:
       operationId: getProduct
+      security:
+        - bearerAuth: []
+      x-permission: nashir.product.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Products
       summary: Get product.
@@ -119,6 +175,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateProduct
+      security:
+        - bearerAuth: []
+      x-permission: nashir.product.write
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Products
       summary: Update product.
@@ -155,6 +227,21 @@ paths:
   /workspaces/{workspaceId}/assets:
     get:
       operationId: listAssets
+      security:
+        - bearerAuth: []
+      x-permission: nashir.asset.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Assets
       summary: List assets.
@@ -182,6 +269,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createAsset
+      security:
+        - bearerAuth: []
+      x-permission: nashir.asset.write
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Assets
       summary: Create asset metadata.
@@ -214,6 +317,21 @@ paths:
   /workspaces/{workspaceId}/assets/{assetId}:
     get:
       operationId: getAsset
+      security:
+        - bearerAuth: []
+      x-permission: nashir.asset.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Assets
       summary: Get asset.
@@ -235,6 +353,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateAsset
+      security:
+        - bearerAuth: []
+      x-permission: nashir.asset.write
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Assets
       summary: Update asset metadata.
@@ -271,6 +405,22 @@ paths:
   /workspaces/{workspaceId}/assets/{assetId}/link-product:
     post:
       operationId: linkAssetToProduct
+      security:
+        - bearerAuth: []
+      x-permission: nashir.asset.link
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Assets
       summary: Link asset metadata to product.
@@ -306,6 +456,21 @@ paths:
   /workspaces/{workspaceId}/campaign-contents:
     get:
       operationId: listCampaignContents
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Campaign Content
       summary: List campaign content.
@@ -337,6 +502,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createCampaignContent
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Create campaign content draft.
@@ -375,6 +556,21 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}:
     get:
       operationId: getCampaignContent
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Campaign Content
       summary: Get campaign content.
@@ -402,6 +598,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     put:
       operationId: updateCampaignContent
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.update
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Update campaign content.
@@ -444,6 +656,22 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/submit-review:
     post:
       operationId: submitCampaignContentReview
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.submit_review
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Submit campaign content for review.
@@ -487,6 +715,23 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/approve:
     post:
       operationId: approveCampaignContent
+      security:
+        - bearerAuth: []
+      x-permission: nashir.approval.decide
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: true
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-self-action-denied: true
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Approve campaign content review.
@@ -530,6 +775,23 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/reject:
     post:
       operationId: rejectCampaignContent
+      security:
+        - bearerAuth: []
+      x-permission: nashir.approval.decide
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: true
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-self-action-denied: true
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Reject campaign content review.
@@ -573,6 +835,21 @@ paths:
   /workspaces/{workspaceId}/campaign-contents/{campaignContentId}/preview-artifacts:
     get:
       operationId: listCampaignContentPreviewArtifacts
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - Campaign Content
       summary: List preview artifacts.
@@ -607,6 +884,22 @@ paths:
           $ref: "#/components/responses/DefaultError"
     post:
       operationId: createCampaignContentPreviewArtifact
+      security:
+        - bearerAuth: []
+      x-permission: nashir.content.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Campaign Content
       summary: Create preview artifact metadata.
@@ -648,6 +941,21 @@ paths:
   /workspaces/{workspaceId}/readiness:
     get:
       operationId: getWorkspaceReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.workflow.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get workspace readiness summary.
@@ -677,6 +985,21 @@ paths:
   /workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/readiness:
     get:
       operationId: getWorkflowReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.workflow.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get workflow readiness snapshot.
@@ -707,6 +1030,21 @@ paths:
   /workspaces/{workspaceId}/workflow-definitions/{workflowDefinitionId}/steps/{stepKey}/readiness:
     get:
       operationId: getWorkflowStepReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.workflow.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get workflow step readiness snapshot.
@@ -738,6 +1076,21 @@ paths:
   /workspaces/{workspaceId}/ai-providers/{providerId}/readiness:
     get:
       operationId: getProviderReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.model_routing.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get provider readiness snapshot.
@@ -768,6 +1121,21 @@ paths:
   /workspaces/{workspaceId}/model-routes/{modelRouteId}/readiness:
     get:
       operationId: getModelRouteReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.model_routing.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get model route readiness snapshot.
@@ -798,6 +1166,21 @@ paths:
   /workspaces/{workspaceId}/prompts/{promptId}/readiness:
     get:
       operationId: getPromptReadiness
+      security:
+        - bearerAuth: []
+      x-permission: nashir.prompt_governance.read
+      x-workspace-scope: route
+      x-store-scope: none
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
       tags:
         - AI Readiness
       summary: Get prompt readiness snapshot.
@@ -828,6 +1211,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/sessions:
     post:
       operationId: createCreatorStudioSession
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.use
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: true
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Creator Studio session.
@@ -870,6 +1269,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/sessions/{sessionId}:
     get:
       operationId: getCreatorStudioSession
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.use
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-membership-check: non-disclosing
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - nonDisclosingMembershipCheck
+        - permissionGuard
       tags:
         - Creator Studio
       summary: Get Creator Studio session.
@@ -903,6 +1318,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/context-drafts:
     post:
       operationId: createCreatorContextDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Creator Studio context draft.
@@ -950,6 +1381,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/context-drafts/{draftId}:
     get:
       operationId: getCreatorContextDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.use
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-membership-check: non-disclosing
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - nonDisclosingMembershipCheck
+        - permissionGuard
       tags:
         - Creator Studio
       summary: Get Creator Studio context draft.
@@ -984,6 +1431,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/readiness-assessments:
     post:
       operationId: createCreatorReadinessAssessment
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: false
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Creator Studio readiness assessment.
@@ -1024,6 +1487,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/content-studio:
     post:
       operationId: createCreatorContentStudioTransferDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Content Studio transfer draft.
@@ -1072,6 +1551,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/campaign:
     post:
       operationId: createCreatorCampaignTransferDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: true
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Campaign Wizard transfer draft.
@@ -1120,6 +1615,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/publishing:
     post:
       operationId: createCreatorPublishingTransferDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Publishing Queue transfer draft.
@@ -1168,6 +1679,23 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/prompt-governance:
     post:
       operationId: createCreatorPromptGovernanceTransferDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.transfer.create
+      x-secondary-permission: nashir.prompt_governance.read
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: true
+      x-audit-required: true
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - membershipCheck
+        - permissionGuard
+        - rejectBodyWorkspaceId
       tags:
         - Creator Studio
       summary: Create Prompt Governance transfer draft.
@@ -1216,6 +1744,22 @@ paths:
   /workspaces/{workspaceId}/creator-studio/transfer-drafts/{transferId}:
     get:
       operationId: getCreatorTransferDraft
+      security:
+        - bearerAuth: []
+      x-permission: nashir.creator_studio.use
+      x-workspace-scope: route
+      x-store-scope: implicit
+      x-human-review-required: false
+      x-audit-required: false
+      x-evidence-required: false
+      x-sensitive-operation: true
+      x-no-automatic-execution: false
+      x-membership-check: non-disclosing
+      x-guard-chain:
+        - authGuard
+        - workspaceContextGuard
+        - nonDisclosingMembershipCheck
+        - permissionGuard
       tags:
         - Creator Studio
       summary: Get Creator Studio transfer draft.
@@ -3553,3 +4097,13 @@ components:
           type:
             - string
             - "null"
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Nashir V1 bearer token. Issued by the approved Nashir auth provider.
+        Carries userId and workspace membership context.
+        Raw secret values, platform credentials, and OAuth tokens must never appear
+        in any request or response field regardless of authentication state.
