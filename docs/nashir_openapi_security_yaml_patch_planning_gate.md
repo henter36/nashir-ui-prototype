@@ -320,7 +320,7 @@ Verifying that every planned `x-permission` exists in the approved 35 permission
 |---|---|---|---|---|
 | `nashir.product.read` | listProducts, getProduct | YES | LOW | None |
 | `nashir.product.write` | createProduct, updateProduct | YES | LOW | None |
-| `nashir.asset.read` | listAssets, getAsset, listCampaignContentPreviewArtifacts | YES | LOW | None |
+| `nashir.asset.read` | listAssets, getAsset | YES | LOW | None |
 | `nashir.asset.write` | createAsset, updateAsset | YES | LOW | None |
 | `nashir.asset.link` | linkAssetToProduct | YES | LOW | None |
 | `nashir.content.read` | listCampaignContents, getCampaignContent, listCampaignContentPreviewArtifacts | YES | LOW | None |
@@ -457,7 +457,7 @@ git status --short
 
 | Risk | Severity | Control | Owner Gate |
 |---|---|---|---|
-| YAML extension typo (e.g., `x-permision` instead of `x-permission`) | MEDIUM | Post-patch grep validation check #12; confirm all 34 appear | YAML Patch Slice verification |
+| YAML extension typo (e.g., `x-permision` instead of `x-permission`) | MEDIUM | Post-patch grep validation check #11; confirm all 34 appear | YAML Patch Slice verification |
 | Unsupported OpenAPI extension misuse | LOW | x-extensions are valid in OpenAPI 3.1; marketing-os uses same pattern | Review gate |
 | Stale security mapping (permissions changed after mapping gate) | LOW | Permission codes are approved and stable; mapping gate is authoritative input | YAML Patch Review Gate |
 | Missing permission on one operation | MEDIUM | grep count check #11; confirms 34 x-permission lines | YAML Patch Slice verification |
