@@ -174,11 +174,11 @@ The planning document is documentation-only, internally consistent, referentiall
 | Creator content idea session FK | **PASS** — `session_id uuid FK → nashir_creator_studio_sessions` | None |
 | nullable campaign_id in content items | **PASS** — intentional and justified: CampaignContent is workspace-scoped at `/workspaces/{workspaceId}/campaign-contents`; campaign parent is optional; documented | None |
 | workspace_members uses role_id FK (not role_code) | **WATCH** — planning gate description uses "role_code" but actual schema uses role_id FK. Implementation must use role_id via subselect as shown in db-seed.js | Watch item W-SQL-R01 |
-| Patch 003 nashir_evidence FK to workspace_id | **PASS** — verified from actual SQL |
-| Patch 004 nashir_campaigns FK to workspace_id | **PASS** — verified from actual SQL |
-| nashir_store_profiles UNIQUE workspace_id | **PASS** — 1:1 V1 constraint; should be partial unique for soft-delete compatibility |
-| Self-referential FK in nashir_evidence (replacement) | **PASS** — Patch 003 handles this correctly with composite FK |
-| Creator context draft expiry capped by session | **PASS** — documented; enforced at application layer |
+| Patch 003 nashir_evidence FK to workspace_id | **PASS** — verified from actual SQL | Non-blocking |
+| Patch 004 nashir_campaigns FK to workspace_id | **PASS** — verified from actual SQL | Non-blocking |
+| nashir_store_profiles UNIQUE workspace_id | **PASS** — 1:1 V1 constraint; should be partial unique for soft-delete compatibility | Watch item |
+| Self-referential FK in nashir_evidence (replacement) | **PASS** — Patch 003 handles this correctly with composite FK | Non-blocking |
+| Creator context draft expiry capped by session | **PASS** — documented; enforced at application layer | Watch item |
 
 **Referential integrity: PASS — no blocking findings.**
 
@@ -400,7 +400,7 @@ The planning document is documentation-only, internally consistent, referentiall
 | W-SQL-R03 | `nashir_campaigns` needs nullable `store_profile_id` column added (Patch 005 or 006); planning gate documents as W-SQL07 | Confirm in SQL Schema Implementation Planning Gate |
 | W-SQL-R04 | `audit_logs.action varchar(160)` capacity for Nashir action strings — all reviewed strings appear ≤ 80 chars; verify at Implementation Planning | Verify longest Nashir action string ≤ 160 chars |
 | W-SQL-R05 | `nashir_prompt_governance_versions` version_number uniqueness — if versions are recycled after deprecation, need partial unique index: `UNIQUE (workspace_id, prompt_template_id, version_number) WHERE approval_status = 'active'` | Confirm in SQL Schema Implementation Planning Gate |
-| W-SQL-R06 | Patch 009 (Creator Studio) references `nashir_prompt_templates` via prompt_template_id FK, but Patch 010 defines `nashir_prompt_templates`. Either: (a) make prompt_template_id nullable in context_drafts until Patch 010 applied, or (b) merge Patches 009 and 010. Must be decided before migration implementation | Confirm in SQL Schema Implementation Planning Gate |
+| W-SQL-R06 | **RESOLVED IN REVIEW** — Patch order was corrected so Patch 009 defines `nashir_prompt_templates` and `nashir_prompt_governance_versions`, while Patch 010 creates Creator Studio tables that reference `prompt_template_id`. No nullable interim FK or merged patch is required if this order is preserved. | Preserve Patch 009 before Patch 010 in SQL Schema Implementation Planning Gate |
 | W-SQL-R07 | role_permissions seed: db-seed.js resolves role_code and permission_code to IDs via subselect. Patch 005 seed must use same pattern (INSERT ... WHERE role_code = ... AND permission_code = ...) rather than hardcoded UUIDs | Carry to SQL Schema Implementation Planning Gate |
 | W-SQL-R08 | Advanced analytics, ROI modeling, workflow execution remain Post-V1; not blocked but confirm not accidentally included in V1 patches | Carry to SQL Schema Implementation Planning Gate |
 
