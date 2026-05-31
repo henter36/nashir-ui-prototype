@@ -593,8 +593,8 @@ DataSource, IntegrationConnection, WorkflowRun execution, CollaborationComment, 
 | C-E03 | `StoreProfile` not in marketing-os ERD — partial overlap with BrandProfile | **MEDIUM** | Create new `nashir_store_profiles` entity; do not conflate with BrandProfile |
 | C-E04 | `PromptTemplate` not in marketing-os ERD (explicitly deferred per nashir_erd_patch_proposal.md) | **MEDIUM** | Nashir needs PromptTemplate for Creator Studio governance; create as Nashir-specific entity; confirm it is not blocked by marketing-os template-generation deferral |
 | C-E05 | Dual OpenAPI contracts: nashir_v1_openapi.yaml (nashir-ui-prototype) and nashir_openapi_patch.yaml (marketing-os) | **HIGH — UNRESOLVED** | Nashir OpenAPI Source-of-Truth Gate must close before backend routes implement any endpoint |
-| C-E06 | Creator Studio TTL management — session/draft/transfer entities expire; no TTL pattern in marketing-os ERD | **MEDIUM** | SQL Schema Planning Gate must specify TTL column, cleanup job, and 410-Gone response behavior |
-| C-E07 | Auth/RBAC model partial — four Nashir permission codes exist; full matrix not mapped | **MEDIUM** | Nashir Auth/RBAC and Workspace Identity Gate |
+| C-E06 | Creator Studio TTL management — session/draft/transfer entities expire; no TTL pattern in marketing-os ERD | **HIGH** | SQL Schema Planning Gate must specify TTL column, cleanup job, and 410-Gone response behavior |
+| C-E07 | Auth/RBAC model partial — four Nashir permission codes exist; full matrix not mapped | **HIGH** | Nashir Auth/RBAC and Workspace Identity Gate |
 | C-E08 | marketing-os Pilot/Production is NO-GO — Nashir production path is not independent | **MEDIUM** | Nashir must pursue its own production readiness gate; confirm independence from marketing-os NO-GO |
 | C-E09 | Creator Studio `creatorHandleRef` — must not be stored raw; requires opaque reference handling | **HIGH (privacy)** | SQL Schema Planning Gate must specify how handle ref is stored (opaque token, not raw value) |
 | C-E10 | `Product` has no marketing-os equivalent — "reuse-first" principle has no candidate to reuse | **LOW** | Create new; no conflict, just a gap to fill |
