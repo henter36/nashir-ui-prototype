@@ -71,17 +71,17 @@ This gate answers:
 | `grep -c "x-human-review-required:" docs/nashir_v1_openapi.yaml` | 35 |
 | `grep -c "x-guard-chain:" docs/nashir_v1_openapi.yaml` | 34 |
 | `grep -n "^security:" docs/nashir_v1_openapi.yaml` | Line 22 — global security field only |
-| `grep -n "security: \[\]"` | Line 28 — getHealth public override only |
-| `grep -c "x-self-action-denied:"` | 2 (approveCampaignContent + rejectCampaignContent) |
-| `grep -c "x-membership-check:"` | 3 (getCreatorStudioSession, getCreatorContextDraft, getCreatorTransferDraft) |
-| `grep -c "x-secondary-permission:"` | 1 (createCreatorPromptGovernanceTransferDraft) |
-| `grep -A3 "operationId: getCreatorContextDraft"` | x-permission: nashir.creator_studio.use ✓ |
-| `grep -A3 "operationId: getCreatorTransferDraft"` | x-permission: nashir.creator_studio.use ✓ |
-| `grep "x-audit-required: true"` | 18 operations |
-| `grep "x-human-review-required: true"` | 8 operations |
-| `grep "x-evidence-required: true"` | 2 operations |
-| `grep "x-no-automatic-execution: true"` | 2 operations |
-| `grep "x-sensitive-operation: true"` | 12 operations |
+| `grep -n "security: \[\]" docs/nashir_v1_openapi.yaml` | Line 28 — getHealth public override only |
+| `grep -c "x-self-action-denied:" docs/nashir_v1_openapi.yaml` | 2 (approveCampaignContent + rejectCampaignContent) |
+| `grep -c "x-membership-check:" docs/nashir_v1_openapi.yaml` | 3 (getCreatorStudioSession, getCreatorContextDraft, getCreatorTransferDraft) |
+| `grep -c "x-secondary-permission:" docs/nashir_v1_openapi.yaml` | 1 (createCreatorPromptGovernanceTransferDraft) |
+| `grep -A3 "operationId: getCreatorContextDraft" docs/nashir_v1_openapi.yaml` | x-permission: nashir.creator_studio.use ✓ |
+| `grep -A3 "operationId: getCreatorTransferDraft" docs/nashir_v1_openapi.yaml` | x-permission: nashir.creator_studio.use ✓ |
+| `grep "x-audit-required: true" docs/nashir_v1_openapi.yaml` | 18 operations |
+| `grep "x-human-review-required: true" docs/nashir_v1_openapi.yaml` | 8 operations |
+| `grep "x-evidence-required: true" docs/nashir_v1_openapi.yaml` | 2 operations |
+| `grep "x-no-automatic-execution: true" docs/nashir_v1_openapi.yaml` | 2 operations |
+| `grep "x-sensitive-operation: true" docs/nashir_v1_openapi.yaml` | 12 operations |
 
 ---
 
@@ -262,7 +262,7 @@ No privilege escalation paths found. Approval operations are cleanly separated f
 | createCreatorStudioSession: x-no-automatic-execution: true | **PASS** | Prevents page-load auto-create |
 | createCreatorCampaignTransferDraft: x-no-automatic-execution: true | **PASS** | Must not auto-create campaigns |
 | Creator Studio GET read ops use .creator_studio.use (not .transfer.create) | **PASS** | Correction confirmed for getCreatorContextDraft and getCreatorTransferDraft |
-| All transfer CREATE ops use .creator_studio.transfer.create | **PASS** |
+| All transfer CREATE ops use .creator_studio.transfer.create | **PASS** | Correct for transfer create operations only |
 | Future destination service actor is not encoded | **PASS** | No service actor found |
 | x-sensitive-operation: true on session create and GET-by-ID ops | **PASS** | Privacy sensitivity marked |
 | x-membership-check: non-disclosing on 3 Creator Studio GET-by-ID ops | **PASS** | getCreatorStudioSession, getCreatorContextDraft, getCreatorTransferDraft |
