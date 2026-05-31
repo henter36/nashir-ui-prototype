@@ -128,7 +128,7 @@ The SQL implementation slice covers exactly:
 
 | In Scope | Out of Scope |
 |---|---|
-| SQL migration files (Patches 005–011) in marketing-os/docs/ | Backend routes or API handlers |
+| SQL migration files (Patches 005–012) in marketing-os/docs/ | Backend routes or API handlers |
 | RBAC seed update in src/rbac.js (add permission codes + role assignments) | Auth middleware or guard changes |
 | scripts/db-migrate.js migration array extension | UI integration or frontend changes |
 | docs/07_database_schema.sql wrapper update | OpenAPI migration |
@@ -147,12 +147,13 @@ All files in **marketing-os repository only**.
 | `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_005.sql` | Migration: RBAC seed tables (see Section 9) | **READY** |
 | `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_006.sql` | Migration: store profiles, products, assets | **READY** |
 | `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_007.sql` | Migration: campaigns update + content/review/publishing | **READY** |
-| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_008.sql` | Migration: prompt templates + governance versions | **READY** (corrected order — before Creator Studio) |
-| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_009.sql` | Migration: Creator Studio tables | **READY** (after prompt templates) |
-| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_010.sql` | Migration: model routing, AI providers, cost usage | **READY** |
-| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_011.sql` | Migration: workflow definitions (advisory metadata, if approved) | **WATCH** — defer if advisory-only workflow not needed in V1 |
-| `docs/07_database_schema.sql` | Schema wrapper doc update | **READY** — add \i lines for patches 005-011 |
-| `scripts/db-migrate.js` | Migration runner array extension | **READY** — add patch 005-011 filenames to migrations array |
+| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_008.sql` | Migration: publishing queue items | **READY** (corrected order — before Creator Studio) |
+| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_009.sql` | Migration: prompt templates + governance versions | **READY** — must precede Creator Studio |
+| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_010.sql` | Migration: Creator Studio tables | **READY** — after prompt templates |
+| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_011.sql` | Migration: model routing, AI providers, cost usage | **READY** |
+| `docs/marketing_os_v5_6_5_phase_0_1_schema_patch_012.sql` | Migration: workflow definitions (advisory metadata, if approved) | **WATCH** — defer if advisory-only workflow not needed in V1 |
+| `docs/07_database_schema.sql` | Schema wrapper doc update | **READY** — add \i lines for patches 005-012 |
+| `scripts/db-migrate.js` | Migration runner array extension | **READY** — add patch 005-012 filenames to migrations array |
 | `src/rbac.js` | RBAC permission codes + role-permission assignments | **READY** — add 33 nashir.* permission codes; extend rolePermissions map |
 | `test/nashir-rbac-permission-mapping.test.js` | RBAC test extension | **READY** — add assertions for all new Nashir permission codes × 7 roles |
 | `test/nashir-store-entities.test.js` (or new file) | Store entity tests | **READY** — pattern from existing test |
