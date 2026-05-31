@@ -154,10 +154,10 @@ The following pilot is proposed but not approved in this slice. It must be expli
 A dedicated type-documentation file only, not a production UI page:
 
 ```
-src/generated/creator-studio-openapi-types/CONSUMPTION_EXAMPLES.js
+docs/examples/creator_studio_generated_types_consumption_examples.js
 ```
 
-Contains `@typedef` exports only. No UI logic. No imports into pages. No runtime behavior.
+Contains `@typedef` examples only. No UI logic. No imports into pages. No runtime behavior. Must stay outside `src/generated/` so generated artifacts remain machine-owned and reproducible.
 
 **Purpose:** Validates that the JSDoc import path resolves correctly and that key schema types render in editor type hints.
 
@@ -179,6 +179,9 @@ This option must not be undertaken without a separate approved implementation sl
 
 The following rules are non-negotiable and must be carried into every future consumption slice:
 
+- `src/generated/` is machine-owned only; no hand-written examples, fixtures, docs, or pilot files may be placed there.
+- Any hand-written generated-type consumption example must live outside `src/generated/`, such as under `docs/examples/`.
+
 - Type imports do not authorize API calls.
 - Type imports do not imply a backend exists.
 - Type imports do not authorize `fetch`, `axios`, or any HTTP client.
@@ -196,7 +199,7 @@ For a future consumption implementation slice, two options are proposed. Neither
 
 | File | Change |
 |---|---|
-| `src/generated/creator-studio-openapi-types/CONSUMPTION_EXAMPLES.js` | New file — JSDoc typedefs only; no UI, no runtime |
+| `docs/examples/creator_studio_generated_types_consumption_examples.js` | New file — JSDoc typedefs only; no UI, no runtime |
 
 No `jsconfig.json`, no `tsconfig.json`, no package changes, no UI changes.
 
