@@ -88,7 +88,7 @@ This gate answers:
 
 **What future SQL schema should Nashir V1 use, which entities/tables are in scope, what relationships and constraints are required, and what must remain blocked before migration implementation?**
 
-**Summary:** Nashir V1 SQL schema is PostgreSQL-based, extending the existing marketing-os migration chain with new Nashir-prefixed patch files. The workspace/RBAC/audit foundation is already in the base schema. Three existing Nashir tables (campaigns, evidence, evidence_lifecycle) are already in patches 003 and 004. Fourteen new Nashir-prefixed tables are needed for the full V1 surface. The migration ownership lives in marketing-os. No SQL implementation is approved in this gate.
+**Summary:** Nashir V1 SQL schema is PostgreSQL-based, extending the existing marketing-os migration chain with new Nashir-prefixed patch files. The workspace/RBAC/audit foundation is already in the base schema. Three existing Nashir tables (campaigns, evidence, evidence_lifecycle) are already in patches 003 and 004. A defined set of new Nashir-prefixed tables is needed for the full V1 surface; the exact implementation count must be confirmed in SQL Schema Review Gate after reuse decisions are closed. The migration ownership lives in marketing-os. No SQL implementation is approved in this gate.
 
 ---
 
@@ -155,6 +155,7 @@ Evidence (from `marketing_os_v5_6_5_phase_0_1_schema.sql`):
 | `nashir_assets` | Store/catalog | Asset (OpenAPI: `Asset`) | **IN — NEW** | Asset metadata; assetId canonical; SQL name ≠ OpenAPI name | YES | Implicit | LOW–MEDIUM | Content manager | **NEEDS CLARIFICATION** |
 | `nashir_campaigns` | Campaign/content | Campaign | **IN — EXISTS (Patch 004)** | Campaign organizational unit | YES | — | LOW | Campaign manager | **READY** |
 | `nashir_campaign_content_items` | Campaign/content | CampaignContent | **IN — NEW** | Content draft + review state; campaignContentId canonical | YES | Implicit | LOW–MEDIUM | Content creator | **NEEDS CLARIFICATION** |
+| `nashir_campaign_content_assets` | Campaign/content | CampaignContentAsset | **IN — NEW** | Junction table preserving referential integrity between campaign content and assets | YES | Implicit | LOW | Content creator | **NEEDS CLARIFICATION** |
 | `nashir_preview_artifacts` | Campaign/content | PreviewArtifact | **IN — NEW** | Preview metadata only; no binary | YES | Implicit | LOW | Content creator | **NEEDS CLARIFICATION** |
 | `nashir_evidence` | Evidence | Evidence/ManualPublishEvidence | **IN — EXISTS (Patch 003)** | User-provided publishing proof | YES | — | MEDIUM | Publisher | **READY** |
 | `nashir_evidence_lifecycle_events` | Evidence | EvidenceLifecycleEvent | **IN — EXISTS (Patch 003)** | Evidence state history | YES | — | MEDIUM | Platform (append-only) | **READY** |
@@ -424,7 +425,7 @@ All groups below are conceptual only. No SQL DDL.
 
 **nashir_campaign_content_assets:** campaign_content_asset_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK → nashir_campaign_content_items), asset_id (uuid FK → nashir_assets), sort_order (integer nullable), created_at. Purpose: replaces `selected_asset_ids uuid[]` so PostgreSQL can enforce referential integrity, workspace alignment, and asset deletion behavior through foreign keys. Indexes: (workspace_id, campaign_content_id), (workspace_id, asset_id).
 
-**nashir_preview_artifacts:** preview_artifact_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK NOT NULL), channel (varchar NOT NULL), format (varchar NOT NULL), display_summary (text NOT NULL), asset_ids (uuid[]), review_status (enum), created_at. Indexes: (workspace_id, campaign_content_id).
+**nashir_preview_artifacts:** preview_artifact_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK NOT NULL), channel (varchar NOT NULL), format (varchar NOT NULL), display_summary (text NOT NULL), review_status (enum), created_at. Indexes: (workspace_id, campaign_content_id). Asset references must be resolved through `nashir_campaign_content_assets`, not a local `uuid[]` column.
 
 **nashir_approval_decisions:** approval_id (uuid PK), workspace_id (uuid FK), campaign_content_id (uuid FK NOT NULL), decision (enum: approved/rejected/changes_requested), decided_by (uuid FK users — NOT NULL; must ≠ content creator; service-layer check), decision_note (text), rejection_reason (text), required_changes (text[]), created_at. Indexes: (workspace_id, campaign_content_id).
 
@@ -550,7 +551,7 @@ Future Nashir migrations are numbered after the existing Patch 004:
 |---|---|---|---|
 | **Patch 005** | Identity seed extension: add Nashir permission codes (33 V1 codes) + role seed rows to existing `roles`/`permissions`/`role_permissions` tables | Patch 004 applied | **HIGHEST** |
 | **Patch 006** | StoreProfile, Products, Assets tables | Patch 005 applied | HIGH |
-| **Patch 007** | CampaignContentItems, PreviewArtifacts, ApprovalDecisions | Patch 006 applied | HIGH |
+| **Patch 007** | CampaignContentItems, CampaignContentAssets junction table, PreviewArtifacts, ApprovalDecisions | Patch 006 applied | HIGH |
 | **Patch 008** | PublishingQueueItems | Patch 007 applied | MEDIUM |
 | **Patch 009** | Creator Studio tables (sessions, ideas, angles, segments, windows, context drafts, transfer drafts, readiness assessments) | Patch 006 applied | MEDIUM |
 | **Patch 010** | PromptTemplates, PromptGovernanceVersions | Patch 005 applied | MEDIUM |
@@ -804,7 +805,7 @@ The V1 SQL schema plan is sufficiently defined for a schema review gate. Nine bl
 | REUSE (already in marketing-os base) | workspaces, users, roles, permissions, role_permissions, workspace_members, audit_logs |
 | REUSE EVALUATE (may need extension) | prompt_templates |
 | EXISTS (Nashir patches 003 + 004) | nashir_campaigns, nashir_evidence, nashir_evidence_lifecycle_events |
-| NEW (patches 005–011) | nashir_store_profiles, nashir_products, nashir_assets, nashir_campaign_content_items, nashir_preview_artifacts, nashir_approval_decisions, nashir_publishing_queue_items, nashir_creator_studio_sessions, nashir_creator_content_ideas, nashir_creator_campaign_angles, nashir_creator_audience_segments, nashir_creator_publish_windows, nashir_creator_context_drafts, nashir_creator_transfer_drafts, nashir_creator_readiness_assessments, nashir_prompt_templates, nashir_prompt_governance_versions, nashir_model_routing_rules, nashir_ai_providers, nashir_cost_usage_records |
+| NEW (patches 005–011) | nashir_store_profiles, nashir_products, nashir_assets, nashir_campaign_content_items, nashir_campaign_content_assets, nashir_preview_artifacts, nashir_approval_decisions, nashir_publishing_queue_items, nashir_creator_studio_sessions, nashir_creator_content_ideas, nashir_creator_campaign_angles, nashir_creator_audience_segments, nashir_creator_publish_windows, nashir_creator_context_drafts, nashir_creator_transfer_drafts, nashir_creator_readiness_assessments, nashir_prompt_templates, nashir_prompt_governance_versions, nashir_model_routing_rules, nashir_ai_providers, nashir_cost_usage_records |
 | DEFER (Post-V1) | nashir_data_sources, nashir_integration_connections, nashir_workflow_definitions |
 
 ### Next gate
