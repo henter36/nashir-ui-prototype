@@ -66,7 +66,7 @@ This gate answers:
 | `README.md` | Contract-first; Pilot/Production NO-GO; RBAC operational |
 | `AGENTS.md` | Documentation PRs must not modify src/rbac.js or guards.js |
 | `src/rbac.js` | Seven roles: owner, admin, creator, reviewer, publisher, billing_admin, viewer; dot notation permissions; four existing Nashir codes confirmed |
-| `src/guards.js` | Five guards: authGuard, workspaceContextGuard, membershipCheck, nonDisclosingMembershipCheck, permissionGuard, rejectBodyWorkspaceId |
+| `src/guards.js` | Six guards/middlewares: authGuard, workspaceContextGuard, membershipCheck, nonDisclosingMembershipCheck, permissionGuard, rejectBodyWorkspaceId |
 | `src/error-model.js` | AppError: status, code, message, userAction, correlationId |
 | `test/nashir-rbac-permission-mapping.test.js` | **Verified:** machine-enforced test for four existing Nashir codes × 7 roles = 28 assertions; billing_admin has NO nashir.campaign.read (confirmed false in test); viewer HAS nashir.campaign.read (confirmed true in test) |
 | `docs/nashir_role_permission_matrix.md` | Planning-level matrix: owner/admin/editor/viewer baseline; reviewer/evidence_reviewer optional overlays |
@@ -205,7 +205,7 @@ Rationale:
 | Workflow runs (1) | nashir.workflow.read | **ACCEPT** | Advisory read only — no execute permission correct | None |
 | Integration (2) | nashir.integration.connect, nashir.integration.manage | **ACCEPT (DEFER)** | Correctly deferred to Post-V1 | None |
 | Audit (1) | audit.read | **ACCEPT** | Reuses marketing-os code | None |
-| Admin (1) | nashir.admin.manage | **ACCEPT WITH CLARIFICATION** | What is the boundary between nashir.admin.manage and workspace.manage? Both are owner/admin only. Need explicit differentiation before SQL gate |
+| Admin (1) | nashir.admin.manage | **ACCEPT WITH CLARIFICATION** | Boundary between nashir.admin.manage and workspace.manage needs explicit differentiation | Define the boundary before Nashir SQL Schema Planning Gate |
 
 ### Permission count verification
 
@@ -229,10 +229,10 @@ Section 5 Identity table row for Permission describes the pattern as `nashir_dom
 | Reviewer/approver separation | `creator` cannot have `nashir.approval.decide`; `reviewer` cannot have `nashir.content.create` | **PASS** |
 | Publishing risk | Only publisher, admin, owner can receive publishing drafts and submit evidence; no role publishes externally in V1 | **PASS** |
 | Prompt governance risk | Only owner and admin can manage prompt governance | **PASS** |
-| Model routing risk | Only owner and admin can read/manage model routing | **PASS — WATCH ITEM** | Creator and reviewer cannot see model routing at all; this may limit readiness UI for these roles |
+| Model routing risk | Only owner and admin can read/manage model routing; watch item: creator and reviewer cannot see model routing at all, which may limit readiness UI for these roles | **PASS — WATCH ITEM** |
 | Integration/secrets risk | Integration permissions deferred; no role has integration management in V1 | **PASS** |
 | Audit read access | Only owner and admin have audit.read — CORRECT for governance sensitivity | **PASS** |
-| Cost monitor visibility | billing_admin + owner + admin can read cost; creator/reviewer/publisher/viewer cannot | **PASS — WATCH ITEM** | billing_admin cannot see campaigns (nashir.campaign.read = D); may limit billing context in some reporting scenarios |
+| Cost monitor visibility | billing_admin + owner + admin can read cost; creator/reviewer/publisher/viewer cannot; watch item: billing_admin cannot see campaigns (nashir.campaign.read = D), which may limit billing context in some reporting scenarios | **PASS — WATCH ITEM** |
 | reviewer `nashir.evidence.manage` RA | Reviewer is assigned RA (Requires additional approval) for evidence manage | **CLARIFICATION NEEDED** — what does RA mean in implementation? Is it a service-layer guard check or a separate approval workflow? This must be decided before SQL gate |
 
 ### Specific cells verified against marketing-os test
@@ -336,7 +336,7 @@ All 14 sensitive action classes have audit requirements. AuditLog entity reuse f
 | marketing-os Concept | Observed Role | Reuse Category | Adaptation Required | Risk |
 |---|---|---|---|---|
 | `src/rbac.js` — roles, permissions, hasPermission | Full RBAC authority; dot notation; seven roles | **Reuse after reconciliation** | Add 31 new permission codes; extend rolePermissions for all new codes; must not break existing 28 RBAC test assertions | MEDIUM |
-| `src/guards.js` — five guards | Guard pipeline for all protected routes | **Reuse after reconciliation** | No logic change needed; add new permission codes as arguments | LOW |
+| `src/guards.js` — six guards/middlewares | Guard pipeline for all protected routes | **Reuse after reconciliation** | No logic change needed; add new permission codes as arguments | LOW |
 | `src/error-model.js` — AppError | Error handling with correlationId | **Reuse after reconciliation** | Bridge Nashir V1 ErrorCode enum to AppError code field; mapping table documented | MEDIUM |
 | `test/nashir-rbac-permission-mapping.test.js` | Machine-enforced test for 4 codes × 7 roles | **Reuse after reconciliation** | Extend test to cover all new nashir.* codes when added | LOW |
 | marketing-os seven-role set | Operational role_codes | **Reuse after reconciliation** | Adopt same role_codes; extend rolePermissions; `creator` confirmed as canonical | LOW |
@@ -432,7 +432,8 @@ The Nashir Auth/RBAC and Workspace Identity Gate is sufficient to proceed to the
 | 1 | **Nashir OpenAPI Security Mapping Gate** | This review gate — READY | Inserts operation-level x-permission extensions into nashir_v1_openapi.yaml; maps 34 secured operations to permission codes from Section 10; replaces placeholder bearer auth descriptions with operation security notes |
 | 2 | **Nashir SQL Schema Planning Gate** | Auth/RBAC Review Gate closed; C-RV01/C-RV02/C-RV03 resolved | Produces approved column-level schema for all V1 entities including role seed data, permission seed data, RolePermission seed data, workspaceId requirements, vault_ref storage |
 | 3 | **Nashir Backend Slice 0 Planning** | OpenAPI Security Mapping Gate + SQL Schema Planning Gate | Plans first implementable backend slice; selects auth provider; wires guards; adds permission codes to marketing-os rbac.js; defines self-approval service invariant; names exact allowed/forbidden files |
-| 4 | **Nashir Generated Types Input Update Gate** | OpenAPI Migration Planning Gate (after Backend Slice 0) | Approves change to package.json generation script |
+| 4 | **Nashir OpenAPI Migration Planning Gate** | Nashir Backend Slice 0 Planning | Plans contract authority movement from nashir-ui-prototype to marketing-os after route ownership and security mapping are known |
+| 5 | **Nashir Generated Types Input Update Gate** | Nashir OpenAPI Migration Planning Gate | Approves change to package.json generation script |
 | 5 | **Nashir UI API Integration Planning Gate** | Backend Slice 0 exists and verified | Plans how nashir-ui-prototype calls the Nashir V1 API |
 
 **No Nashir Auth/RBAC Fix Gate is required.** The review found no blocking issues.
